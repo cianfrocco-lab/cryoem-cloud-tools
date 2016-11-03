@@ -15,3 +15,9 @@ alias awsls=$AWS_CLI_DIR/list_instances.py
 alias awskill=$AWS_CLI_DIR/kill_instance.py 
 ##Alias launch command
 alias awslaunch=$AWS_CLI_DIR/launch_AWS_instance.py
+#Create volume
+alias aws_ebs_create=$AWS_CLI_DIR/create_volume.py
+#Delete volume
+alias aws_ebs_delete=$AWS_CLI_DIR/kill_volume.py
+
+

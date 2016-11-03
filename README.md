@@ -37,13 +37,16 @@ For each user, you will create a hidden directory in their home directory into w
 The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
 
 * **awsls**
-	* Lists all instances assigned to user, where user instances are assigned based upon being tagged with key pair name as the instance Owner. 
+	* Lists all instances & volumes assigned to user, where user instances are assigned based upon being tagged with key pair name as the instance Owner. 
 	* Example usage: 
 		<pre>$ awsls
 		InstanceID	Status
 		-------------------------------
 		i-c29e13cc	terminated
-		i-c33e14dd	running</pre>
+		i-c33e14dd	running
+		Volume ID	Size	Avail. Zone	User		Status
+		-------------------------------------------------------------------------
+		vol-41ac5b95	400GB	us-east-1b	mike_virginia	in-use</pre>
 
 * **awslaunch**
 	* Command to launch instance, configuring security group into VPC automatically to only allow users IP address for incoming SSH traffic.
@@ -72,3 +75,20 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		<pre>$ awskill i-112k43e
 		Terminate instance i-112k43e? [Y/n] Y
 		Removing instance ...</pre>
+
+* **aws_ebs_create**
+	* Command to create new EBS volume
+	* Example usage: 
+		<pre>$ aws_ebs_create 
+		Usage: aws_ebs_create [size in GB] [zone]
+		Specify size of EBS volume to be created (in GB) along with availability zone (e.g. us-east-1b)</pre>
+		<pre>$ aws_ebs_create 100 us-east-1b</pre>
+
+* **aws_ebs_delete**
+	* Command to delete EBS volume. Be careful! This cannot be undone.
+	* Example usage: 
+		<pre>$ aws_ebs_delete 
+		Usage: aws_ebs_delete [volume ID]
+		Specify EBS volume to delete. Warning: Cannot be undone!!</pre>
+		<pre>$ aws_ebs_delete vol-id559699</pre>
+
