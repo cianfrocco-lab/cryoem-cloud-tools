@@ -11,6 +11,8 @@ Software to interface with AWS through easy command line inputs
 
 Shortcut AWS commands found in this Github repo:
 
+* **awshelp** - List available AWS commands from this repo
+
 * **awsls** - List volumes and instances
 
 * **awskill** - Terminate instance
