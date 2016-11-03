@@ -3,6 +3,8 @@ Software to interface with AWS through easy command line inputs
 
 *Contents:*
 * [Getting started] (https://github.com/leschzinerlab/AWS#getting-started)
+	* [Software dependences] (https://github.com/leschzinerlab/AWS#software-dependencies)
+	* [Environment setup] (https://github.com/leschzinerlab/AWS#environment-setup)
 * [Usage] (https://github.com/leschzinerlab/AWS#usage)
 
 ## Getting started
@@ -10,7 +12,7 @@ Software to interface with AWS through easy command line inputs
 ###Software dependencies 
 You'll need to install *pip*, *aws cli* and *fabric*: 
 * **pip**: 
-	*https://pypi.python.org/pypi/pip
+	* https://pypi.python.org/pypi/pip
 * **aws cli**:
 	* http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-with-pip
 	* <pre>$ sudo pip install awscli</pre>
