@@ -48,8 +48,8 @@ numVols=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=
 
 counter=0
 
-print '\nVolume ID\tSize\tAvail. Zone\tUser\t\tStatus'
-print '-------------------------------------------------------------------------'
+print '\nVolume ID\tSize\tAvail. Zone\tUser\t\tStatus\t\tInstance'
+print '----------------------------------------------------------------------------------------'
 
 if float(numVols) == 0:
 	print 'No volumes found\n'
@@ -61,8 +61,14 @@ while counter < float(numVols):
 	status=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Volumes[%i].{State:State}" | grep State' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 	availZone=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Volumes[%i].{AvailZone:AvailabilityZone}" | grep AvailZone' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 	size=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Volumes[%i].{Size:Size}" | grep Size' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1]
+
+	if status == 'in-use':
+		instance=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Volumes[%i].Attachments[*].{InstanceID:InstanceId}" | grep InstanceID' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+
+		print '%s\t%sGB\t%s\t%s\t%s\t\t%s' %(volumeID,size,availZone,tag,status,instance)
+	if status != 'in-use':
 	
-	print '%s\t%sGB\t%s\t%s\t%s' %(volumeID,size,availZone,tag,status)
+		print '%s\t%sGB\t%s\t%s\t%s\t--' %(volumeID,size,availZone,tag,status)
 
 	counter=counter+1
 
