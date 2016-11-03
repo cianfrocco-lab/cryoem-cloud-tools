@@ -12,4 +12,11 @@ For each user, you will create a hidden directory in their home directory into w
 * Add the following line to .bashrc file: 
 <pre>source /home/[user]/.aws/aws_init.sh</pre>
 
+## Usage
+The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
 
+* **awsls**
+	* Lists all instances assigned to user, where user instances are assigned based upon being tagged with key pair name as the instance Owner. 
+
+* **awslaunch**
+* **awskill**

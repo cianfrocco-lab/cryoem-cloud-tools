@@ -10,7 +10,7 @@ import optparse
 #=========================
 def setupParserOptions():
     parser = optparse.OptionParser()
-    parser.set_usage("%prog --instance=<instanceType>")
+    parser.set_usage("awslaunch --instance=<instanceType>")
     parser.add_option("--instance",dest="instance",type="string",metavar="STRING",
             help="Specify instance type to launch")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
