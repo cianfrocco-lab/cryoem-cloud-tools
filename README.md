@@ -40,6 +40,19 @@ The underlying code is written in python and aliased to simple commands: awsls, 
   		--instance=STRING  Specify instance type to launch
   		--instanceList     Flag to list available instances
   		-d                 debug
-		$ awslaunch --instance=t2.micro</pre>
+		$ awslaunch --instance=t2.micro
+		Launching AWS instance t2.micro for user keyName_virginia
+		Configuring security settings ...
+		Booting up instance ...
+		Waiting for instance to pass system checks ...
+		Instance is ready! To log in:
+		ssh -i /home/[user]/.aws/keyName_virginia.pem ubuntu@54.209.133.219</pre>
 
 * **awskill**
+	* Command to terminate running instance 
+	* Example usage: 
+		* <pre>$ awskill
+		Usage: awskill [instance ID]
+		Specify instance ID that will be terminated, which can be found using "awsls"
+		$ awskill i-112k43e
+		Terminating instance ...</pre>
