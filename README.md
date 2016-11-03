@@ -6,6 +6,19 @@ Software to interface with AWS through easy command line inputs
 * [Usage] (https://github.com/leschzinerlab/AWS#usage)
 
 ## Getting started
+
+###Software dependencies 
+You'll need to install *pip*, *aws cli* and *fabric*: 
+* **pip**: 
+	*https://pypi.python.org/pypi/pip
+* **aws cli**:
+	* http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-with-pip
+	* <pre>$ sudo pip install awscli</pre>
+* **fabric**: 
+	* http://www.fabfile.org/installing.html
+	* <pre>$ sudo pip install fabric</pre>
+
+###Environment setup
 For each user, you will create a hidden directory in their home directory into which you will add the aws_init.sh file and their keypair.  
 
 * Create hidden folder: 
