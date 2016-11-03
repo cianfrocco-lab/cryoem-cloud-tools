@@ -7,6 +7,24 @@ Software to interface with AWS through easy command line inputs
 	* [Environment setup] (https://github.com/leschzinerlab/AWS#environment-setup)
 * [Usage] (https://github.com/leschzinerlab/AWS#usage)
 
+*Overview:*
+
+Shortcut AWS commands found in this Github repo:
+
+* **awsls** - List volumes and instances
+
+* **awskill** - Terminate instance
+
+* **awslaunch** - Boot up instance
+
+* **aws_ebs_create** - Create EBS volume
+
+* **aws_ebs_delete** - Delete EBS volume
+
+* **aws_ebs_attach** - Attach EBS volume to running instance
+
+* **aws_ebs_detach** - Detach EBS volume from instance
+
 ## Getting started
 
 ###Software dependencies 
