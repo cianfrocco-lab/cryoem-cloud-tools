@@ -23,16 +23,23 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 
 * **awsls**
 	* Lists all instances assigned to user, where user instances are assigned based upon being tagged with key pair name as the instance Owner. 
+	* Example usage: 
+		* <pre>$ awsls
+		InstanceID	Status
+		-------------------------------
+		i-c29e13cc	terminated
+		i-c33e14dd	running</pre>
 
 * **awslaunch**
 	* Command to launch instance, configuring security group into VPC automatically to only allow users IP address for incoming SSH traffic.
-	* Command usage: 
+	* Example usage: 
 		* <pre>$ awslaunch
 		Usage: awslaunch --instance=<instanceType>
 		Options:
   		-h, --help         show this help message and exit
   		--instance=STRING  Specify instance type to launch
   		--instanceList     Flag to list available instances
-  		-d                 debug</pre>
+  		-d                 debug
+		$ awslaunch --instance=t2.micro</pre>
 
 * **awskill**

@@ -186,7 +186,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 
     #Once ready, print command to terminal for user to log in:
     print '\nInstance is ready! To log in:\n'
-    print 'ssh -i %s.pem ubuntu@%s' %(keyPath,PublicIP)
+    print 'ssh -i %s ubuntu@%s' %(keyPath,PublicIP)
 
 #==============================
 if __name__ == "__main__":
