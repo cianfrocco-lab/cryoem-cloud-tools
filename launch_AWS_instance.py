@@ -74,10 +74,10 @@ def checkConflicts(params,availInstances):
         print availInstances
         sys.exit()
 
-    return keyPath.split('/')[-1].split('.')[0]
+    return keyPath.split('/')[-1].split('.')[0],keyPath
 
 #==========================
-def launchInstance(params,keyName,AMI):
+def launchInstance(params,keyName,keyPath,AMI):
 
     print '\nLaunching AWS instance %s for user %s\n' %(params['instance'],keyName)
 
@@ -186,7 +186,7 @@ def launchInstance(params,keyName,AMI):
 
     #Once ready, print command to terminal for user to log in:
     print '\nInstance is ready! To log in:\n'
-    print 'ssh -i %s.pem ubuntu@%s' %(keyName,PublicIP)
+    print 'ssh -i %s.pem ubuntu@%s' %(keyPath,PublicIP)
 
 #==============================
 if __name__ == "__main__":
@@ -207,5 +207,5 @@ if __name__ == "__main__":
     if params['instance'].split('.') != 'p2':
         AMI='ami-ec3a3b84'
 
-    keyName=checkConflicts(params,availInstances)
-    launchInstance(params,keyName,AMI)
+    keyName,keyPath=checkConflicts(params,availInstances)
+    launchInstance(params,keyName,keyPath,AMI)

@@ -29,11 +29,10 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 	* Command usage: 
 		* <pre>$ awslaunch
 		Usage: awslaunch --instance=<instanceType>
-
-Options:
-  -h, --help         show this help message and exit
-  --instance=STRING  Specify instance type to launch
-  --instanceList     Flag to list available instances
-  -d                 debug</pre>
+		Options:
+  		-h, --help         show this help message and exit
+  		--instance=STRING  Specify instance type to launch
+  		--instanceList     Flag to list available instances
+  		-d                 debug</pre>
 
 * **awskill**
