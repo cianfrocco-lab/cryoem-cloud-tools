@@ -92,3 +92,20 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		Specify EBS volume to delete. Warning: Cannot be undone!!</pre>
 		<pre>$ aws_ebs_delete vol-id559699</pre>
 
+* **aws_ebs_attach**
+	* Command to attach EBS volume to running instance.
+	* Example usage: 
+		<pre>$ aws_ebs_attach 
+		Usage: aws_ebs_attach [instance ID] [volume ID]
+		Attach EBS volume to instance.</pre>
+		<pre>$ aws_ebs_attach i-112k43e vol-id559699</pre>
+
+* **aws_ebs_detach**
+	* Command to attach EBS volume to running instance.
+        * Example usage:
+                <pre>$ aws_ebs_detach
+                Usage: aws_ebs_detach [volume ID]
+                Detach EBS volume from instance.</pre>
+                <pre>$ aws_ebs_detach vol-id559699</pre>
+
+
