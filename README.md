@@ -55,4 +55,5 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		Usage: awskill [instance ID]
 		Specify instance ID that will be terminated, which can be found using "awsls"
 		$ awskill i-112k43e
-		Terminating instance ...</pre>
+		Terminate instance i-112k43e? [Y/n] Y
+		Removing instance ...</pre>
