@@ -13,6 +13,10 @@ def setupParserOptions():
     parser.set_usage("awslaunch --instance=<instanceType>")
     parser.add_option("--instance",dest="instance",type="string",metavar="STRING",
             help="Specify instance type to launch")
+    parser.add_option("--availZone",dest="zone",type="string",metavar="STRING",
+            help="Specify availability zone")
+    parser.add_option("--spotPrice",dest="spot",type="float",metavar="FLOAT",default=-1,
+            help="Optional: Specify spot price (if spot instance requested)")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -33,6 +37,15 @@ def setupParserOptions():
 
 #====================
 def checkConflicts(params,availInstances):
+
+    if not params['zone']: 
+	print 'Error: No availability zone specified. Exiting'
+	sys.exit()
+
+    if params['spot'] <= 0:
+	if params['spot'] != -1:
+		print 'Error: Spot price requested is less than or equal to 0. Try again. Exiting\n'
+		sys.exit()	
 
     #Check that keypair exists
     keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -64,17 +77,25 @@ def checkConflicts(params,availInstances):
     if len(AWS_DEFAULT_REGION) == 0:
     	print '\nError: AWS_DEFAULT_REGION not specified as environment variable. Exiting\n'
     	sys.exit()
-    if AWS_DEFAULT_REGION != 'us-east-1':
-        print 'Error: This launcher is only configured for US-EAST-1. Re-specifiy region and try again. Exiting.'
-        sys.exit()
+    if AWS_DEFAULT_REGION == 'us-east-1':
+	if params['instance'].split('.') == 'p2':
+        	AMI='ami-69eba27e'
+    	if params['instance'].split('.') != 'p2':
+        	AMI='ami-ec3a3b84'
+    if AWS_DEFAULT_REGION == 'us-west-2':
+        if params['instance'].split('.') == 'p2':
+		AMI='ami-9caa71fc'
+	if params['instance'].split('.') != 'p2':
+		AMI='ami-bc08c3dc'
 
+	
     #Check that instance is in approved list
     if not params['instance'] in availInstances:
         print 'Error: Instance %s is not in instance list' %(params['instance'])
         print availInstances
         sys.exit()
 
-    return keyPath.split('/')[-1].split('.')[0],keyPath
+    return keyPath.split('/')[-1].split('.')[0],keyPath,AMI
 
 #==========================
 def launchInstance(params,keyName,keyPath,AMI):
@@ -142,51 +163,66 @@ def launchInstance(params,keyName,keyPath,AMI):
     	print cmd
     subprocess.Popen(cmd,shell=True).wait()
 
-    print '\nBooting up instance ...\n'
+    if params['spot'] == -1:
+	    print '\nBooting up instance ...\n'
+	    InstanceID=subprocess.Popen('aws ec2 run-instances --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}"|grep instanceID' %(AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+   
+   	    Status='init'
+    	    while Status != 'running':
+	    	Status=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{State:State}" | grep Name' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
-    InstanceID=subprocess.Popen('aws ec2 run-instances --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}"|grep instanceID' %(AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-    if params['debug'] is True:
-    	print 'New instance ID = %s' %(InstanceID)
+        	if params['debug'] is True:
+                	print Status
+        	if Status != 'running':
+                	time.sleep(10)
 
-    #using instance id to monitor status, alerting to when it is booted up
+    	    if params['debug'] is True:
+        	print 'Now waiting for SysStatus and InsStatus..'
 
-    Status='init'
-    while Status != 'running':
+    	    SysStatus='init'
+   	    InsStatus='init'
 
-    	Status=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{State:State}" | grep Name' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+    	    print '\nWaiting for instance to pass system checks ...\n'
 
-    	if params['debug'] is True:
-    		print Status
-    	if Status != 'running':
-    		time.sleep(10)
+	    while SysStatus != 'ok' and InsStatus != 'ok':
+	    	SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+		InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+		time.sleep(4)
+ 	    #Get public IP address
+       	    PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	   #Tag instance using keyname (which should be username, region)
+            if params['debug'] is True:
+        	print '\nTagging instance %s with your key pair name %s\n' %(InstanceID,keyName)
+    	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+    	    subprocess.Popen(cmd,shell=True).wait()
 
-    if params['debug'] is True:
-    	print 'Now waiting for SysStatus and InsStatus..'
+    	    #Once ready, print command to terminal for user to log in:
+    	    print '\nInstance is ready! To log in:\n'
+    	    print 'ssh -i %s ubuntu@%s' %(keyPath,PublicIP)
 
-    SysStatus='init'
-    InsStatus='init'
+    if params['spot'] >0: 
+	    if os.path.exists('inputjson.json'):
+		os.remove('inputjson.json')
+ 	    #Write json
+	    json='{\n'
+  	    json+='\t"ImageId": "%s",\n' %(AMI)
+	    json+='\t"KeyName": "%s",\n' %(keyName)
+  	    json+='\t"SecurityGroupIds": [ "%s" ],\n' %(securityGroupId)
+	    json+='\t"InstanceType": "%s",\n'%(params['instance'])
+	    json+='\t"Placement": {\n'
+	    json+='\t\t"AvailabilityZone": "%s"\n' %(params['zone'])
+	    json+='\t}\n'
+	    json+='}\n'
+	    jsonF = open('inputjson.json','w')
+ 	    jsonF.write(json)
+	    jsonF.close()
 
-    print '\nWaiting for instance to pass system checks ...\n'
-    while SysStatus != 'ok' and InsStatus != 'ok':
+	    SpotInstanceID=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json | grep SpotInstanceRequestId' %(params['spot']), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
-    	SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(SpotInstanceID,keyName)
+            subprocess.Popen(cmd,shell=True).wait() 
 
-    	InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-
-    	time.sleep(4)
-
-    #Get public IP address
-    PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-
-    #Tag instance using keyname (which should be username, region)
-    if params['debug'] is True:
-    	print '\nTagging instance %s with your key pair name %s\n' %(InstanceID,keyName)
-    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
-    subprocess.Popen(cmd,shell=True).wait()
-
-    #Once ready, print command to terminal for user to log in:
-    print '\nInstance is ready! To log in:\n'
-    print 'ssh -i %s ubuntu@%s' %(keyPath,PublicIP)
+	    print 'Spot instance request submitted.\n'
 
 #==============================
 if __name__ == "__main__":
@@ -202,10 +238,5 @@ if __name__ == "__main__":
     #Need to check if they ask for p2 that they are in Oregon, Virginia, or Ireland
 
     #Need to create directory for AMIs across regions. Right now, just US-East-1 
-    if params['instance'].split('.') == 'p2':
-        AMI='ami-69eba27e'
-    if params['instance'].split('.') != 'p2':
-        AMI='ami-ec3a3b84'
-
-    keyName,keyPath=checkConflicts(params,availInstances)
+    keyName,keyPath,AMI=checkConflicts(params,availInstances)
     launchInstance(params,keyName,keyPath,AMI)

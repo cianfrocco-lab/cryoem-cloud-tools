@@ -25,7 +25,8 @@ alias awshelp=$AWS_CLI_DIR/aws_help.py
 alias aws_ebs_attach=$AWS_CLI_DIR/attach_volume.py
 #Attach volume
 alias aws_ebs_detach=$AWS_CLI_DIR/detach_volume.py
-
+#List spot price
+alias aws_spot_price_history=$AWS_CLI_DIR/list_spot_price.py 
 
 
 
