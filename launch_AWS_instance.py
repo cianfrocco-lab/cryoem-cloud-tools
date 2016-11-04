@@ -78,17 +78,16 @@ def checkConflicts(params,availInstances):
     	print '\nError: AWS_DEFAULT_REGION not specified as environment variable. Exiting\n'
     	sys.exit()
     if AWS_DEFAULT_REGION == 'us-east-1':
-	if params['instance'].split('.') == 'p2':
+	if params['instance'].split('.')[0] == 'p2':
         	AMI='ami-69eba27e'
-    	if params['instance'].split('.') != 'p2':
+    	if params['instance'].split('.')[0] != 'p2':
         	AMI='ami-ec3a3b84'
     if AWS_DEFAULT_REGION == 'us-west-2':
-        if params['instance'].split('.') == 'p2':
+        if params['instance'].split('.')[0] == 'p2':
 		AMI='ami-9caa71fc'
-	if params['instance'].split('.') != 'p2':
+	if params['instance'].split('.')[0] != 'p2':
 		AMI='ami-bc08c3dc'
 
-	
     #Check that instance is in approved list
     if not params['instance'] in availInstances:
         print 'Error: Instance %s is not in instance list' %(params['instance'])
@@ -165,7 +164,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 
     if params['spot'] == -1:
 	    print '\nBooting up instance ...\n'
-	    InstanceID=subprocess.Popen('aws ec2 run-instances --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}"|grep instanceID' %(AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}"|grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
    
    	    Status='init'
     	    while Status != 'running':
@@ -198,7 +197,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 
     	    #Once ready, print command to terminal for user to log in:
     	    print '\nInstance is ready! To log in:\n'
-    	    print 'ssh -i %s ubuntu@%s' %(keyPath,PublicIP)
+    	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
 
     if params['spot'] >0: 
 	    if os.path.exists('inputjson.json'):

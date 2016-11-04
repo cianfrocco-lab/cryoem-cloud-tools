@@ -26,6 +26,6 @@ tag=keyPath.split('/')[-1].split('.')[0]
 
 print '\nAttaching volume %s to instance %s ...\n' %(volID,instanceID)
 
-volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdh' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdf' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
 

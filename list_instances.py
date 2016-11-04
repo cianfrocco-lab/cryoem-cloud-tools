@@ -21,23 +21,39 @@ tag=keyPath.split('/')[-1].split('.')[0]
 numInstances=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[*].Instances[*].{InstanceID:InstanceId}" | grep InstanceID | wc -l' %(tag),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 counter=0
 
-print '\n---------------------------------------------------------------------------------------'
-print 'ReservedInstanceType\tAvail. Zone\tInstanceID\tStatus\tIP Address\tUser'
-print '---------------------------------------------------------------------------------------'
+print '\n---------------------------------------------------------------------------------------------'
+print 'ReservedInstanceType\tAvail. Zone\tInstanceID\tStatus\t\tIP Address\tUser'
+print '---------------------------------------------------------------------------------------------'
 
 if float(numInstances) == 0:
 	print 'No instances found\n'
 
 while counter < float(numInstances): 
-
-	instanceID=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[%i].Instances[*].{InstanceID:InstanceId}" | grep InstanceID' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	instanceID=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[%i].Instances[*].{InstanceID:InstanceId}" | grep InstanceID' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	if len(instanceID) > 0:
+		instanceID=instanceID.split()[-1].split('"')[1]
+	if len(instanceID) == 0:
+		instanceID='---'
 	status=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[%i].Instances[*].{State:State}" | grep Name' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 	instanceType=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[%i].Instances[*].{Type:InstanceType}" | grep Type' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 	availZone=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[%i].Instances[*]" | grep AvailabilityZone' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
-	PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	
-	print '%s\t%s\t%s\t%s\t%s' %(instanceType,availZone,instanceID,tag,status)
+	if len(PublicIP) > 0:
+		
+		if PublicIP[0] == '"':
+			PublicIP=PublicIP.split()[-1].split('"')
+			if len(PublicIP)>1:
+				PublicIP='\t%s'%(PublicIP[1])
+			if len(PublicIP)==1:
+				PublicIP=PublicIP[0]
+				if PublicIP == 'null':
+					PublicIP='---\t'
+	if len(PublicIP) == 0:
+		PublicIP='---'
+	
+	print '%s\t\t%s\t%s\t%s\t%s\t%s' %(instanceType,availZone,instanceID,status,PublicIP,tag)
 
 	counter=counter+1
 
@@ -78,7 +94,7 @@ numVols=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=
 
 counter=0
 
-print '\n\n----------------------------------------------------------------------------------------'
+print '\n----------------------------------------------------------------------------------------'
 print 'Volume ID\tAvail. Zone\tSize\tUser\t\tStatus\t\tInstance'
 print '----------------------------------------------------------------------------------------'
 
