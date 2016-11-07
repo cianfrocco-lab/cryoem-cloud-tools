@@ -21,6 +21,8 @@ Shortcut AWS commands found in this Github repo:
 
 * **awslaunch_cluster** - Boot up cluster of instances using STARcluster 
 
+* **aws_spot_price_history** - List spot prices for a given instance and availability zone
+
 * **aws_ebs_create** - Create EBS volume
 
 * **aws_ebs_delete** - Delete EBS volume
@@ -114,6 +116,14 @@ Options:
   --instanceList      Flag to list available instances
   -d                  debug</pre>
 		<pre>$ awslaunch_cluster --instance=c3.xlarge --num=4 --availZone=us-west-2a --spotPrice=0.2</pre>
+
+* **aws_spot_price_history**
+	* Command to list spot prices over the past 24 hours
+	* Example usage: 
+	<pre>$ aws_spot_price_history
+Usage: aws_spot_price_history [instance type] [avail. zone]
+Specify instance type over which spot price history will be listed based upon availability zone</pre>
+	<pre>$ aws_spot_price_history m3.meduim us-west-2a</pre>
 
 * **awskill**
 	* Command to terminate running instance or STARcluster
