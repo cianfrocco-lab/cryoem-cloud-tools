@@ -63,7 +63,7 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 
 * **awsls**
 	* Lists all instances & volumes assigned to user, where user instances are assigned based upon being tagged with key pair name as the instance Owner. 
-	* Include <pre>-c</pre> to include STARcluster listing
+	* Include **-c** to include listings of any clusters created with STARcluster 
 	* Example usage: 
 		<pre>$ awsls
 		---------------------------------------------------------------------------------------
@@ -97,8 +97,27 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		Instance is ready! To log in:
 		ssh -i /home/[user]/.aws/keyName_virginia.pem ubuntu@54.209.133.219</pre>
 
+* **awslaunch_cluster**
+	* Command to launch a cluster of instances using STARcluster. Note: Must have starcluster already installed (see above for install info). 
+	* Example usage: 
+		<pre>$ awslaunch_cluster 
+Usage: awslaunch_cluster --instance=<instanceType>
+
+Options:
+  -h, --help          show this help message and exit
+  --instance=STRING   Specify instance type to launch into cluster
+  --num=INTEGER       Number of instances in cluster
+  --availZone=STRING  Specify availability zone
+  --volume=STRING     Optional: Volume ID for volume that will be mounted onto
+                      cluster
+  --spotPrice=FLOAT   Optional: Specify spot price (if spot instance
+                      requested)
+  --instanceList      Flag to list available instances
+  -d                  debug</pre>
+		<pre>$ awslaunch_cluster --instance=c3.xlarge --num=4 --availZone=us-west-2a --spotPrice=0.2</pre>
+
 * **awskill**
-	* Command to terminate running instance 
+	* Command to terminate running instance or STARcluster
 	* Example usage: 
 		<pre>$ awskill
 		Usage: awskill [instance ID]
@@ -106,6 +125,7 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		<pre>$ awskill i-112k43e
 		Terminate instance i-112k43e? [Y/n] Y
 		Removing instance ...</pre>
+		<pre>$ awskill cluster-m3.medium</Pre.
 
 * **aws_ebs_create**
 	* Command to create new EBS volume
