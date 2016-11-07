@@ -102,7 +102,6 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 	* Example usage: 
 		<pre>$ awslaunch_cluster 
 Usage: awslaunch_cluster --instance=<instanceType>
-
 Options:
   -h, --help          show this help message and exit
   --instance=STRING   Specify instance type to launch into cluster
@@ -125,7 +124,7 @@ Options:
 		<pre>$ awskill i-112k43e
 		Terminate instance i-112k43e? [Y/n] Y
 		Removing instance ...</pre>
-		<pre>$ awskill cluster-m3.medium</Pre.
+		<pre>$ awskill cluster-m3.medium</pre>
 
 * **aws_ebs_create**
 	* Command to create new EBS volume
