@@ -20,7 +20,8 @@ alias aws_ebs_detach=$AWS_CLI_DIR/detach_volume.py
 alias aws_spot_price_history=$AWS_CLI_DIR/list_spot_price.py
 #Admin list
 alias awsls_admin=$AWS_CLI_DIR/list_all.py
-
+#Launch cluster
+alias awslaunch_cluster=$AWS_CLI_DIR/launch_starcluster.py
 
 
 
