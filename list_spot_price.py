@@ -33,7 +33,6 @@ if day >= 1:
 	month=float(today.split('/')[1])
 startTime='%s/%02.f/%02.f' %(today.split('/')[0],month,day)
 cmd='aws ec2 describe-spot-price-history --instance-types %s --start-time %s --output table --availability-zone %s --filters Name=product-description,Values=Linux/UNIX' %(instanceType,startTime,AZ)
-print cmd
-#subprocess.Popen(cmd,shell=True).wait()
+subprocess.Popen(cmd,shell=True).wait()
 
 	
