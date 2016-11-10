@@ -17,6 +17,8 @@ def setupParserOptions():
             help="Specify availability zone")
     parser.add_option("--spotPrice",dest="spot",type="float",metavar="FLOAT",default=-1,
             help="Optional: Specify spot price (if spot instance requested)")
+    parser.add_option("--relion2",action="store_true",dest="relion2",default=False,
+            help="Optional: Flag to use relion2 environment on non-GPU machines (By default, relion2 is software environment for p2 instances)")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -82,12 +84,15 @@ def checkConflicts(params,availInstances):
         	AMI='ami-69eba27e'
     	if params['instance'].split('.')[0] != 'p2':
         	AMI='ami-ec3a3b84'
+	if params['relion2'] is True:
+		AMI='ami-69eba27e'
     if AWS_DEFAULT_REGION == 'us-west-2':
         if params['instance'].split('.')[0] == 'p2':
 		AMI='ami-9caa71fc'
 	if params['instance'].split('.')[0] != 'p2':
 		AMI='ami-bc08c3dc'
-
+	if params['relion2'] is True:
+                AMI='ami-9caa71fc'
     #Check that instance is in approved list
     if not params['instance'] in availInstances:
         print 'Error: Instance %s is not in instance list' %(params['instance'])

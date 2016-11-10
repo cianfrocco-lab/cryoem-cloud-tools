@@ -5,9 +5,8 @@ import os
 import sys 
 import linecache
 clusterlist=False
-if len(sys.argv) == 2: 
-	if sys.argv[1] == '-c':
-		clusterlist=True
+if sys.argv[-1] == '-c':
+	clusterlist=True
 
 #List instances given a users tag
 keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -153,7 +152,7 @@ if not os.path.exists('%s/.starcluster/config' %(subprocess.Popen('echo $HOME',s
         cmd+='AWS_ACCESS_KEY_ID =%s\n' %(AWS_ACCESS_KEY_ID)
         cmd+='AWS_SECRET_ACCESS_KEY = %s\n' %(AWS_SECRET_ACCESS_KEY)        
 	cmd+='AWS_REGION_NAME = %s\n' %(AWS_DEFAULT_REGION)
-        cmd+='AVAILABILITY_ZONE = %s\n' %(params['zone'])
+        #cmd+='AVAILABILITY_ZONE = %s\n' %(params['zone'])
         cmd+='AWS_REGION_HOST = ec2.%s.amazonaws.com\n' %(AWS_DEFAULT_REGION)
         cmd+='[global]\n'
         cmd+='DEFAULT_TEMPLATE=cluster\n'
