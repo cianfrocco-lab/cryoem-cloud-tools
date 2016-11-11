@@ -3,14 +3,15 @@
 import subprocess
 import os
 import sys 
-if len(sys.argv) < 3:
-	print '\nUsage: aws_ebs_create [size in GB] [zone]\n'
-	print '\nSpecify size of EBS volume to be created (in GB) along with availability zone (e.g. us-east-1b)\n'
+if len(sys.argv) < 4:
+	print '\nUsage: aws_ebs_create [size in GB] [zone] "Description in double quotes"\n'
+	print '\nSpecify size of EBS volume to be created (in GB) along with availability zone (e.g. us-east-1b) and description provided in double quotes\n'
 	sys.exit()
 
 volSize=sys.argv[1]
 AZ=sys.argv[2]
 allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c']
+description=sys.argv[3]
 
 if AZ not in allowedZones:
 	print '\nError: Specified zone %s not in approved list:' %(AZ)
@@ -68,3 +69,6 @@ if answer is True:
 
 	cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(volID,tag)
 	subprocess.Popen(cmd,shell=True).wait()	
+	
+	cmd='aws ec2 create-tags --resources %s --tags Key=Name,Value="%s"' %(volID,description)
+	subprocess.Popen(cmd,shell=True).wait()

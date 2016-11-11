@@ -22,6 +22,8 @@ def setupParserOptions():
             help="Optional: Volume ID for volume that will be mounted onto cluster")
     parser.add_option("--spotPrice",dest="spot",type="float",metavar="FLOAT",default=-1,
             help="Optional: Specify spot price (if spot instance requested)")
+    parser.add_option("--relion2", action="store_true",dest="relion2",default=False,
+            help="Flag to load environment with Relion2 installed")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -87,6 +89,9 @@ def checkConflicts(params,availInstances):
     	sys.exit()
     if AWS_DEFAULT_REGION == 'us-west-2':
     	AMI='ami-33291d03'
+    	if params['relion2'] is True:
+		AMI='ami-dc79dabc'
+	
     homedir=subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     starexecpath='%s/.starcluster/config' %(homedir)
     #Check that instance is in approved list
@@ -163,7 +168,7 @@ if __name__ == "__main__":
     configStarcluster(params,keyName,keyPath,AMI,starpath)
     
     #FIGURE OUT CLUSTER NAMING SCHEME
-    clustername='cluster-%s' %(params['instance'])
+    clustername='cluster-%s-%0.f' %(params['instance'],time.time())
     if params['spot'] == -1:
     	cmd='starcluster start %s' %(clustername)
 	subprocess.Popen(cmd,shell=True).wait()
