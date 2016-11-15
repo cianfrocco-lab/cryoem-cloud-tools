@@ -18,7 +18,9 @@ def setupParserOptions():
     parser.add_option("--spotPrice",dest="spot",type="float",metavar="FLOAT",default=-1,
             help="Optional: Specify spot price (if spot instance requested)")
     parser.add_option("--relion2",action="store_true",dest="relion2",default=False,
-            help="Optional: Flag to use relion2 environment on non-GPU machines (By default, relion2 is software environment for p2 instances)")
+            help="Optional: Flag to use relion2 environment on non-GPU machines (By default, relion2 software is only loaded onto GPU (p2) instances)") 
+    parser.add_option("--rosetta",action="store_true",dest="rosetta",default=False,
+            help="Optional: Flag to use rosetta environment (Rosetta runs on CPUs)")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -93,6 +95,9 @@ def checkConflicts(params,availInstances):
 		AMI='ami-bc08c3dc'
 	if params['relion2'] is True:
                 AMI='ami-9caa71fc'
+	if params['rosetta'] is True:
+		AMI='ami-5b17b73b'
+
     #Check that instance is in approved list
     if not params['instance'] in availInstances:
         print 'Error: Instance %s is not in instance list' %(params['instance'])
