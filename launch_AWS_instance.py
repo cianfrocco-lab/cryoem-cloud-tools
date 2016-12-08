@@ -236,7 +236,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 #==============================
 if __name__ == "__main__":
 
-    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','p2.xlarge','p2.8xlarge','g2.2xlarge','g2.8xlarge']
+    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g2.2xlarge','g2.8xlarge']
 
     params=setupParserOptions()
     if params['listInstance'] is True:
