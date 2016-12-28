@@ -27,9 +27,9 @@ print '\nAWS EC2 information for user %s in region %s' %(tag,AWS_DEFAULT_REGION)
 numInstances=subprocess.Popen('aws ec2 describe-instances --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Reservations[*].Instances[*].{InstanceID:InstanceId}" | grep InstanceID | wc -l' %(tag),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 counter=0
 
-print '\n---------------------------------------------------------------------------------------------'
-print 'InstanceType\tAvail. Zone\tInstanceID\tStatus\t\tUser\t\tLogin info'
-print '---------------------------------------------------------------------------------------------'
+print '\n----------------------------------------------------------------------------------------------------'
+print 'InstanceType\tAvail. Zone\tInstanceID\t\tStatus\t\tUser\t\tLogin info'
+print '----------------------------------------------------------------------------------------------------'
 
 if float(numInstances) == 0:
 	print 'No instances found'
@@ -69,7 +69,7 @@ numSpotInstances=subprocess.Popen('aws ec2 describe-spot-instance-requests --fil
 counter=0
 
 print '\n-----------------------------------------------------------------------------------------------------------------------------------------------'
-print 'SpotInstanceType\tAvail. Zone\tSpotInstanceID\tSpotStatus\tInstanceID\tStatus\t\tPrice\tUser\t\tLogin info'
+print 'SpotInstanceType\tAvail. Zone\tSpotInstanceID\tSpotStatus\tInstanceID\t\tStatus\t\tPrice\tUser\t\tLogin info'
 print '-----------------------------------------------------------------------------------------------------------------------------------------------'
 
 if float(numSpotInstances) == 0:

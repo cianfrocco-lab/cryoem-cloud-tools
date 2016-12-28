@@ -7,7 +7,8 @@ import time
 from optparse import OptionParser
 import optparse
 import math
-
+import random
+import string
 #=========================
 def setupParserOptions():
     parser = optparse.OptionParser()
@@ -41,6 +42,97 @@ def setupParserOptions():
             if isinstance(i.dest,str):
                     params[i.dest] = getattr(options,i.dest)
     return params
+
+#====================
+def exec_remote_cmd(cmd):
+    with hide('output','running','warnings'), settings(warn_only=True):
+        return run(cmd)
+
+#====================
+def module_exists(module_name):
+	try:
+        	__import__(module_name)
+        except ImportError:
+                return False
+        else:
+                return True
+
+#====================
+def writeDivideScript(homepath):
+
+	cmd='#!/usr/bin/env python\n'
+	cmd+='import linecache\n'
+	cmd+='import sys\n'
+	cmd+='import math\n'
+	cmd+='movielist=sys.argv[1]\n'
+	cmd+='numProcs=float(sys.argv[2])'
+        cmd+='numMovies=len(open(movielist,"r").readlines())\n'
+	cmd+='moviesPerProcs=math.ceil(numMovies/float(numProcs))\n'
+	cmd+='counter=1\n'
+	cmd+='proc=1\n'
+	cmd+='while proc <=numProcs:\n'
+	cmd+='\to1=open("%s_proc%i.txt" %(movielist[:-4],proc),"w")\n'
+	cmd+='\tcounter=1\n'
+	cmd+='\twhile counter <= moviesPerProcs:\n'
+	cmd+='\t\to1.write(linecache.getline(movielist,int(((proc-1)*moviesPerProcs)+counter)))\n'
+	cmd+='\t\tif ((proc-1)*moviesPerProcs)+counter <=numMovies:\n'
+	cmd+='\t\t\tprint ((proc-1)*moviesPerProcs)+counter\n'
+	cmd+='\t\tcounter=counter+1\n'
+	cmd+='\tproc=proc+1\n'
+
+        if os.path.exists('%s/splitscript.py' %(homepath)):
+                os.remove('%s/splitscript.py' %(homepath))
+
+        o1=open('%s/splitscript.py' %(homepath),'w')
+        o1.write(cmd)
+        o1.close()
+
+        return '%s/splitscript.py' %(homepath)
+
+#====================
+def writeDownloadScript(homepath):
+
+        cmd='#!/usr/bin/env python\n'
+        cmd+='import subprocess\n'
+        cmd+='import linecache\n'
+        cmd+='import sys\n'
+        cmd+='KEYID=sys.argv[1]\n'
+        cmd+='SECRET=sys.argv[2]\n'
+        cmd+='ID=sys.argv[3]\n'
+        cmd+='REGION=sys.argv[4]\n'
+        cmd+='totMovies=sys.argv[5]\n'
+        cmd+='instanceList=sys.argv[6]\n'
+	cmd+='bufferMovie=sys.argv[7]\n'
+	cmd+='s3=sys.argv[8]\n'
+        cmd+='cmd="export AWS_ACCESS_KEY_ID=%s\n"%(KEYID)\n'
+	cmd+='cmd+="export AWS_SECRET_ACCESS_KEY=%s\n" %(SECRET)\n'
+	cmd+='cmd+="export AWS_ACCOUNT_ID=%s\n"%(ID)\n'
+	cmd+='cmd+="export AWS_DEFAULT_REGION=%s\n"%(REGION)\n'
+	cmd+='o1=open("aws_init.sh","w")\n'
+	cmd+='o1.write(cmd)\n'
+	cmd+='o1.close()\n'
+	cmd+='cmd="source aws_init.sh"\n'
+	cmd+='subprocess.Popen(cmd,shell=True).wait()\n'
+	cmd+='counter=1\n'
+	cmd+='if float(bufferMovie) > float(totMovies):\n'
+	cmd+='\tbufferMovie=float(totMovies)\n'
+        cmd+='while counter <= float(totMovies):\n' 
+	cmd+='\tmidcounter=0\n'
+	cmd+='\twhile midcounter < float(bufferMovie):\n'
+        cmd+='\t\tmovie=linecache.getline(instanceList,counter+midcounter).split()[0]\n'
+	cmd+='\t\tcmd="aws s3 cp s3://%s/%s ." %(s3,movie)\n'
+        cmd+='\t\tsubprocess.Popen(cmd,shell=True)\n'
+	cmd+='\t\tmidcounter=midcounter+1\n'
+	cmd+='\tcounter=counter+midcounter\n'
+
+        if os.path.exists('%s/downloadscript.py' %(homepath)):
+                os.remove('%s/downloadscript.py' %(homepath))
+
+        o1=open('%s/downloadscript.py' %(homepath),'w')
+        o1.write(cmd)
+        o1.close()
+        
+        return '%s/downloadscript.py' %(homepath)
 
 #====================
 def checkConflicts(params,instanceType):
@@ -89,7 +181,6 @@ def checkConflicts(params,instanceType):
 		AMI='ami-9caa71fc'
 	if instanceType.split('.')[0] != 'p2':
 		AMI='ami-bc08c3dc'
-
     return keyPath.split('/')[-1].split('.')[0],keyPath,AMI,AWS_DEFAULT_REGION
 
 #==========================
@@ -233,8 +324,30 @@ if __name__ == "__main__":
 
     if params['motioncor2'] is True:
 	instanceType='t2.micro'
-        nProcsPerInstance=1
- 
+        nProcsPerInstance=3
+
+    homepath=subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+    #Check if fabric is installed
+    fabric_test=module_exists('fabric.api')
+    if fabric_test is False:
+	print 'Error: Could not find fabric installed and it is required. Install from here: http://www.fabfile.org/installing.html'
+	sys.exit()
+    #Import Fabric modules now: 
+    from fabric.operations import run, put
+    from fabric.api import env,run,hide,settings
+    from fabric.context_managers import shell_env
+    from fabric.operations import put
+    crypto_test=module_exists('cryptography')
+    if crypto_test is False: 
+	print 'Error: Could not find cryptography python package. Install from here and try again: http://docs.python-guide.org/en/latest/scenarios/crypto/'
+	sys.exit()
+    from cryptography.fernet import Fernet
+    r1='%s/tmp_%s.txt' %(homepath,''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(13)))
+    r2='%s/tmp_%s.txt' %(homepath,''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(13)))
+    key = Fernet.generate_key()
+    cipher_suite = Fernet(key)	
+    key2=Fernet.generate_key()
+    key3=Fernet.generate_key()
     #Need to create directory for AMIs across regions. Right now, just US-East-1 
     keyName,keyPath,AMI,region=checkConflicts(params,instanceType)
 
@@ -242,10 +355,9 @@ if __name__ == "__main__":
     #Get number of movies in S3 bucket, then calculate number of instances needed to process in under an hour
     ###################################
     #>>> if calc num exceeds limit, use limit. 
-    if os.path.exists('~/s3listtmp55555.txt'): 
-	os.remove('~/s3listtmp55555.txt')
+    if os.path.exists('%s/s3listtmp55555.txt'%(homepath)): 
+	os.remove('%s/s3listtmp55555.txt'%(homepath))
     	#Get home path
-    homepath=subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     if params['debug'] is True:
 	print 'aws s3 ls %s > %s/s3listtmp55555.txt' %(params['s3'],homepath)
     subprocess.Popen('aws s3 ls %s > %s/s3listtmp55555.txt' %(params['s3'],homepath),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -275,7 +387,146 @@ if __name__ == "__main__":
 	print 'Dictionary of instanceIDs and IP addresses'
     	print instanceDict
 
-    
+    #############################################
+    ##Create lists of movies to run per instance#
+    #############################################
 
+    instanceCounter=1
+    numMoviesPerInstance=math.ceil(num/numInstances)
+    movieCounter=0
+    while instanceCounter <= numInstances: 
+	instancelist='%s/instance_list_4455992_%i.txt' %(homepath,instanceCounter)
+	if os.path.exists(instancelist):
+		os.remove(instancelist)
+	o1=open(instancelist,'w')
+	while movieCounter < numMoviesPerInstance*instanceCounter:
+		o1.write('%s\n' %(movielist[movieCounter]))
+		if params['debug'] is True:
+			print movielist[movieCounter]
+  		movieCounter=movieCounter+1
+	instanceCounter=instanceCounter+1
+	o1.close()
 
+    #################################################
+    #Transfer each movie list to separate instance###
+    #################################################
+    instanceCounter=1
+    print instanceDict.keys()
+    print instanceDict.keys()[0]
 
+    print '\nSetting up virtual machines to align movies...\n'
+
+    AWS_ACCESS_KEY_ID=subprocess.Popen('echo $AWS_ACCESS_KEY_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    AWS_SECRET_ACCESS_KEY=subprocess.Popen('echo $AWS_SECRET_ACCESS_KEY',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    AWS_ACCOUNT_ID=subprocess.Popen('echo $AWS_ACCOUNT_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    AWS_DEFAULT_REGION=subprocess.Popen('echo $AWS_DEFAULT_REGION',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+    if os.path.exists(r1):
+	os.remove(r1)
+    owrite=open(r1,'w')
+    owrite.write('%s\n' %(cipher_suite.encrypt(b'%s'%(AWS_ACCESS_KEY_ID))))
+    owrite.write('%s\n' %(cipher_suite.encrypt(b'%s'%(AWS_SECRET_ACCESS_KEY))))
+    owrite.write('%s\n' %(cipher_suite.encrypt(b'%s'%(AWS_ACCOUNT_ID))))
+    owrite.write('%s\n' %(cipher_suite.encrypt(b'%s'%(AWS_DEFAULT_REGION))))
+    owrite.close()
+    if os.path.exists(r2):
+	os.remove(r2)
+    owrite=open(r2,'w')
+    owrite.write('%s\n'%key2)
+    owrite.write('%s\n'%key)
+    owrite.write('%s\n'%key3)
+    owrite.close()
+
+    downloadscript=writeDownloadScript(homepath)
+    splitscript=writeDivideScript(homepath)
+
+    while instanceCounter <= numInstances:
+	cmd='scp -o "StrictHostKeyChecking no" -i %s %s ubuntu@%s:~/' %(keyPath,r2,(instanceDict[instanceDict.keys()[instanceCounter-1]]))
+    	subprocess.Popen(cmd,shell=True).wait()
+	 
+        cmd='scp -i %s %s ubuntu@%s:~/' %(keyPath,r1,(instanceDict[instanceDict.keys()[instanceCounter-1]]))
+        if params['debug'] is True:
+                print cmd
+        subprocess.Popen(cmd,shell=True).wait()
+
+	cmd='scp -i %s %s ubuntu@%s:~/' %(keyPath,downloadscript,(instanceDict[instanceDict.keys()[instanceCounter-1]]))
+        if params['debug'] is True:
+                print cmd
+        subprocess.Popen(cmd,shell=True).wait()
+ 
+	cmd='scp -i %s %s ubuntu@%s:~/' %(keyPath,splitscript,(instanceDict[instanceDict.keys()[instanceCounter-1]]))
+        if params['debug'] is True:
+                print cmd
+        subprocess.Popen(cmd,shell=True).wait()
+
+	instancelist='%s/instance_list_4455992_%i.txt' %(homepath,instanceCounter)
+	
+	cmd='aws s3 cp %s s3://%s/instance_list_4455992_%i.txt' %(instancelist,params['s3'],instanceCounter)
+	if params['debug'] is True:
+		print cmd
+	subprocess.Popen(cmd,shell=True).wait()
+
+	env.host_string='ubuntu@%s' %(instanceDict[instanceDict.keys()[instanceCounter-1]])
+	env.key_filename = '%s' %(keyPath)
+
+	awsInstallTest = exec_remote_cmd('which aws')
+	if awsInstallTest.failed:
+    		awsinstall = exec_remote_cmd('sudo apt-get install awscli -y')
+    	if awsinstall.failed:
+        	sys.exit()
+	instanceCounter=instanceCounter+1 
+
+    instanceListFileBasename='instance_list_4455992'
+
+    print instanceDict 
+    #totalThreads=numInstances*nProcsPerInstance 
+    #Thread is defined as one 'group' of jobs
+    #thread=1
+
+    instanceCounter=1
+    while instanceCounter <= numInstances:
+		
+		env.host_string='ubuntu@%s' %(instanceDict[instanceDict.keys()[instanceCounter-1]])
+	        env.key_filename = '%s' %(keyPath)
+
+		#parse encrypted keys
+		i=1
+		while i <= len(exec_remote_cmd('ls ~/tmp_*').split()):
+		    tmpfile=exec_remote_cmd('ls ~/tmp_*').split()[i-1].split()[0] 
+		    line=exec_remote_cmd('cat %s' %(tmpfile)).split()[0]
+		    if len(line) <= 50:
+		        r1=exec_remote_cmd('cat %s' %(tmpfile)).split()[1]
+		        r1file=tmpfile
+		    if len(line) >44:
+		        r2=tmpfile
+		    i=i+1
+			
+		cipher_suite = Fernet(r1)
+		AWSSID=cipher_suite.decrypt(exec_remote_cmd('cat %s' %(r2)).split()[0])
+		AWSSECRET=cipher_suite.decrypt(exec_remote_cmd('cat %s' %(r2)).split()[1])
+		AWSACCOUNT=cipher_suite.decrypt(exec_remote_cmd('cat %s' %(r2)).split()[2])
+		AWSREGION=cipher_suite.decrypt(exec_remote_cmd('cat %s' %(r2)).split()[3])
+
+		with shell_env(AWS_ACCESS_KEY_ID=AWSSID,AWS_SECRET_ACCESS_KEY=AWSSECRET,AWS_ACCOUNT_ID=AWSACCOUNT,AWS_DEFAULT_REGION=AWSREGION):
+			cp_result=exec_remote_cmd('aws s3 cp s3://%s/%s_%i.txt ~/' %(params['s3'],instanceListFileBasename,instanceCounter))
+		        if cp_result.failed:
+		               print 'Error: movie list copy failed.'
+			print 'aws s3 cp s3://%s/%s_%i.txt ~/' %(params['s3'],instanceListFileBasename,instanceCounter)
+                instanceCounter=instanceCounter+1
+
+'''
+    #Fabric copying: http://stackoverflow.com/questions/5314711/how-do-i-copy-a-directory-to-a-remote-machine-using-fabric
+
+    ###########
+    #Cleanup###
+    ###########
+    if params['debug'] is False:
+    	instanceCounter=1
+        os.remove(r1)
+	os.remove(r2)
+    	while instanceCounter <= numInstances:
+        	instancelist='%s/instance_list_4455992_%i.txt' %(homepath,instanceCounter)
+        	if os.path.exists(instancelist):
+                	os.remove(instancelist)
+		instanceCounter=instanceCounter+1
+'''	

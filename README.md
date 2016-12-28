@@ -34,7 +34,7 @@ Shortcut AWS commands found in this Github repo:
 ## Getting started
 
 ###Software dependencies 
-You'll need to install *pip*, *aws cli* **starcluster**, and *fabric*: 
+You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *fabric*: 
 * **pip**: 
 	* https://pypi.python.org/pypi/pip
 * **aws cli**:
@@ -43,6 +43,9 @@ You'll need to install *pip*, *aws cli* **starcluster**, and *fabric*:
 * **starcluster**: 
 	* http://star.mit.edu/cluster/docs/latest/index.html
 	* <pre>$ sudo pip install starcluster </pre>
+* **cryptography**:
+	* http://docs.python-guide.org/en/latest/scenarios/crypto/
+	* <pre>$ sudo pip install cryptography</pre>
 * **fabric**: 
 	* http://www.fabfile.org/installing.html
 	* <pre>$ sudo pip install fabric</pre>
