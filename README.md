@@ -11,6 +11,8 @@ Software to interface with AWS through easy command line inputs
 
 Shortcut AWS commands found in this Github repo:
 
+**Popular commands**
+
 * **awshelp** - List available AWS commands from this repo
 
 * **awsls** - List volumes and instances (Include -c to list STARclusters)
@@ -18,6 +20,8 @@ Shortcut AWS commands found in this Github repo:
 * **awskill** - Terminate instance OR cluster
 
 * **awslaunch** - Boot up single instance
+
+**Other commands**
 
 * **awslaunch_cluster** - Boot up cluster of instances using STARcluster 
 
@@ -90,10 +94,20 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		<pre>$ awslaunch
 		Usage: awslaunch --instance=<instanceType>
 		Options:
-  		-h, --help         show this help message and exit
-  		--instance=STRING  Specify instance type to launch
-  		--instanceList     Flag to list available instances
-  		-d                 debug</pre>
+  		  -h, --help          show this help message and exit
+ 	 	  --instance=STRING   Specify instance type to launch
+  		  --availZone=STRING  Specify availability zone
+		  --spotPrice=FLOAT   Optional: Specify spot price (if spot instance
+               		              requested)
+  		  --volume=STRING     Optional: Specifiy volume ID to be mounted onto instance
+                 		      (Must be same avail. zone)
+  		  --relion2           Optional: Flag to use relion2 environment on non-GPU
+                      		      machines (By default, relion2 software is only loaded
+                      		      onto GPU (p2) instances)
+		  --rosetta           Optional: Flag to use rosetta environment (Rosetta runs
+             		              on CPUs)
+		  --instanceList      Flag to list available instances
+		  -d                  debug</pre>
 		<pre>$ awslaunch --instance=t2.micro
 		Launching AWS instance t2.micro for user keyName_virginia
 		Configuring security settings ...
