@@ -25,7 +25,7 @@ def exec_remote_cmd(cmd):
         return run(cmd)
 
 #==============================
-def query_yes_no(question, default="yes"):
+def query_yes_no(question, default="no"):
 	valid = {"yes": True, "y": True, "ye": True,"no": False, "n": False}
 	if default is None:
 		prompt = " [y/n] "
