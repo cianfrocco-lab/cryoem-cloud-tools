@@ -2,6 +2,7 @@
 Software to interface with AWS through easy command line inputs
 
 *Contents:*
+* [Typical Workflow] (https://github.com/leschzinerlab/AWS#typical-workflow)
 * [Getting started] (https://github.com/leschzinerlab/AWS#getting-started)
 	* [Software dependences] (https://github.com/leschzinerlab/AWS#software-dependencies)
 	* [Environment setup] (https://github.com/leschzinerlab/AWS#environment-setup)
@@ -35,6 +36,35 @@ Shortcut AWS commands found in this Github repo:
 
 * **aws_ebs_detach** - Detach EBS volume from instance
 
+## Typical Workflow
+In using these wrappers, we typically use only a few of the commands for booting up & terminating instances.
+
+###Create new EBS volume for data upload
+
+You will store and process your data on EBS volumes, so to create an EBS volume you specify the volume size (in Gigabytes) and the availability zone (keep in mind that your initial setup above assumes a certain region). This amount of data storage is static, so, after creating it is very difficult to expand the size. Choose the size wisely! 
+<pre>$ aws_ebs_create
+
+Usage: aws_ebs_create [size in GB] [zone] "Description in double quotes"</pre>
+
+<pre>$ aws_ebs_create 100 us-west-2c "My shiny dataset from Dec 17 2016"
+
+Create volume in us-west-2c that is 100 GB? [Y/n] Y
+
+Creating volume ...
+</pre>
+
+You will now see this in your list of AWS resources:
+
+<pre>$ awsls
+----------------------------------------------------------------------------------------------------------
+Volume ID       Description             Avail. Zone     Size    User            Status          Instance
+----------------------------------------------------------------------------------------------------------
+vol-85cb3210    My shiny dataset from Dec 17 2016 us-west-2c    100GB   mike_oregon     available       --</pre>
+
+###Boot up instance with EBS volume attached
+
+###Terminate instance
+
 ## Getting started
 
 ###Software dependencies 
@@ -66,37 +96,6 @@ For each user, you will create a hidden directory in their home directory into w
 
 * Add the following line to .bashrc file: 
 <pre>source /home/[user]/.aws/aws_init.sh</pre>
-
-## Typical Workflow
-In using these wrappers, we typically use only a few of the commands for booting up & terminating instances. 
-
-###Create new EBS volume for data upload
-
-You will store and process your data on EBS volumes, so to create an EBS volume you specify the volume size (in Gigabytes) and the availability zone (keep in mind that your initial setup above assumes a certain region). This amount of data storage is static, so, after creating it is very difficult to expand the size. Choose the size wisely! 
-
-<pre>$ $ aws_ebs_create 
-
-Usage: aws_ebs_create [size in GB] [zone] "Description in double quotes"</pre> 
-
-<pre>$ aws_ebs_create 100 us-west-2c "My shiny dataset from Dec 17 2016"
-
-Create volume in us-west-2c that is 100 GB? [Y/n] Y
-
-Creating volume ...
-</pre>
-
-You will now see this in your list of AWS resources: 
-
-<pre>$ awsls
-----------------------------------------------------------------------------------------------------------
-Volume ID	Description		Avail. Zone	Size	User		Status		Instance
-----------------------------------------------------------------------------------------------------------
-vol-85cb3210	My shiny dataset from Dec 17 2016 us-west-2c	100GB	mike_oregon	available	--</pre>
-
-###Boot up instance with EBS volume attached
-
-###Terminate instance
- 
 
 ## Usage
 The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
