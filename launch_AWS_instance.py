@@ -17,6 +17,8 @@ def setupParserOptions():
             help="Specify availability zone")
     parser.add_option("--spotPrice",dest="spot",type="float",metavar="FLOAT",default=-1,
             help="Optional: Specify spot price (if spot instance requested)")
+    parser.add_option("--volume",dest="volume",type="string",metavar="STRING",default='None',
+            help="Optional: Specifiy volume ID to be mounted onto instance (Must be same avail. zone)")
     parser.add_option("--relion2",action="store_true",dest="relion2",default=False,
             help="Optional: Flag to use relion2 environment on non-GPU machines (By default, relion2 software is only loaded onto GPU (p2) instances)") 
     parser.add_option("--rosetta",action="store_true",dest="rosetta",default=False,
@@ -209,6 +211,8 @@ def launchInstance(params,keyName,keyPath,AMI):
     	    print '\nInstance is ready! To log in:\n'
     	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
 
+	    return InstanceID,PublicIP
+
     if params['spot'] >0: 
 	    if os.path.exists('inputjson.json'):
 		os.remove('inputjson.json')
@@ -233,6 +237,54 @@ def launchInstance(params,keyName,keyPath,AMI):
 
 	    print 'Spot instance request submitted.\n'
 
+#======================
+def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
+
+   fabric_test=module_exists('fabric.api')
+   if fabric_test is False:
+       print 'Error: Could not find fabric installed and it is required. Install from here: http://www.fabfile.org/installing.html'
+       sys.exit()
+   #Import Fabric modules now: 
+   from fabric.operations import run, put
+   from fabric.api import env,run,hide,settings
+   from fabric.context_managers import shell_env
+   from fabric.operations import put
+
+   #List instances given a users tag
+   keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+   tag=keyPath.split('/')[-1].split('.')[0]
+
+   print '\n\nAttaching volume %s to instance %s ...\n' %(volID,instanceID)
+
+   volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdf' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+   time.sleep(10)
+   env.host_string='ubuntu@%s' %(PublicIP)
+   env.key_filename = '%s' %(keyPath)
+   dir_exists=exec_remote_cmd('ls /data')
+   if len(dir_exists.split()) >0: 
+	if dir_exists.split()[2] == 'access': 
+		mk=exec_remote_cmd('sudo mkdir /data/') 
+   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data') 
+   print '\n...volume %s mounted onto /data/ ...\n' %(volID)
+
+#====================
+def module_exists(module_name):
+        try:
+                __import__(module_name)
+        except ImportError:
+                return False
+        else:
+                return True
+
+#====================
+def exec_remote_cmd(cmd):
+    from fabric.operations import run, put
+    from fabric.api import hide,settings
+    with hide('output','running','warnings'), settings(warn_only=True):
+        return run(cmd)
+
 #==============================
 if __name__ == "__main__":
 
@@ -242,10 +294,15 @@ if __name__ == "__main__":
     if params['listInstance'] is True:
         print 'Available instances:'
         print availInstances
+	if params['volume'] != 'None':
+		print 'Volume cannot be attached with spot instances at this time. (Work in progress)\n'
         sys.exit()
-
-    #Need to check if they ask for p2 that they are in Oregon, Virginia, or Ireland
 
     #Need to create directory for AMIs across regions. Right now, just US-East-1 
     keyName,keyPath,AMI=checkConflicts(params,availInstances)
-    launchInstance(params,keyName,keyPath,AMI)
+    instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI)
+    if params['volume'] != 'None': 
+	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath)
+
+
+
