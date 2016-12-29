@@ -10,6 +10,20 @@ if len(sys.argv) ==1:
 
 instanceID=sys.argv[1]
 
+#====================
+def module_exists(module_name):
+        try:
+                __import__(module_name)
+        except ImportError:
+                return False
+        else:
+                return True
+
+#====================
+def exec_remote_cmd(cmd):
+    with hide('output','running','warnings'), settings(warn_only=True):
+        return run(cmd)
+
 #==============================
 def query_yes_no(question, default="yes"):
 	valid = {"yes": True, "y": True, "ye": True,"no": False, "n": False}
@@ -90,6 +104,20 @@ if instanceID.split('-')[0] == 'cluster':
 if instanceID.split('-')[0] != 'cluster':
 
 	answer=query_yes_no("\nTerminate instance %s?" %(instanceID))
+        PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+
+  	#Import Fabric modules now: 
+   	fabric_test=module_exists('fabric.api')
+        if fabric_test is False: 
+                print 'Error: Could not find fabric installed and it is required. Install from here: http://www.fabfile.org/installing.html'
+                sys.exit()
+	from fabric.operations import run, put
+   	from fabric.api import env,run,hide,settings 
+   	from fabric.context_managers import shell_env
+	from fabric.operations import put 
+
+	env.host_string='ubuntu@%s' %(PublicIP)
+	env.key_filename = '%s' %(keyPath)
 
 	if answer is True:
 
@@ -98,8 +126,38 @@ if instanceID.split('-')[0] != 'cluster':
 		if os.path.exists('tmp4949585940.txt'):
 			os.remove('tmp4949585940.txt')
 
+		#Check if instance has volume mounted aws ec2 describe-instance-attribute --instance-id i-0d4524ffad3ac020b --attribute blockDeviceMapping
+		numDevices=float(subprocess.Popen('aws ec2 describe-instances --instance-id %s  --query "Reservations[*].Instances[*].BlockDeviceMappings" | grep DeviceName  | wc -l' %(instanceID), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[0])
+
+		if numDevices > 1:
+			counter=2
+			while counter <= numDevices:
+				mountpoint=subprocess.Popen('aws ec2 describe-instances --instance-id %s  --query "Reservations[*].Instances[*].BlockDeviceMappings[%i]"  | grep DeviceName' %(instanceID,counter-1), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split(':')[-1].split('"')[1]
+				volID=subprocess.Popen('aws ec2 describe-instances --instance-id %s  --query "Reservations[*].Instances[*].BlockDeviceMappings[%i]" | grep VolumeId' %(instanceID,counter-1), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split(':')[-1].split('"')[1]
+				
+				umount=exec_remote_cmd('sudo umount /dev/%s' %(mountpoint))
+				if len(umount.split()) >0:
+					print 'Error unmounting volume. Stop all running processes (shown below) and try again to terminate instance.\n'
+					lsof=exec_remote_cmd('lsof | grep /data') 
+					if len(lsof)>0: 
+						counter2=0
+						print 'COMMAND\t\tPROCESSID'
+						print '------------------------------'
+						while counter2 < len(lsof.split('\n')):
+							command=lsof.split('\n')[counter2].split()[0]
+							pid=lsof.split('\n')[counter2].split()[1]
+							if command == 'bash': 
+								counter2=counter2+1
+								continue 
+
+							print '%s\t\t%s' %(command,pid)
+							counter2=counter2+1 
+					print ''
+					sys.exit()
+				vol=subprocess.Popen('aws ec2 detach-volume --volume-id %s ' %(volID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	
+				counter=counter+1
 		cmd='aws ec2 terminate-instances --instance-ids %s > tmp4949585940.txt' %(instanceID)
 		subprocess.Popen(cmd,shell=True).wait()
-
 		os.remove('tmp4949585940.txt')
 	
