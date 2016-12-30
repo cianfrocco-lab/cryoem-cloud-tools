@@ -39,7 +39,7 @@ Shortcut AWS commands found in this Github repo:
 ## Typical Workflow
 In using these wrappers, we typically use only a few of the commands for booting up & terminating instances.
 
-###Create new EBS volume for data upload
+### Create new EBS volume for data upload
 
 You will store and process your data on EBS volumes, so to create an EBS volume you specify the volume size (in Gigabytes) and the availability zone (keep in mind that your initial setup above assumes a certain region). This amount of data storage is static, so, after creating it is very difficult to expand the size. Choose the size wisely! 
 <pre>$ aws_ebs_create
@@ -59,9 +59,10 @@ You will now see this in your list of AWS resources:
 ----------------------------------------------------------------------------------------------------------
 Volume ID       Description             Avail. Zone     Size    User            Status          Instance
 ----------------------------------------------------------------------------------------------------------
-vol-85cb3210    My shiny data 	 	us-west-2c    100GB   mike_oregon     available       --</pre>
+vol-85cb3210    My shiny data 	 	us-west-2c    100GB   mike_oregon     available       --
+</pre>
 
-###Boot up instance with EBS volume attached
+### Boot up instance with EBS volume attached
 
 At this point, we recommend p2 instances for particle picking / ctf estimation (p2.xlarge), 2D classification (p2.16xlarge), and 3D classification/refinement (p2.8xlarge). To start one of these instances with your EBS volume attached: 
 
@@ -91,7 +92,7 @@ And it will log you onto your machine.
 To access: 
 <pre>$ cd /data</pre>
 
-###Terminate instance
+### Terminate instance
 When you are finished analyzing your data, you can terminate your instance using: 
 
 <pre>$ awskill 
