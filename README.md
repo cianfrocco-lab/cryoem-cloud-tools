@@ -46,7 +46,7 @@ You will store and process your data on EBS volumes, so to create an EBS volume 
 
 Usage: aws_ebs_create [size in GB] [zone] "Description in double quotes"</pre>
 
-<pre>$ aws_ebs_create 100 us-west-2c "My shiny dataset from Dec 17 2016"
+<pre>$ aws_ebs_create 100 us-west-2c "My shiny data"
 
 Create volume in us-west-2c that is 100 GB? [Y/n] Y
 
@@ -59,11 +59,50 @@ You will now see this in your list of AWS resources:
 ----------------------------------------------------------------------------------------------------------
 Volume ID       Description             Avail. Zone     Size    User            Status          Instance
 ----------------------------------------------------------------------------------------------------------
-vol-85cb3210    My shiny dataset from Dec 17 2016 us-west-2c    100GB   mike_oregon     available       --</pre>
+vol-85cb3210    My shiny data 	 	us-west-2c    100GB   mike_oregon     available       --</pre>
 
 ###Boot up instance with EBS volume attached
 
+At this point, we recommend p2 instances for particle picking / ctf estimation (p2.xlarge), 2D classification (p2.16xlarge), and 3D classification/refinement (p2.8xlarge). To start one of these instances with your EBS volume attached: 
+
+<pre>$ awslaunch --instance=p2.8xlarge --availZone=us-west-2c --volume=vol-85cb3210 </pre>
+
+**Note:** If you want to upload data, use p2.8xlarge ($0.90/hr) or c4.xlarge ($0.199/hr).
+
+After running this command, the log in information will be shown on the command line or you can always see it using: 
+
+<pre>$ awsls 
+AWS EC2 information for user mike_oregon in region us-west-2
+
+----------------------------------------------------------------------------------------------------
+InstanceType	Avail. Zone	InstanceID		Status		User		Login info
+----------------------------------------------------------------------------------------------------
+p2.8xlarge	us-west-2c	i-98sdkfksdf9ssd9	running		mike_oregon	ssh -X -i /home/michaelc/.aws/mike_oregon.pem ubuntu@35.322.393
+</pre> 
+
+To log on, just copy the ssh information into your command line: 
+
+<pre>$ ssh -X -i /home/michaelc/.aws/mike_oregon.pem ubuntu@35.322.393</pre>
+
+And it will log you onto your machine. 
+
+**Your data will be located in the folder /data/**:
+
+To access: 
+<pre>$ cd /data</pre>
+
 ###Terminate instance
+When you are finished analyzing your data, you can terminate your instance using: 
+
+<pre>$ awskill 
+
+Usage: awskill [instance ID or cluster name]</pre>
+
+To kill your instance: 
+
+<pre>$ awskill i-98sdkfksdf9ssd9 </pre>
+
+**Note:** If there are any running processes such as a relion GUI or an open terminal, it cannot terminate the instance. Kill / stop these processes and then try again. 
 
 ## Getting started
 
