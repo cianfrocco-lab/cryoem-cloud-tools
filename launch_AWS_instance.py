@@ -257,8 +257,10 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
 
    print '\n\nAttaching volume %s to instance %s ...\n' %(volID,instanceID)
 
-   volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdf' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+   volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdf > tmp3re3333.log' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
+   if os.path.exists('tmp3re3333.log'):
+	os.remove('tmp3re3333.log')
    time.sleep(10)
    env.host_string='ubuntu@%s' %(PublicIP)
    env.key_filename = '%s' %(keyPath)
@@ -267,10 +269,10 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
 	if dir_exists.split()[2] == 'access': 
 		mk=exec_remote_cmd('sudo mkdir /data/') 
    check_NFS=exec_remote_cmd('sudo file -s /dev/xvdf')
-   if 'filesystem' not in check_NFS
+   if 'filesystem' not in check_NFS:
 	nfsmount=exec_remote_cmd('sudo mkfs -t ext4 /dev/xvdf')
    mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data') 
-   print '\n...volume %s mounted onto /data/ ...\n' %(volID)
+   print '\n...volume mounted onto /data/ ...\n' %(volID)
 
 #====================
 def module_exists(module_name):

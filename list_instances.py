@@ -102,7 +102,7 @@ numVols=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=
 counter=0
 
 print '\n----------------------------------------------------------------------------------------------------------'
-print 'Volume ID\tDescription\t\tAvail. Zone\tSize\tUser\t\tStatus\t\tInstance'
+print 'Volume ID\t\tDescription\t\tAvail. Zone\tSize\tUser\t\tStatus\t\tInstance'
 print '----------------------------------------------------------------------------------------------------------'
 
 if float(numVols) == 0:
@@ -126,10 +126,10 @@ while counter < float(numVols):
 	if status == 'in-use':
 		instance=subprocess.Popen('aws ec2 describe-volumes --filter Name=tag-key,Values=Owner,Name=tag-value,Values=%s --query "Volumes[%i].Attachments[*].{InstanceID:InstanceId}" | grep InstanceID' %(tag,counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
-		print '%s\t%s\t\t%s\t%sGB\t%s\t%s\t\t%s' %(volumeID,nameVol,availZone,size,tag,status,instance)
+		print '%s\t%s\t%s\t%sGB\t%s\t%s\t\t%s' %(volumeID,nameVol,availZone,size,tag,status,instance)
 	if status != 'in-use':
 	
-		print '%s\t%s\t\t%s\t%sGB\t%s\t%s\t--' %(volumeID,nameVol,availZone,size,tag,status)
+		print '%s\t%s\t%s\t%sGB\t%s\t%s\t--' %(volumeID,nameVol,availZone,size,tag,status)
 
 	counter=counter+1
 
