@@ -146,9 +146,6 @@ if instanceID.split('-')[0] != 'cluster':
 						while counter2 < len(lsof.split('\n')):
 							command=lsof.split('\n')[counter2].split()[0]
 							pid=lsof.split('\n')[counter2].split()[1]
-							if command == 'bash': 
-								counter2=counter2+1
-								continue 
 
 							print '%s\t\t%s' %(command,pid)
 							counter2=counter2+1 
