@@ -272,7 +272,7 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
    if 'filesystem' not in check_NFS:
 	nfsmount=exec_remote_cmd('sudo mkfs -t ext4 /dev/xvdf')
    mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data') 
-   print '\n...volume mounted onto /data/ ...\n' %(volID)
+   print '\n...volume mounted onto /data/ ...\n' 
 
 #====================
 def module_exists(module_name):
