@@ -117,12 +117,13 @@ You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *
 * **starcluster**: 
 	* http://star.mit.edu/cluster/docs/latest/index.html
 	* <pre>$ sudo pip install starcluster </pre>
-* **cryptography**:
-	* http://docs.python-guide.org/en/latest/scenarios/crypto/
-	* <pre>$ sudo pip install cryptography</pre>
 * **fabric**: 
 	* http://www.fabfile.org/installing.html
 	* <pre>$ sudo pip install fabric</pre>
+* **rclone**: 
+	* http://rclone.org/
+	* <pre>$ wget http://downloads.rclone.org/rclone-v1.35-linux-amd64.zip</pre>
+	* <pre>$ unzip rclone-v1.35-linux-amd64.zip</pre>
 
 ###Environment setup
 For each user, you will create a hidden directory in their home directory into which you will add the aws_init.sh file and their keypair.  

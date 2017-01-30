@@ -6,7 +6,7 @@ import sys
 
 if len(sys.argv) ==1:
         print '\nUsage: awsls_admin [region]\n'
-        print '\nSpecify region that will be displayed for all users\n'
+        print '\nSpecify region (NOT availability zone) that will be displayed for all users\n'
         sys.exit()
 
 region=sys.argv[1]
@@ -27,7 +27,6 @@ tag=keyPath.split('/')[-1].split('.')[0]
 #Get number of instances to loop over
 numInstances=subprocess.Popen('aws ec2 describe-instances --region %s --query "Reservations[*].Instances[*].{InstanceID:InstanceId}" | grep InstanceID | wc -l' %(region),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 counter=0
-
 print '\nAWS usage in region %s' %(region)
 
 print '\n---------------------------------------------------------------------------------------------'

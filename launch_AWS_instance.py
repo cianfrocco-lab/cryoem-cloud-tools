@@ -23,6 +23,10 @@ def setupParserOptions():
             help="Optional: Flag to use relion2 environment on non-GPU machines (By default, relion2 software is only loaded onto GPU (p2) instances)") 
     parser.add_option("--rosetta",action="store_true",dest="rosetta",default=False,
             help="Optional: Flag to use rosetta environment (Rosetta runs on CPUs)")
+    parser.add_option("--AMI",dest="AMI",type="string",metavar="STRING",default='None',
+            help="Optional: Specifiy AMI to use when booting instance (Must be in same region, overrides any other AMI)")
+    parser.add_option("--noEBS",action="store_true",dest="force",default=False,
+            help="Optional: Force boot up without attached EBS volume")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -98,7 +102,10 @@ def checkConflicts(params,availInstances):
 	if params['relion2'] is True:
                 AMI='ami-9caa71fc'
 	if params['rosetta'] is True:
-		AMI='ami-5b17b73b'
+		#AMI='ami-5b17b73b'
+		AMI='ami-5d48f83d'
+	if params['AMI'] != 'None': 
+		AMI=params['AMI']
 
     #Check that instance is in approved list
     if not params['instance'] in availInstances:
@@ -210,6 +217,7 @@ def launchInstance(params,keyName,keyPath,AMI):
     	    #Once ready, print command to terminal for user to log in:
     	    print '\nInstance is ready! To log in:\n'
     	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
+	    print '\nID: %s\n' %(InstanceID)
 
 	    return InstanceID,PublicIP
 
@@ -271,7 +279,10 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
    check_NFS=exec_remote_cmd('sudo file -s /dev/xvdf')
    if 'filesystem' not in check_NFS:
 	nfsmount=exec_remote_cmd('sudo mkfs -t ext4 /dev/xvdf')
-   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data') 
+   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data')
+   chmod=exec_remote_cmd('sudo chmod 777 /data/')
+   if 'filesystem' not in check_NFS:
+	chmod=exec_remote_cmd('rm /data/lost+found')
    print '\n...volume mounted onto /data/ ...\n' 
 
 #====================
@@ -315,7 +326,7 @@ def query_yes_no(question, default="no"):
 #==============================
 if __name__ == "__main__":
 
-    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g2.2xlarge','g2.8xlarge']
+    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','i2.2xlarge','i2.xlarge','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g2.2xlarge','g2.8xlarge']
 
     params=setupParserOptions()
     if params['listInstance'] is True:
@@ -325,9 +336,10 @@ if __name__ == "__main__":
 		print 'Volume cannot be attached with spot instances at this time. (Work in progress)\n'
         sys.exit()
     if params['volume'] == 'None': 
-	qans=query_yes_no('\nAre you sure you want to boot up this instance without an EBS volume?')
-	if qans is False: 
-		sys.exit() 
+	if params['force'] is False: 
+		qans=query_yes_no('\nAre you sure you want to boot up this instance without an EBS volume?')
+		if qans is False: 
+			sys.exit() 
 
     #Need to create directory for AMIs across regions. Right now, just US-East-1 
     keyName,keyPath,AMI=checkConflicts(params,availInstances)

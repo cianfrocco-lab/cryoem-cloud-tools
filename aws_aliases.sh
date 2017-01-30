@@ -1,3 +1,6 @@
+#Set lifetime values for EBS and S3: Number of days, after which they will be deleted  
+export EBS_LIFETIME=14
+export S3_LIFETIME=60
 #AWS CLI directory
 export AWS_CLI_DIR=/home/michaelc/Scripts/AWS/
 ##List all instances for given user (based on tag)
@@ -24,6 +27,11 @@ alias aws_spot_price_history=$AWS_CLI_DIR/list_spot_price.py
 alias awsls_admin=$AWS_CLI_DIR/list_all.py
 #Launch cluster
 alias awslaunch_cluster=$AWS_CLI_DIR/launch_starcluster.py
-
-
-
+#Relion QSUB command
+export RELION_QSUB_TEMPLATE=$AWS_CLI_DIR/relion_qsub.sh
+#Export directory to path
+export PATH=$AWS_CLI_DIR/:$PATH
+#Create snapshot
+alias aws_snapshot_create=$AWS_CLI_DIR/create_snapshot.py
+#Delete snapshot
+alias aws_snapshot_delete=$AWS_CLI_DIR/kill_snapshot.py

@@ -46,12 +46,12 @@ if keyPath.split('/')[-1].split('.')[-1] != 'pem':
 
 tag=keyPath.split('/')[-1].split('.')[0]
 
-answer=query_yes_no("\nDelete volume %s?" %(volID))
+#answer=query_yes_no("\nDelete volume %s?" %(volID))
 
-if answer is True:
+#if answer is True:
 
-	print '\nDeleting volume ...\n'
+print '\nDeleting volume ...\n'
 
-	volID=subprocess.Popen('aws ec2 delete-volume --volume-id %s' %(volID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+volID=subprocess.Popen('aws ec2 delete-volume --volume-id %s' %(volID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
 

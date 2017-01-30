@@ -4,14 +4,23 @@ import subprocess
 import os
 import sys 
 if len(sys.argv) < 4:
-	print '\nUsage: aws_ebs_create [size in GB] [zone] "Description in double quotes"\n'
+	print '\nUsage: aws_ebs_create [size in GB] [zone] "Description in double quotes" [snapshot ID]\n'
 	print '\nSpecify size of EBS volume to be created (in GB) along with availability zone (e.g. us-east-1b) and description provided in double quotes\n'
 	sys.exit()
 
-volSize=sys.argv[1]
-AZ=sys.argv[2]
-allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c']
-description=sys.argv[3]
+if len(sys.argv) == 4: 
+	volSize=sys.argv[1]
+	AZ=sys.argv[2]
+	allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c']
+	description=sys.argv[3]
+	snapid=''
+
+if len(sys.argv) == 5:
+        volSize=sys.argv[1]
+        AZ=sys.argv[2]
+        allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c']
+        description=sys.argv[3]
+	snapid=' --snapshot-id %s' %(sys.argv[4])
 
 if AZ not in allowedZones:
 	print '\nError: Specified zone %s not in approved list:' %(AZ)
@@ -23,29 +32,6 @@ if  float(volSize) > 500:
 	print 'Error: Volume size too large %s GB' %(volSize)
 	sys.exit()
  
-#==============================
-def query_yes_no(question, default="yes"):
-	valid = {"yes": True, "y": True, "ye": True,"no": False, "n": False}
-	if default is None:
-		prompt = " [y/n] "
-	elif default == "yes":
-		prompt = " [Y/n] "
-	elif default == "no":
-		prompt = " [y/N] "
-	else:
-		raise ValueError("invalid default answer: '%s'" % default)
-	while True:
-		sys.stdout.write(question + prompt)
-		choice = raw_input().lower()
-		if default is not None and choice == '':
-			return valid[default]
-		elif choice in valid:
-			return valid[choice]
-		else:
-			sys.stdout.write("Please respond with 'yes' or 'no' "
-					 "(or 'y' or 'n').\n")
-
-
 #List instances given a users tag
 keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
@@ -59,16 +45,14 @@ if keyPath.split('/')[-1].split('.')[-1] != 'pem':
 
 tag=keyPath.split('/')[-1].split('.')[0]
 
-answer=query_yes_no("\nCreate volume in %s that is %s GB?" %(AZ,volSize))
+print '\nCreating volume ...\n'
 
-if answer is True:
+volID=subprocess.Popen('aws ec2 create-volume --size %s --availability-zone %s --volume-type gp2 %s | grep VolumeId' %(volSize,AZ,snapid),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
-	print '\nCreating volume ...\n'
-
-	volID=subprocess.Popen('aws ec2 create-volume --size %s --availability-zone %s --volume-type gp2 | grep VolumeId' %(volSize,AZ),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-
-	cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(volID,tag)
-	subprocess.Popen(cmd,shell=True).wait()	
+cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(volID,tag)
+subprocess.Popen(cmd,shell=True).wait()	
 	
-	cmd='aws ec2 create-tags --resources %s --tags Key=Name,Value="%s"' %(volID,description)
-	subprocess.Popen(cmd,shell=True).wait()
+print '\nID: %s' %(volID)
+
+cmd='aws ec2 create-tags --resources %s --tags Key=Name,Value="%s"' %(volID,description)
+subprocess.Popen(cmd,shell=True).wait()

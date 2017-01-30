@@ -81,7 +81,7 @@ if not os.path.exists('%s/.starcluster/config' %(subprocess.Popen('echo $HOME',s
         cmd+='AWS_ACCESS_KEY_ID =%s\n' %(AWS_ACCESS_KEY_ID)
         cmd+='AWS_SECRET_ACCESS_KEY = %s\n' %(AWS_SECRET_ACCESS_KEY)        
 	cmd+='AWS_REGION_NAME = %s\n' %(AWS_DEFAULT_REGION)
-        cmd+='AVAILABILITY_ZONE = %s\n' %(params['zone'])
+        cmd+='AVAILABILITY_ZONE = %sa\n' %(AWS_DEFAULT_REGION)
         cmd+='AWS_REGION_HOST = ec2.%s.amazonaws.com\n' %(AWS_DEFAULT_REGION)
         cmd+='[global]\n'
         cmd+='DEFAULT_TEMPLATE=cluster\n'
@@ -103,7 +103,7 @@ if instanceID.split('-')[0] == 'cluster':
 
 if instanceID.split('-')[0] != 'cluster':
 
-	answer=query_yes_no("\nTerminate instance %s?" %(instanceID))
+	#answer=query_yes_no("\nTerminate instance %s?" %(instanceID))
         PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
   	#Import Fabric modules now: 
@@ -118,7 +118,7 @@ if instanceID.split('-')[0] != 'cluster':
 
 	env.host_string='ubuntu@%s' %(PublicIP)
 	env.key_filename = '%s' %(keyPath)
-
+	answer=True
 	if answer is True:
 
 		print '\nRemoving instance ...\n'
