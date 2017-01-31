@@ -1,6 +1,8 @@
 #Set lifetime values for EBS and S3: Number of days, after which they will be deleted  
 export EBS_LIFETIME=14
 export S3_LIFETIME=60
+export RESEARCH_GROUP_NAME=leschziner
+
 #AWS CLI directory
 export AWS_CLI_DIR=/home/michaelc/Scripts/AWS/
 ##List all instances for given user (based on tag)
