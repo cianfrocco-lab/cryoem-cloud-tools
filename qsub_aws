@@ -275,6 +275,7 @@ def parseCMDrefine(relioncmd):
 	newcmd=[]
 	tot=len(l)
 	counter=0
+	selectflag=''
 	while counter < tot:
 		if l[counter] == '--preread_images':
 			counter=counter+1
@@ -297,9 +298,12 @@ def parseCMDrefine(relioncmd):
 		if l[counter] == '--j': 
 			counter=counter+2
 			continue
+		if l[counter] == '--i': 
+			if l[counter+1].split('/')[0] == 'Select': 
+				selectflag=l[counter+1]
 		newcmd.append(l[counter])
  		counter=counter+1
-	return ' '.join(newcmd)
+	return ' '.join(newcmd),selectflag
 
 #==============================
 def parseCMDpreprocess(relioncmd):
@@ -323,6 +327,31 @@ def parseCMDpreprocess(relioncmd):
         return ' '.join(newcmd)
 
 #==============================
+def getSelectParticleDir(selectdir): 
+
+	r1=open(selectdir,'r')
+	imagenumcol=3
+	for line in r1: 
+		if len(line) < 40: 
+			if len(line.split()) > 0: 
+				if line.split()[0] == '_rlnImageName': 
+					imagenumcol=int(line.split()[1].split('#')[-1])-1
+	r1.close()
+	r1=open(selectdir,'r')
+	skip=0
+	for line in r1: 
+		if len(line) < 40: 
+			continue 
+		if len(line.split()) > 3: 
+			if skip == 0: 
+				micname=line.split()[imagenumcol]
+				skype=1
+	r1.close()
+	jobname=micname.split('@')[-1].split('/')[1]	
+	
+	return 'Extract/%s' %(jobname)
+
+#==============================
 def relion_refine_mpi(): 
 	
 	#Get relion command and input options
@@ -332,7 +361,11 @@ def relion_refine_mpi():
 	numParticles=len(open('%s/particles.star' %(particledir),'r').readlines())
 	
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
-	relioncmd=parseCMDrefine(relioncmd)
+	relioncmd,select=parseCMDrefine(relioncmd)
+
+	if len(select) > 0: 
+		particledir=getSelectParticleDir(select)
+		selectdir=select.split('particles.star')[0]
 
 	#Choose instance type
 	if initmodel == 'None': #2D classification
@@ -483,6 +516,14 @@ def relion_refine_mpi():
                         dirlocation=dirlocation+'/'+entry
 	cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,dirlocation)
         subprocess.Popen(cmd,shell=True).wait()
+
+	if len(select) > 0: 
+		dirlocation='/data/'
+		for entry in selectdir.split('/'): 
+			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+			dirlocation=dirlocation+'/'+entry
+		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,selectdir,userIP,dirlocation)
+		subprocess.Popen(cmd,shell=True).wait()
 	
 	if initmodel != 'None': 
 		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
@@ -512,10 +553,12 @@ def relion_refine_mpi():
 	while isdone == 0: 
 		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
+		time.sleep(2)
 		if os.path.exists('%s/run_it%03i_data.star' %(outdir,int(numiters))):	
 			isdone=1
 		#Check if job was specified to be killed
-		isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)	
+		if isdone ==0: 
+			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)	
 
 		time.sleep(10)
 	time.sleep(30)
