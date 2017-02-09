@@ -245,6 +245,8 @@ def getCMDrefine(f1):
 	outcounter=-1
 	autoref=-1
 	counter=1
+	itercounter=-1
+	numiters=-1
 	ref='None'
 
 	for l in rlncmd.split(): 
@@ -262,7 +264,8 @@ def getCMDrefine(f1):
 
 	partdir=rlncmd.split()[indircounter].split('particles.star')[0]
 	outdir=rlncmd.split()[outcounter].split('run')[0]
-	numiters=rlncmd.split()[itercounter].strip()
+	if itercounter > 0: 
+		numiters=rlncmd.split()[itercounter].strip()
 
 	if refcounter > 0: 
 		ref=rlncmd.split()[refcounter]
@@ -526,7 +529,7 @@ def relion_refine_mpi():
 		subprocess.Popen(cmd,shell=True).wait()
 	
 	if initmodel != 'None': 
-		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
+		cmd='rsync -avzu -R -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
         	subprocess.Popen(cmd,shell=True).wait()
 	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
 
@@ -554,8 +557,13 @@ def relion_refine_mpi():
 		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		time.sleep(2)
-		if os.path.exists('%s/run_it%03i_data.star' %(outdir,int(numiters))):	
-			isdone=1
+		if autoref == -1:
+			if os.path.exists('%s/run_it%03i_data.star' %(outdir,int(numiters))):	
+				isdone=1
+		if autoref != -1: 
+			if os.path.exists('%s/run_class001.mrc' %(outdir)): 
+				isdone=1
+
 		#Check if job was specified to be killed
 		if isdone ==0: 
 			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)	
@@ -602,7 +610,7 @@ def relion_refine_mpi():
 			if line.split()[0] == particledir: 
 				continue
 			tmpout.write(line)
-
+		tmpout.close()
 	cmd='echo "%s     %s      %s" >> .aws_relion' %(particledir,bucketname,volID)
 	subprocess.Popen(cmd,shell=True).wait()
 
