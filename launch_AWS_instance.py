@@ -96,11 +96,13 @@ def checkConflicts(params,availInstances):
 		AMI='ami-69eba27e'
     if AWS_DEFAULT_REGION == 'us-west-2':
         if params['instance'].split('.')[0] == 'p2':
-		AMI='ami-9caa71fc'
+		#AMI='ami-9caa71fc'
+		AMI='ami-6615ae06'
 	if params['instance'].split('.')[0] != 'p2':
 		AMI='ami-bc08c3dc'
 	if params['relion2'] is True:
-                AMI='ami-9caa71fc'
+                #AMI='ami-9caa71fc'
+		AMI='ami-6615ae06'
 	if params['rosetta'] is True:
 		#AMI='ami-5b17b73b'
 		AMI='ami-5d48f83d'
@@ -122,7 +124,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 
     securityGroupName='sg_%i' %(int(time.time()))
     securityGroupDescript='Automated security group'
-    IPaddress=subprocess.Popen('curl -s ipecho.net/plain',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    IPaddress=subprocess.Popen('curl -s icanhazip.com',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     if len(IPaddress) == 0:
         print 'Error: Could not get IP address of your computer. Exiting.'
         sys.exit()
@@ -326,7 +328,7 @@ def query_yes_no(question, default="no"):
 #==============================
 if __name__ == "__main__":
 
-    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','i2.2xlarge','i2.xlarge','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g2.2xlarge','g2.8xlarge']
+    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','i2.2xlarge','i2.xlarge','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r4.8xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g2.2xlarge','g2.8xlarge']
 
     params=setupParserOptions()
     if params['listInstance'] is True:
