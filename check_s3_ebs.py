@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys 
 import os
 import subprocess
 from datetime import date
@@ -35,6 +36,9 @@ while vol <= float(numVols):
 				volsToDelete.append(volID)
 	vol=vol+1
 
+print 'deleting volumes'
+print volsToDelete
+sys.exit()
 for vol in volsToDelete: 
 
 	cmd='%s/kill_volume.py %s > awslog.log' %(awsdir,vol)
