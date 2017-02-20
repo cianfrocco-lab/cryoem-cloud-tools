@@ -45,7 +45,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 	#Copy data down
 	env.host_string='ubuntu@%s' %(IP)
         env.key_filename = '%s' %(keypair)
-	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rcloneexe='rclone'
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 		rcloneexe='rclone_mac'
@@ -54,10 +54,10 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 #=========================
 def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath):
 
-		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
-			rclonepath='%s/rclone' %(awspath)
-		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
-			rclonepath'%s/rclone_mac'%(awspath)
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
+		rclonepath='%s/rclone' %(awspath)
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin': 
+		rclonepath='%s/rclone_mac'%(awspath)
 
         #Write .rclone.conf
         homedir=subprocess.Popen('echo $HOME', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -127,10 +127,10 @@ def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketna
 #=========================
 def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath):
 
-	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rclonepath='%s/rclone' %(awspath)
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
-		rclonepath'%s/rclone_mac'%(awspath)
+		rclonepath='%s/rclone_mac'%(awspath)
 
         #Write .rclone.conf
         homedir=subprocess.Popen('echo $HOME', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -211,10 +211,10 @@ def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketn
 #=========================
 def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath):
 
-	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rclonepath='%s/rclone' %(awspath)
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
-		rclonepath'%s/rclone_mac'%(awspath)
+		rclonepath='%s/rclone_mac'%(awspath)
 
         #Write .rclone.conf
         homedir=subprocess.Popen('echo $HOME', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -290,10 +290,10 @@ def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bu
 
 #=========================
 def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awspath):
-	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rclonepath='%s/rclone' %(awspath)
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
-		rclonepath'%s/rclone_mac'%(awspath)
+		rclonepath='%s/rclone_mac'%(awspath)
 
 	#Write .rclone.conf
 	homedir=subprocess.Popen('echo $HOME', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
