@@ -1076,18 +1076,16 @@ def relion_preprocess_mpi():
                         exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
                         dirlocation=dirlocation+'/'+entry
 	dirlocation='/data'
-	locallocation=''
         for entry in micstar.split('/'):
 		if len(entry.split('.star')) == 1:
 			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
 			dirlocation=dirlocation+'/'+entry
-			if len(locallocation) == 0:
-				locallocation=entry
-			if len(locallocation) > 0:
-                                locallocation=locallocation+'/'+entry
+	locallocation=micstar.split('/')
+	del locallocation[-1]
+	locallocation='/'.join(locallocation)
 
 	micInDir=dirlocation
-	cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s  ubuntu@%s:%s/ > rsync.log' %(keypair,locallocation,userIP,micInDir)
+	cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/  ubuntu@%s:%s/ > rsync.log' %(keypair,locallocation,userIP,micInDir)
 	print cmd
         subprocess.Popen(cmd,shell=True).wait()
 
@@ -1243,6 +1241,7 @@ def relion_run_ctffind():
                 	numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
                 	numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+			numCPUs=1
 		bucketname,micdir,otherbucket,otherbucketDirName=rclone_to_s3_mics(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir)
 		writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 
