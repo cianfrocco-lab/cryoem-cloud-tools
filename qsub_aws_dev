@@ -1065,9 +1065,9 @@ def relion_preprocess_mpi():
 		if len(entry.split('.star')) == 1: 
 			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
 			dirlocation=dirlocation+'/'+entry
-			if len(locallocation.split('/')) == 1: 
+			if len(locallocation) == 0: 
 				locallocation=entry
-			if len(locallocation.split('/')) > 1: 
+			if len(locallocation) > 0: 
                                 locallocation=locallocation+'/'+entry
 
 	micInDir=dirlocation
