@@ -776,7 +776,7 @@ def relion_refine_mpi():
                         exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
                         dirlocation=dirlocation+'/'+entry
 	cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,dirlocation)
-    subprocess.Popen(cmd,shell=True).wait()
+    	subprocess.Popen(cmd,shell=True).wait()
 
 	if len(select) > 0:
  		dirlocation='/data/'
