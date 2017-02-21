@@ -4,6 +4,7 @@ export S3_LIFETIME=60
 export RESEARCH_GROUP_NAME=leschziner
 
 ##List all instances for given user (based on tag)
+export AWS_CLI_DIR=/home/michaelc/Scripts/AWS
 alias awsls=$AWS_CLI_DIR/list_instances.py
 ##Kill specified instance 
 alias awskill=$AWS_CLI_DIR/kill_instance.py 
