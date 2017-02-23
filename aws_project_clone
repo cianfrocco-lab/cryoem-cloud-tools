@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+
+import os
+import subprocess
+import sys 
+
+if len(sys.argv) != 2: 
+	print '\nProvide project name to be cloned\n'
+	sys.exit()
+
+keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+teamname=subprocess.Popen('echo $RESEARCH_GROUP_NAME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+keyname=keypair.split('/')[-1].split('.pem')[0]
+keyname=keyname.split('_')
+keyname='-'.join(keyname)
+
+bucketname='rln-aws-%s-%s' %(teamname,keyname)
+
+projectname=sys.argv[1]
+
+if projectname[-1] != '/': 
+	projectname=projectname+'/'
+
+cmd='aws s3 ls %s/%sdefault_pipeline.star > s3tmpout.txt' %(bucketname,projectname)
+subprocess.Popen(cmd,shell=True).wait()
+
+if len(open('s3tmpout.txt','r').readlines()) == 0: 
+	print 'No project information found for this project. Exiting'
+	sys.exit()
+
+if os.path.exists('default_pipeline.star'): 
+	print 'Error: "default_pipeline.star" exists in current directory. Exiting'
+	sys.exit()
+
+cmd='aws s3 cp s3://%s/%sdefault_pipeline.star . > s3tmpout.txt' %(bucketname,projectname)
+subprocess.Popen(cmd,shell=True).wait()
+
+dirs_in_pipeline=[]
+o22=open('default_pipeline.star','r')
+for line in o22: 
+	if len(line.split()) == 4: 
+		dirname=line.split()[0]
+		dirs_in_pipeline.append(dirname)
+o22.close()
+
+cmd='aws s3 ls %s/%s > s3tmpout.txt' %(bucketname,projectname)
+subprocess.Popen(cmd,shell=True).wait()
+
+ignore=['.aws_relion','default_pipeline.star','aws_relion_costs.txt']
+
+r1=open('s3tmpout.txt','r')
+for line in r1: 
+	name=line.split()[-1]
+
+	if name not in ignore: 
+		if name[:4] != '.gui': 
+			if name.split('-')[0] == 'motioncorr': 
+				dir1='MotionCorr'
+			if name.split('-')[0] == 'ctffind':
+        		        dir1='CtfFind'
+			if name.split('-')[0] == 'import':
+        	        	dir1='Import'
+			if name.split('-')[0] == 'class2d':
+        		        dir1='Class2D'
+			if name.split('-')[0] == 'class3d':
+	        	        dir1='Class3D'
+			if name.split('-')[0] == 'refine3d':
+        		        dir1='Refine3D'
+			dir2=name.split('-')[1]
+			newdirname=dir1+'/'+dir2
+			if newdirname in dirs_in_pipeline: 
+				if not os.path.exists(dir1): 
+					os.makedirs(dir1)
+				os.makedirs(newdirname)
+					
+				if dir1 == 'MotionCorr':
+
+					cmd='aws s3 cp s3://%s/%s/%s/default_pipeline.star %s/ > s3tmpout.log' %(bucketname,projectname,name,newdirname)
+        	                        subprocess.Popen(cmd,shell=True).wait()
+	
+					cmd='aws s3 cp s3://%s/%s/%s/run.out %s/ > s3tmpout.log' %(bucketname,projectname,name,newdirname)
+                	                subprocess.Popen(cmd,shell=True).wait()		
+		
+					cmd='aws s3 cp s3://%s/%s/%s/job_pipeline.star %s/ > s3tmpout.log' %(bucketname,projectname,name,newdirname)
+                                	subprocess.Popen(cmd,shell=True).wait()
+
+                   	        	cmd='aws s3 cp s3://%s/%s/%s/note.txt %s/ > s3tmpout.log' %(bucketname,projectname,name,newdirname)
+                        	        subprocess.Popen(cmd,shell=True).wait()
+
+					os.makedirs('%s/Micrographs' %(newdirname))
+
+					cmd='aws s3 cp s3://%s/%s/%s/corrected_micrographs.star %s/ > s3tmpout.log' %(bucketname,projectname,name,newdirname)
+					subprocess.Popen(cmd,shell=True).wait()
+		
+					cmd='aws s3 sync s3://%s/%s/%s/Micrographs/ %s/ --exclude "*movie.star" > s3tmpout.log' %(bucketname,projectname,name,newdirname)
+					subprocess.Popen(cmd,shell=True).wait()
+
+r1.close()
+
+os.remove('s3tmpout.txt')
+

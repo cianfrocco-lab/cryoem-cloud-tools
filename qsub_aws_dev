@@ -424,6 +424,8 @@ def getCMDrefine(f1):
 	outcounter=-1
 	autoref=-1
 	counter=1
+	itercounter=1
+	numiters=1
 	ref='None'
 
 	for l in rlncmd.split():
@@ -435,17 +437,14 @@ def getCMDrefine(f1):
 			outcounter=counter
 		if l == '--auto_refine':
 			autoref=counter
-		if l == '--iter':
-			itercounter=counter
 		counter=counter+1
 
 	partdir=rlncmd.split()[indircounter].split('particles.star')[0]
 	outdir=rlncmd.split()[outcounter].split('run')[0]
-	numiters=rlncmd.split()[itercounter].strip()
 
 	if refcounter > 0:
 		ref=rlncmd.split()[refcounter]
-	return rlncmd,partdir,ref,outdir,autoref,numiters
+	return rlncmd,partdir,ref,outdir,autoref
 
 #==============================
 def parseCMDrefine(relioncmd):
@@ -621,7 +620,7 @@ def parseCMDpreprocess(relioncmd):
 def relion_refine_mpi():
 
 	#Get relion command and input options
-	relioncmd,particledir,initmodel,outdir,autoref,numiters=getCMDrefine(infile)
+	relioncmd,particledir,initmodel,outdir,autoref=getCMDrefine(infile)
 
 	#Get number of particles to decide how big of a machine to spin up
 	numParticles=len(open('%s/particles.star' %(particledir),'r').readlines())
@@ -795,7 +794,7 @@ def relion_refine_mpi():
  		subprocess.Popen(cmd,shell=True).wait()
 
 	if initmodel != 'None':
-		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
+		cmd='rsync -avzu -R -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
         	subprocess.Popen(cmd,shell=True).wait()
 	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
 
@@ -822,8 +821,12 @@ def relion_refine_mpi():
 		cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		time.sleep(2)
-		if os.path.exists('%s/run_it%03i_data.star' %(outdir,int(numiters))):
-			isdone=1
+		if autoref == -1:
+			if os.path.exists('%s/run_it%03i_data.star' %(outdir,int(numiters))):	
+				isdone=1
+		if autoref != -1: 
+			if os.path.exists('%s/run_class001.mrc' %(outdir)): 
+				isdone=1
 		#Check if job was specified to be killed
 		if isdone ==0:
  			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
@@ -1871,34 +1874,25 @@ def relion_run_motioncorr(project):
                 	dirlocation=dirlocation+'/'+entry
 			counter=counter+1
 		indirlocation=dirlocation
-        	cmd='scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s_%i.star ubuntu@%s:/%s/ > rsync.log' %(keypair,micstar[:-5],instanceNum,IPlist[instanceNum],dirlocation)
+        	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s_%i.star ubuntu@%s:/%s/ > rsync.log' %(keypair,micstar[:-5],instanceNum,IPlist[instanceNum],dirlocation)
         	subprocess.Popen(cmd,shell=True).wait()
 
         	#Make output directories
         	dirlocation='/data'
-        	#for entry in outdir.split('/'):
-                #	if len(entry.split('.star')) == 1:
-                #	       	exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
-                #        	dirlocation=dirlocation+'/'+entry
-		#print indirlocation
-		#exec_remote_cmd('mkdir /%s/%s' %(dirlocation,indirlocation))
-		cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" -R %s ubuntu@%s:/%s/ > rsync.log' %(keypair,outdir,IPlist[instanceNum],dirlocation)
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" -R %s ubuntu@%s:/%s/ > rsync.log' %(keypair,outdir,IPlist[instanceNum],dirlocation)
 		subprocess.Popen(cmd,shell=True).wait()
-
-#        	cmd='rsync -avzur -e -R "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/*  ubuntu@%s:/%s/ > rsync.log' %(keypair,outdir,IPlist[instanceNum],dirlocation)
-#               subprocess.Popen(cmd,shell=True).wait()
 
 		if gainref != -1:
-			cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,gainref,IPlist[instanceNum])
+			cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,gainref,IPlist[instanceNum])
 			subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,awsdir,IPlist[instanceNum])
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,awsdir,IPlist[instanceNum])
 		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/rclone ubuntu@%s:~/'%(keypair,awsdir,IPlist[instanceNum])
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/rclone ubuntu@%s:~/'%(keypair,awsdir,IPlist[instanceNum])
 	        subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ~/.rclone.conf ubuntu@%s:~/'%(keypair,IPlist[instanceNum])
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ~/.rclone.conf ubuntu@%s:~/'%(keypair,IPlist[instanceNum])
                 subprocess.Popen(cmd,shell=True).wait()
 
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -1916,7 +1910,7 @@ def relion_run_motioncorr(project):
         	cmd='rsync -q -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,IPlist[instanceNum])
         	subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='ssh -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+		cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(cmd,shell=True)
 
 		instanceNum=instanceNum+1
@@ -1944,20 +1938,37 @@ def relion_run_motioncorr(project):
 			sopen=open('s3testlog.log','r')
 			for qline in sopen:
 				if len(qline.split()) > 0:
-					if qline.split()[-1].strip() == micname:
-						basename=micname.split('.')
-						del basename[-1]
-						basename=''.join(basename)
-						writeToLog('Finished %i out of %i total movies at %s...\n' %(miccount+1,movieCounter,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-						if downloadBinnedOnly is False:
-							cmd='aws s3 cp %s/Micrographs/%s %s/Micrographs/ > s3testlog.log' %(bucketname,micname,outdir)
-							subprocess.Popen(cmd,shell=True).wait()
-						if downloadBinnedOnly is True:
-							cmd='aws s3 cp %s/Micrographs/%s_bin.mrc %s/Micrographs/%s > s3testlog.log' %(bucketname,basename,outdir,micname)
+					if savemovies is True: 
+						movname='%s_movie.mrcs' %(micname[:-4])
+						if qline.split()[-1].strip() == movname:
+							basename=micname.split('.')
+							del basename[-1]
+							basename=''.join(basename)
+							writeToLog('Finished %i out of %i total movies at %s...\n' %(miccount+1,movieCounter,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+							if downloadBinnedOnly is False:
+								cmd='aws s3 cp %s/Micrographs/%s %s/Micrographs/ > s3testlog.log' %(bucketname,micname,outdir)
+								subprocess.Popen(cmd,shell=True).wait()
+							if downloadBinnedOnly is True:
+								cmd='aws s3 cp %s/Micrographs/%s_bin.mrc %s/Micrographs/%s > s3testlog.log' %(bucketname,basename,outdir,micname)
+                                                		subprocess.Popen(cmd,shell=True).wait()
+							cmd='aws s3 cp %s/Micrographs/%s.out %s/Micrographs/ > s3testlog.log' %(bucketname,basename,outdir)
                                                 	subprocess.Popen(cmd,shell=True).wait()
-						cmd='aws s3 cp %s/Micrographs/%s.out %s/Micrographs/ > s3testlog.log' %(bucketname,basename,outdir)
-                                                subprocess.Popen(cmd,shell=True).wait()
-						isdone=1
+							isdone=1
+					if savemovies is False:
+                                                if qline.split()[-1].strip() == micname:
+                                                        basename=micname.split('.')
+                                                        del basename[-1]
+                                                        basename=''.join(basename)
+                                                        writeToLog('Finished %i out of %i total movies at %s...\n' %(miccount+1,movieCounter,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+                                                        if downloadBinnedOnly is False:
+                                                                cmd='aws s3 cp %s/Micrographs/%s %s/Micrographs/ > s3testlog.log' %(bucketname,micname,outdir)
+                                                                subprocess.Popen(cmd,shell=True).wait()
+                                                        if downloadBinnedOnly is True:
+                                                                cmd='aws s3 cp %s/Micrographs/%s_bin.mrc %s/Micrographs/%s > s3testlog.log' %(bucketname,basename,outdir,micname)
+                                                                subprocess.Popen(cmd,shell=True).wait()
+                                                        cmd='aws s3 cp %s/Micrographs/%s.out %s/Micrographs/ > s3testlog.log' %(bucketname,basename,outdir)
+                                                        subprocess.Popen(cmd,shell=True).wait()
+                                                        isdone=1
 			sopen.close()
 			if os.path.exists('s3testlog.log'):
 				os.remove('s3testlog.log')
@@ -1976,17 +1987,8 @@ def relion_run_motioncorr(project):
 	newout.close()
 
 	for instanceID in instanceIDlist:
-		#Kill all instances
-		isdone=0
-		while isdone==0:
-
-			cmd='%s/kill_instance.py %s > awslog.log' %(awsdir,instanceID)
-        		subprocess.Popen(cmd,shell=True).wait()
-
-			check=subprocess.Popen('cat awslog.log | Success!',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-			print check
-			if len(check) > 0:
-				isdone=1
+		cmd='%s/kill_instance.py %s > awslog.log' %(awsdir,instanceID)
+        	subprocess.Popen(cmd,shell=True).wait()
 
         for instanceID in instanceIDlist:
 		isdone=0
@@ -2037,29 +2039,40 @@ def relion_run_motioncorr(project):
         subprocess.Popen(cmd,shell=True).wait()
 
 	if len(project) > 0:
-		projectbucket='rln-aws-%s-%s-%s' %(teamname,keyname,project)
+		projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
 		cmd='aws s3 cp .aws_relion s3://%s/ > s3tmp.log' %(projectbucket)
 		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 cp aws_relion_costs.txt s3://%s/ s3tmp.log' %(projectbucket)
+		cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > s3tmp.log' %(projectbucket)
 		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 cp %scorrected_micrographs.star %s > s3tmp.log ' %(outdir,bucketname)
+		cmd='aws s3 cp %scorrected_micrographs.star s3://%s/%s/ > s3tmp.log ' %(outdir,projectbucket,outdirname)
 		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 cp %sjob_pipeline.star %s > s3tmp.log' %(outdir,bucketname)
+		cmd='aws s3 cp %sjob_pipeline.star s3://%s/%s/ > s3tmp.log' %(outdir,projectbucket,outdirname)
 		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 cp %srun.out %s > s3tmp.log' %(outdir,bucketname)
+		cmd='aws s3 cp %srun.out s3://%s/%s/ > s3tmp.log' %(outdir,projectbucket,outdirname)
 		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 cp %sdefault_pipeline.star %s > s3tmp.log' %(outdir,bucketname)
-                subprocess.Popen(cmd,shell=True).wait()
+		cmd='aws s3 cp %sdefault_pipeline.star s3://%s/%s/ > s3tmp.log' %(outdir,projectbucket,outdirname)
+		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 cp default_pipeline.star %s > s3tmp.log' %(outdir,bucketname)
-                subprocess.Popen(cmd,shell=True).wait()
+		cmd='aws s3 cp default_pipeline.star s3://%s/ > s3tmp.log' %(projectbucket)
+		subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='aws s3 sync . s3://%s > s3tmp.log --exclude "*" --include ".gui*"' %(bucketname)
+		guilist=glob.glob('.gui*')
+		for gui in guilist: 
+			cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(projectbucket)
+			print cmd 
+			subprocess.Popen(cmd,shell=True).wait() 
+
+		indir=micstar.split('/')
+		del indir[-1]
+		indirbucket='-'.join(indirbucket).lower()
+		indir='/'.join(indir)
+		cmd='aws s3 sync %s s3://%s/%s/ > s3tmp.log' %(indir,indirbucket)
+		print cmd
 		subprocess.Popen(cmd,shell=True).wait()
 
 	if os.path.exists('rsync.log'):
