@@ -2043,6 +2043,10 @@ def relion_run_motioncorr(project):
 		cmd='aws s3 cp .aws_relion s3://%s/ > s3tmp.log' %(projectbucket)
 		subprocess.Popen(cmd,shell=True).wait()
 
+		if os.path.exists('.aws_relion_project_info'): 
+			cmd='aws s3 cp .aws_relion_project_info s3://%s/ > s3tmp.log' %(projectbucket)
+			subprocess.Popen(cmd,shell=True).wait()
+
 		cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > s3tmp.log' %(projectbucket)
 		subprocess.Popen(cmd,shell=True).wait()
 
@@ -2063,15 +2067,15 @@ def relion_run_motioncorr(project):
 
 		guilist=glob.glob('.gui*')
 		for gui in guilist: 
-			cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(projectbucket)
+			cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(gui,projectbucket)
 			print cmd 
 			subprocess.Popen(cmd,shell=True).wait() 
 
 		indir=micstar.split('/')
 		del indir[-1]
-		indirbucket='-'.join(indirbucket).lower()
+		indirbucket='-'.join(indir).lower()
 		indir='/'.join(indir)
-		cmd='aws s3 sync %s s3://%s/%s/ > s3tmp.log' %(indir,indirbucket)
+		cmd='aws s3 sync %s s3://%s/%s/ > s3tmp.log' %(indir,projectbucket,indirbucket)
 		print cmd
 		subprocess.Popen(cmd,shell=True).wait()
 
