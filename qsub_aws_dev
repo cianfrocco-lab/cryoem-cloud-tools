@@ -187,17 +187,17 @@ def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketn
         o22.close()
 
         #Create bucket on aws:
-        if len(project) == 0: 
+        if len(project) == 0:
 		cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
 		subprocess.Popen(cmd,shell=True).wait()
         	os.remove('s3.log')
-	if len(project) > 0: 
+	if len(project) > 0:
 		cmd='touch .tmp'
 		subprocess.Popen(cmd,shell=True).wait()
 		cmd='aws s3 cp .tmp s3://%s/ --region %s > s3.log' %(bucketname,region)
 		subprocess.Popen(cmd,shell=True).wait()
 		os.remove('.tmp')
-		os.remove('s3.log') 
+		os.remove('s3.log')
 
         if len(dirtransfer)>0:
                 if symflag == 0:
@@ -826,7 +826,7 @@ def relion_refine_mpi():
 			isdone=1
 		#Check if job was specified to be killed
 		if isdone ==0:
- 			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)	
+ 			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
 
 		time.sleep(10)
 	time.sleep(30)
@@ -1295,7 +1295,7 @@ def relion_preprocess_mpi():
 		os.remove('rsync.log')
 
 #=============================
-def relion_run_ctffind():
+def relion_run_ctffind(project):
 
 	relioncmd,micstar,outdir,ifGctf=getCMDctf(infile)
 
@@ -1343,8 +1343,12 @@ def relion_run_ctffind():
                                 os.remove('s3out.log')
 	if s3_exist is False:
                 writeToLog('Started micrograph upload on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-                bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
-                if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
+                if len(project) == 0: 
+			bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+                if len(project) > 0: 
+                        bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
+	
+		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
                 	numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
                 	numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
@@ -1670,7 +1674,7 @@ def relion_run_motioncorr(project):
 	keyname=keyname.split('_')
 	keyname='-'.join(keyname)
 	outdirname=outdir.split('/')
-	if len(outdirname[-1]) == 0: 
+	if len(outdirname[-1]) == 0:
 		del outdirname[-1]
 	outdirname='-'.join(outdirname)
 	outdirname=outdirname.lower().strip()
@@ -1679,9 +1683,9 @@ def relion_run_motioncorr(project):
 	#Upload data to S3
         if s3_exist is False and len(micstar.split('s3-')) == 1:
                 writeToLog('Started movie upload on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-                if len(project) == 0: 
+                if len(project) == 0:
 			bucketname='rln-aws-tmp-%s-%s-%0.f' %(teamname,keyname,time.time())
-                if len(project) > 0: 
+                if len(project) > 0:
 			bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
                 	numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
@@ -1763,7 +1767,7 @@ def relion_run_motioncorr(project):
                 	cost=7.20
                 if ifMotionCor2 is True:
                         movieAlignType = 'motioncor2'
-		if movieCounter < 8: 
+		if movieCounter < 8:
 			instance='p2.xlarge'
 	        	numInstancesRequired=1
 	        	gpu=1
@@ -1884,7 +1888,7 @@ def relion_run_motioncorr(project):
 #        	cmd='rsync -avzur -e -R "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/*  ubuntu@%s:/%s/ > rsync.log' %(keypair,outdir,IPlist[instanceNum],dirlocation)
 #               subprocess.Popen(cmd,shell=True).wait()
 
-		if gainref != -1: 
+		if gainref != -1:
 			cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,gainref,IPlist[instanceNum])
 			subprocess.Popen(cmd,shell=True).wait()
 
@@ -1955,7 +1959,7 @@ def relion_run_motioncorr(project):
                                                 subprocess.Popen(cmd,shell=True).wait()
 						isdone=1
 			sopen.close()
-			if os.path.exists('s3testlog.log'): 
+			if os.path.exists('s3testlog.log'):
 				os.remove('s3testlog.log')
 			time.sleep(30)
 		miccount=miccount+1
@@ -1974,14 +1978,14 @@ def relion_run_motioncorr(project):
 	for instanceID in instanceIDlist:
 		#Kill all instances
 		isdone=0
-		while isdone==0: 
+		while isdone==0:
 
 			cmd='%s/kill_instance.py %s > awslog.log' %(awsdir,instanceID)
         		subprocess.Popen(cmd,shell=True).wait()
 
 			check=subprocess.Popen('cat awslog.log | Success!',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 			print check
-			if len(check) > 0: 
+			if len(check) > 0:
 				isdone=1
 
         for instanceID in instanceIDlist:
@@ -2032,7 +2036,7 @@ def relion_run_motioncorr(project):
 	cmd='echo "%scorrected_micrographs.star     %s      ---" >> .aws_relion' %(outdir,bucketname)
         subprocess.Popen(cmd,shell=True).wait()
 
-	if len(project) > 0: 
+	if len(project) > 0:
 		projectbucket='rln-aws-%s-%s-%s' %(teamname,keyname,project)
 		cmd='aws s3 cp .aws_relion s3://%s/ > s3tmp.log' %(projectbucket)
 		subprocess.Popen(cmd,shell=True).wait()
@@ -2042,7 +2046,7 @@ def relion_run_motioncorr(project):
 
 		cmd='aws s3 cp %scorrected_micrographs.star %s > s3tmp.log ' %(outdir,bucketname)
 		subprocess.Popen(cmd,shell=True).wait()
-	
+
 		cmd='aws s3 cp %sjob_pipeline.star %s > s3tmp.log' %(outdir,bucketname)
 		subprocess.Popen(cmd,shell=True).wait()
 
@@ -2051,7 +2055,7 @@ def relion_run_motioncorr(project):
 
 		cmd='aws s3 cp %sdefault_pipeline.star %s > s3tmp.log' %(outdir,bucketname)
                 subprocess.Popen(cmd,shell=True).wait()
-		
+
 		cmd='aws s3 cp default_pipeline.star %s > s3tmp.log' %(outdir,bucketname)
                 subprocess.Popen(cmd,shell=True).wait()
 
@@ -2060,7 +2064,7 @@ def relion_run_motioncorr(project):
 
 	if os.path.exists('rsync.log'):
 		os.remove('rsync.log')
-	if os.path.exists('s3tmp.log'): 
+	if os.path.exists('s3tmp.log'):
 		os.remove('s3tmp.log')
 	moviestarlist=glob.glob('movies*.star')
 	for moviestar in moviestarlist:
@@ -2467,7 +2471,7 @@ if __name__ == "__main__":
 		sys.exit()
 	project=''
 	#Get project name if exists
-	if os.path.exists('.aws_relion_project_info'): 
+	if os.path.exists('.aws_relion_project_info'):
 		project=linecache.getline('.aws_relion_project_info',1).split('=')[-1]
 
 	#Align movies
