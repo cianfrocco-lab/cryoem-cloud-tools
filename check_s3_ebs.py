@@ -18,9 +18,9 @@ while vol <= float(numVols):
 	description=subprocess.Popen('aws ec2 describe-volumes  --query "Volumes[%i].Tags[*].{Key:Key}" | grep Key' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()
 	count2=1
         while count2 <= len(description):
-	        if description[count2-1] == '"Name"':
+		if description[count2-1] == '"Name"':
         	        value=subprocess.Popen('aws ec2 describe-volumes  --query "Volumes[%i].Tags[*].{Value:Value}" | grep Value' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-                        nameVol=value.split('"')[count2*2-1]
+			nameVol=value.split('"')[count2*2-1]	
 		count2=count2+1
 	if len(nameVol.split('rln-aws-tmp-%s' %(teamname))) > 1:
 		volID=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{VolumeID:VolumeId}" | grep VolumeID' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
@@ -30,19 +30,17 @@ while vol <= float(numVols):
 			day=createdDate.split('T')[0]
 			d0=date(int(day.split('-')[0]),int(day.split('-')[1]),int(day.split('-')[2]))
 			d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
-			delta = d0 - d1
+			delta = d1 - d0
 			timeDiff=delta.days-1
 			if timeDiff > ebs_lifetime:
 				volsToDelete.append(volID)
 	vol=vol+1
 
-print 'deleting volumes'
-print volsToDelete
-sys.exit()
-for vol in volsToDelete: 
-
-	cmd='%s/kill_volume.py %s > awslog.log' %(awsdir,vol)
-        subprocess.Popen(cmd,shell=True).wait()
+if len(volsToDelete)> 0: 
+	for vol in volsToDelete: 
+	
+		cmd='%s/kill_volume.py %s > awslog.log' %(awsdir,vol)
+	        subprocess.Popen(cmd,shell=True).wait()
 
 if os.path.exists('awslog.log'): 
 	os.remove('awslog.log')
@@ -55,20 +53,21 @@ cmd='aws s3 ls > s3.log'
 subprocess.Popen(cmd,shell=True).wait()	
 s3delete=[]
 for line in open('s3.log','r'): 
-	if len(line.split()[-1].split('rln-aws-%s' %(teamname))) > 1: 
+	if len(line.split()[-1].split('rln-aws-tmp-%s' %(teamname))) > 1: 
 		dates3=line.split()[0]
 		year=int(dates3.split('-')[0])
 		month=int(dates3.split('-')[1])
 		day=int(dates3.split('-')[2])
 		d0=date(year,month,day)
 		d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
-                delta = d0 - d1
+                delta = d1 - d0
                 timeDiff=delta.days
-                if timeDiff > s3_lifetime:
+		if int(timeDiff) > s3_lifetime:
 	                s3delete.append('s3://%s' %(line.split()[-1]))
 
 for s3 in s3delete: 
-	cmd='aws s3 rb %s' %(s3)
+	print 'Removing bucket %s' %(s3)
+	cmd='aws s3 rb %s --force' %(s3)
 	subprocess.Popen(cmd,shell=True).wait()
 
 

@@ -1,6 +1,6 @@
 #Set lifetime values for EBS and S3: Number of days, after which they will be deleted  
 export EBS_LIFETIME=14
-export S3_LIFETIME=60
+export S3_LIFETIME=12
 export RESEARCH_GROUP_NAME=leschziner
 
 ##List all instances for given user (based on tag)

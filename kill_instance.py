@@ -157,4 +157,5 @@ if instanceID.split('-')[0] != 'cluster':
 		cmd='aws ec2 terminate-instances --instance-ids %s > tmp4949585940.txt' %(instanceID)
 		subprocess.Popen(cmd,shell=True).wait()
 		os.remove('tmp4949585940.txt')
-	
+
+		print 'Success!'	
