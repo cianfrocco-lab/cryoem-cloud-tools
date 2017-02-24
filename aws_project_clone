@@ -118,7 +118,7 @@ for line in r1:
 					o11.close()
 
 				if dir1 != 'MotionCorr': 
-					cmd='aws s3 sync s3://%s/%s%s %s/%s' %(bucketname,projectname,name,localoutdir,newdirname)
+					cmd='aws s3 sync s3://%s/%s%s %s/%s > s3tmpout.log' %(bucketname,projectname,name,localoutdir,newdirname)
 					subprocess.Popen(cmd,shell=True).wait()
 
 r1.close()
