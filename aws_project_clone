@@ -95,6 +95,10 @@ for line in r1:
 					os.makedirs('%s/%s' %(localoutdir,dir1))
 				os.makedirs('%s/%s/' %(localoutdir,newdirname))
 
+				cp_from_s3('%s/%s.aws_relion' %(bucketname,projectname),'%s/' %(localoutdir))
+                                cp_from_s3('%s/%saws_relion_costs.txt' %(bucketname,projectname),'%s/' %(localoutdir))
+                                cp_from_s3('%s/%s.aws_relion_project_info' %(bucketname,projectname),'%s/' %(localoutdir))
+	
 				if dir1 == 'MotionCorr':
 					cp_from_s3('%s/%s%sdefault_pipeline.star' %(bucketname,projectname,name),'%s/%s/' %(localoutdir,newdirname))
 					cp_from_s3('%s/%s%srun.out' %(bucketname,projectname,name),'%s/%s/' %(localoutdir,newdirname))
@@ -102,9 +106,6 @@ for line in r1:
 					cp_from_s3('%s/%s%snote.txt' %(bucketname,projectname,name),'%s/%s/' %(localoutdir,newdirname))
 					os.makedirs('%s/%s/Micrographs' %(localoutdir,newdirname))
 					cp_from_s3('%s/%s%scorrected_micrographs.star' %(bucketname,projectname,name),'%s/%s/' %(localoutdir,newdirname))
-					cp_from_s3('%s/%s.aws_relion' %(bucketname,projectname),'%s/' %(localoutdir))
-					cp_from_s3('%s/%saws_relion_costs.txt' %(bucketname,projectname),'%s/' %(localoutdir))	
-					cp_from_s3('%s/%s.aws_relion_project_info' %(bucketname,projectname),'%s/' %(localoutdir))
 					cmd='aws s3 sync s3://%s/%s%sMicrographs/ %s/%s/Micrographs/ --exclude "*movie.star" > s3tmpout.log' %(bucketname,projectname,name,localoutdir,newdirname)
 					subprocess.Popen(cmd,shell=True).wait()
 
