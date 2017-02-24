@@ -68,8 +68,8 @@ subprocess.Popen(cmd,shell=True).wait()
 
 ignore=['.aws_relion_project_info','.aws_relion','default_pipeline.star','aws_relion_costs.txt']
 
-print '\nCloning project %s ...\n' %(projectname)
-
+print '\nCloning project %s \n' %(projectname)
+print 'Working on ...'
 r1=open('s3tmpout.txt','r')
 for line in r1: 
 	name=line.split()[-1]
@@ -90,7 +90,9 @@ for line in r1:
         		        dir1='Refine3D'
 			dir2=name.split('-')[1]
 			newdirname=dir1+'/'+dir2
-			if newdirname in dirs_in_pipeline: 
+			if newdirname in dirs_in_pipeline:
+
+				print '\t\t%s' %(newdirname) 
 				if not os.path.exists('%s/%s' %(localoutdir,dir1)): 
 					os.makedirs('%s/%s' %(localoutdir,dir1))
 				os.makedirs('%s/%s/' %(localoutdir,newdirname))
