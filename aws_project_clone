@@ -66,7 +66,7 @@ o22.close()
 cmd='aws s3 ls %s/%s > s3tmpout.txt' %(bucketname,projectname)
 subprocess.Popen(cmd,shell=True).wait()
 
-ignore=['.aws_relion','default_pipeline.star','aws_relion_costs.txt']
+ignore=['.aws_relion_project_info','.aws_relion','default_pipeline.star','aws_relion_costs.txt']
 
 print '\nCloning project %s ...\n' %(projectname)
 
