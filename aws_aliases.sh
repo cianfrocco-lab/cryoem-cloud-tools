@@ -4,7 +4,9 @@ export S3_LIFETIME=12
 export RESEARCH_GROUP_NAME=leschziner
 
 ##List all instances for given user (based on tag)
-export AWS_CLI_DIR=/home/michaelc/Scripts/AWS
+export AWS_CLI_DIR=/home/michaelc/Scripts/AWS/aws/
+export AWS_RELION=/home/michaelc/Scripts/AWS/relion/
+
 alias awsls=$AWS_CLI_DIR/list_instances.py
 ##Kill specified instance 
 alias awskill=$AWS_CLI_DIR/kill_instance.py 
@@ -29,7 +31,7 @@ alias awsls_admin=$AWS_CLI_DIR/list_all.py
 #Launch cluster
 alias awslaunch_cluster=$AWS_CLI_DIR/launch_starcluster.py
 #Relion QSUB command
-export RELION_QSUB_TEMPLATE=$AWS_CLI_DIR/relion_qsub.sh
+export RELION_QSUB_TEMPLATE=$AWS_RELION/relion_qsub.sh
 #Export directory to path
 export PATH=$AWS_CLI_DIR/:$PATH
 #Create snapshot
