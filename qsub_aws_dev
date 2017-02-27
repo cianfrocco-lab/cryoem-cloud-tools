@@ -17,7 +17,7 @@ import datetime
 #==========================
 def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,numfilesAtATime):
 	#Copy rclone onto instance
-	cmd='scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/'%(keypair,rclonepath,IP)
+	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/'%(keypair,rclonepath,IP)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	#Write rclone config file
@@ -26,7 +26,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 	if os.path.exists('.rclone.conf'):
 		os.remove('.rclone.conf')
 	r1=open('rclone.conf','w')
-        r1.write('[%s]\n' %(rclonename))
+        r1.write('[rclonename]\n')
         r1.write('type = s3\n')
         r1.write('env_auth = false\n')
         r1.write('access_key_id = %s\n' %(keyid))
@@ -39,7 +39,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
         r1.write('storage_class = STANDARD\n')
         r1.close()
 
-	cmd='scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s rclone.conf ubuntu@%s:~/.rclone.conf' %(keypair,IP)
+	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s rclone.conf ubuntu@%s:~/.rclone.conf' %(keypair,IP)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	#Copy data down
@@ -49,7 +49,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 		rcloneexe='rclone'
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 		rcloneexe='rclone_mac'
-	exec_remote_cmd('%s/%s copy %s:%s %s/ --quiet --transfers %i' %(homedir,rcloneexe,rclonename,bucketname.split('s3://')[-1],dironebs,numfilesAtATime))
+	exec_remote_cmd('%s/%s copy rclonename:%s %s/ --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime))
 
 #=========================
 def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath,project):
@@ -165,9 +165,13 @@ def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketn
         symflag=0
         samedir=0
         for line in open(micstar,'r'):
-                if len(line) < 40:
+                if len(line) == 0:
                         continue
-                if len(line.split()[microcol-1].split('/')) == 0:
+		if line[0] == '_':
+			continue
+                if line[-1] == '_':
+			continue
+		if len(line.split()[microcol-1].split('/')) == 0:
                         dirtransfer=''
                         origdir=''
                         samedir=1
@@ -184,9 +188,8 @@ def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketn
                                 o22.write('%s\n' %(miconly))
                                 symflag=1
                         if os.path.islink(mic) is False:
-                                dirtransfer=line.split()[microcol-1].split('/')[0]
+				dirtransfer=line.split()[microcol-1].split('/')[0]
         o22.close()
-
         #Create bucket on aws:
         if len(project) == 0:
 		cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
@@ -218,7 +221,7 @@ def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketn
 	return 's3://%s' %(bucketname),dirtransfer,origdir
 
 #=========================
-def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath):
+def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath,project):
 
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rclonepath='%s/rclone' %(awspath)
@@ -231,7 +234,7 @@ def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bu
                 os.remove('%s/.rclone.conf' %(homedir))
 
         r1=open('%s/.rclone.conf' %(homedir),'w')
-        r1.write('[%s]\n' %(rclonename))
+        r1.write('[rclonename]\n')
         r1.write('type = s3\n')
         r1.write('env_auth = false\n')
         r1.write('access_key_id = %s\n' %(keyid))
@@ -244,12 +247,6 @@ def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bu
         r1.write('storage_class = STANDARD\n')
         r1.close()
 
-	#Find which directory has the micrographs for transferring
-	#for line in open(micstar,'r'):
-	#	if len(line) < 40:
-	#		if len(line.split()) >= 1:
-	#			if line.split()[0] == '_rlnMicrographName':
-	#				microcol=int(line.split()[1].split('#')[-1])
 	microcol=1
 	o22=open('micinclude.txt','w')
 	symflag=0
@@ -278,27 +275,28 @@ def rclone_to_s3_preprocess(micstar,numfiles,region,keyid,secretid,rclonename,bu
 	o22.close()
 
         #Create bucket on aws:
-        cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
-        subprocess.Popen(cmd,shell=True).wait()
-        os.remove('s3.log')
+        if len(project) == 0: 
+		cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
+        	subprocess.Popen(cmd,shell=True).wait()
+        	os.remove('s3.log')
 
 	if len(dirtransfer)>0:
 		if symflag == 0:
-			cmd='%s copy %s %s:%s --quiet --transfers %i > rclone.log' %(rclonepath,dirtransfer,bucketname,bucketname,math.ceil(numfiles))
+			cmd='%s copy %s rclonename:%s --quiet --transfers %i > rclone.log' %(rclonepath,dirtransfer,bucketname,math.ceil(numfiles))
         		subprocess.Popen(cmd,shell=True).wait()
         		os.remove('rclone.log')
 		if symflag == 1:
-			cmd='%s copy %s %s:%s --quiet --include-from micinclude.txt --transfers %i > rclone.log' %(rclonepath,dirtransfer,bucketname,bucketname,math.ceil(numfiles))
+			cmd='%s copy %s rclonename:%s --quiet --include-from micinclude.txt --transfers %i > rclone.log' %(rclonepath,dirtransfer,bucketname,math.ceil(numfiles))
 			subprocess.Popen(cmd,shell=True).wait()
 			os.remove('rclone.log')
         if len(dirtransfer) == 0:
-		cmd='%s copy . %s:%s --quiet --include-from micinclude.txt --transfers %i > rclone.log' %(rclonepath,dirtransfer,bucketname,bucketname,math.ceil(numfiles))
+		cmd='%s copy . rclonename:%s --quiet --include-from micinclude.txt --transfers %i > rclone.log' %(rclonepath,dirtransfer,bucketname,math.ceil(numfiles))
                 subprocess.Popen(cmd,shell=True).wait()
                 os.remove('rclone.log')
 	return 's3://%s' %(bucketname),dirtransfer,origdir
 
 #=========================
-def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awspath):
+def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awspath,project):
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rclonepath='%s/rclone' %(awspath)
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
@@ -310,7 +308,7 @@ def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awsp
 		os.remove('%s/.rclone.conf' %(homedir))
 
 	r1=open('%s/.rclone.conf' %(homedir),'w')
-	r1.write('[%s]\n' %(rclonename))
+	r1.write('[rclonename]\n')
 	r1.write('type = s3\n')
 	r1.write('env_auth = false\n')
 	r1.write('access_key_id = %s\n' %(keyid))
@@ -324,9 +322,11 @@ def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awsp
 	r1.close()
 
 	#Create bucket on aws:
-	cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
-	subprocess.Popen(cmd,shell=True).wait()
-	os.remove('s3.log')
+	if len(project) == 0: 
+		cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
+		subprocess.Popen(cmd,shell=True).wait()
+		os.remove('s3.log')
+	
 	cmd='%s copy %s %s:%s --quiet --transfers %i > rclone.log' %(rclonepath,indir,bucketname,bucketname,math.ceil(numfiles))
 	subprocess.Popen(cmd,shell=True).wait()
 	os.remove('rclone.log')
@@ -425,8 +425,8 @@ def getCMDrefine(f1):
 	outcounter=-1
 	autoref=-1
 	counter=1
-	itercounter=1
-	numiters=1
+	itercounter=0
+	numiters=0
 	ref='None'
 
 	for l in rlncmd.split():
@@ -438,14 +438,17 @@ def getCMDrefine(f1):
 			outcounter=counter
 		if l == '--auto_refine':
 			autoref=counter
+		if l == '--iter': 
+			itercounter=counter
 		counter=counter+1
 
 	partdir=rlncmd.split()[indircounter].split('particles.star')[0]
 	outdir=rlncmd.split()[outcounter].split('run')[0]
-
+	if itercounter > 0:
+		numiters=int(rlncmd.split()[itercounter])
 	if refcounter > 0:
 		ref=rlncmd.split()[refcounter]
-	return rlncmd,partdir,ref,outdir,autoref
+	return rlncmd,partdir,ref,outdir,autoref,numiters
 
 #==============================
 def parseCMDrefine(relioncmd):
@@ -618,10 +621,10 @@ def parseCMDpreprocess(relioncmd):
         return ' '.join(newcmd)
 
 #==============================
-def relion_refine_mpi():
+def relion_refine_mpi(project):
 
 	#Get relion command and input options
-	relioncmd,particledir,initmodel,outdir,autoref=getCMDrefine(infile)
+	relioncmd,particledir,initmodel,outdir,autoref,numiters=getCMDrefine(infile)
 
 	#Get number of particles to decide how big of a machine to spin up
 	numParticles=len(open('%s/particles.star' %(particledir),'r').readlines())
@@ -661,6 +664,7 @@ def relion_refine_mpi():
 	key_ID=subprocess.Popen('echo $AWS_ACCESS_KEY_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	secret_ID=subprocess.Popen('echo $AWS_SECRET_ACCESS_KEY',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	teamname=subprocess.Popen('echo $RESEARCH_GROUP_NAME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
 	#Get AWS CLI directory location
 	awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -689,12 +693,21 @@ def relion_refine_mpi():
 				os.remove('ebsout.log')
 				if os.path.exists('s3out.log'):
                                         os.remove('s3out.log')
-                                cmd='aws s3 ls > s3out.log'
+                                cmd='aws s3 ls %s > s3out.log' %(bucketname.split('s3://')[-1])
                                 subprocess.Popen(cmd,shell=True).wait()
-                                for line in open('s3out.log','r'):
-                                        if line.split()[-1] == bucketname.split('s3://')[-1]:
-                                                s3_exist=True
-
+                                if len(open('s3out.log','r').readlines()) > 0:
+                                        s3_exist=True
+	
+	keyname=keypair.split('/')[-1].split('.pem')[0]
+        keyname=keyname.split('_')
+        keyname='-'.join(keyname)
+        outdirname=outdir.split('/')
+        if len(outdirname[-1]) == 0:
+                del outdirname[-1]
+        outdirname='-'.join(outdirname)
+        outdirname=outdirname.lower().strip()
+        keyname=keyname.lower().strip()
+        project=project.strip()
 	if s3_exist is False:
 		if ebs_exist is True:
 			ebs_exist=False
@@ -707,13 +720,17 @@ def relion_refine_mpi():
 	#Upload data to S3
 	if s3_exist is False:
 		writeToLog('Started uploading %sGB to AWS on %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-		bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+		if len(project) == 0: 
+			bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+		if len(project) > 0: 
+			bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
+
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
                 	numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 	                numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 
-		bucketname=rclone_to_s3(particledir,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir)
+		bucketname=rclone_to_s3(particledir,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project)
 		writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 	if ebs_exist is False:
 		writeToLog('Creating data storage drive ...','%s/run.out' %(outdir))
@@ -727,7 +744,7 @@ def relion_refine_mpi():
         	volID=linecache.getline('awsebs.log',5).split('ID: ')[-1].split()[0]
 
 	#Restore volume, returning with it volID for later steps
-	writeToLog('Launching virtual machine ...','%s/run.out' %(outdir))
+	writeToLog('Launching virtual machine %s...' %(instance),'%s/run.out' %(outdir))
 	now=datetime.datetime.now()
 	startday=now.day
 	starthr=now.hour
@@ -771,11 +788,8 @@ def relion_refine_mpi():
 			if len(entry.split('.star')) == 1:
 				exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
 				dirlocation=dirlocation+'/'+entry
-	        #parallel_rsync(particledir,numCPUs+2,keypair,userIP,'/data')
 		s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(particledir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles)
 		writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
-	#cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s  ubuntu@%s:%s/ > rsync.log' %(keypair,particledir,userIP,dirlocation)
-        #subprocess.Popen(cmd,shell=True).wait()
 
 	#Make output directories
 	dirlocation='/data'
@@ -783,7 +797,7 @@ def relion_refine_mpi():
                 if len(entry.split('.star')) == 1:
                         exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
                         dirlocation=dirlocation+'/'+entry
-	cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,dirlocation)
+	cmd='rsync -avzu -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,dirlocation)
     	subprocess.Popen(cmd,shell=True).wait()
 
 	if len(select) > 0:
@@ -791,11 +805,11 @@ def relion_refine_mpi():
  		for entry in selectdir.split('/'):
  			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
  			dirlocation=dirlocation+'/'+entry
- 		cmd='rsync -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,selectdir,userIP,dirlocation)
+ 		cmd='rsync -avzu -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > rsync.log' %(keypair,selectdir,userIP,dirlocation)
  		subprocess.Popen(cmd,shell=True).wait()
 
 	if initmodel != 'None':
-		cmd='rsync -avzu -R -e "ssh -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
+		cmd='rsync -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
         	subprocess.Popen(cmd,shell=True).wait()
 	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
 
@@ -806,20 +820,20 @@ def relion_refine_mpi():
 	o2.close()
 	st = os.stat('run_aws.job')
 	os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
-	cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
+	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='ssh -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+	cmd='ssh -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
 	subprocess.Popen(cmd,shell=True)
 
 	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
 
-	cmd='rsync --ignore-errors -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/run.out ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,outdir)
+	cmd='rsync --ignore-errors -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/run.out ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	isdone=0
 	while isdone == 0:
-		cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		time.sleep(2)
 		if autoref == -1:
@@ -880,11 +894,31 @@ def relion_refine_mpi():
 	cmd='echo "%s     %s      %s" >> .aws_relion' %(particledir,bucketname,volID)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	#Copy final iteration data to storage bucket if 'full' processing on AWS
-	if os.path.exists('aws_relion_archive.txt'):
-		storagebucket=subprocess.Popen('cat aws_relion_archive.txt | grep ArchiveBucket' ,shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('=')[-1]
-		datalocation=subprocess.Popen('cat aws_relion_archive.txt | grep Data' ,shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('=')[-1]
+	if len(project) > 0:
+                projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
+                cmd='aws s3 cp .aws_relion s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
 
+                if os.path.exists('.aws_relion_project_info'):
+                        cmd='aws s3 cp .aws_relion_project_info s3://%s/ > s3tmp.log' %(projectbucket)
+                        subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 sync %s/ s3://%s/%s > s3tmp.log ' %(outdir,projectbucket,outdirname)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp default_pipeline.star s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                guilist=glob.glob('.gui*')
+                for gui in guilist:
+                        cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(gui,projectbucket)
+                        subprocess.Popen(cmd,shell=True).wait()
+                if os.path.exists('s3tmp.log'):
+                        os.remove('s3tmp.log')
+	
 	#Cleanup
 	if os.path.exists('awslog.log'):
 		os.remove('awslog.log')
@@ -919,7 +953,7 @@ def kill_job(keypair,IP):
         env.key_filename = '%s' %(keypair)
 	exec_remote_cmd('ps aux | grep mpi > runningProcs.txt')
 
-	cmd='scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s ubuntu@%s:~/runningProcs.txt .' %(keypair,IP)
+	cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s ubuntu@%s:~/runningProcs.txt .' %(keypair,IP)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	pidlist=[]
@@ -1069,10 +1103,9 @@ def getMicStarFileSize(micstar):
 	return float(os.stat(mic).st_size)*miccounter
 
 #==============================
-def relion_preprocess_mpi():
+def relion_preprocess_mpi(project):
 
-	#`which relion_preprocess_mpi` --i all_micrographs_ctf.star --coord_dir Import/job002/ --coord_suffix .box --part_star Extract/job065/particles.star --part_dir Extract/job065/ --extract --extract_size 256 --scale 64 --norm --bg_radius 24 --white_dust -1 --black_dust -1
-			#Get relion command and input options
+	#Get relion command and input options
 	relioncmd,micstar,boxdir,outdir=getCMDpreprocess(infile)
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
@@ -1102,6 +1135,7 @@ def relion_preprocess_mpi():
 	key_ID=subprocess.Popen('echo $AWS_ACCESS_KEY_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	secret_ID=subprocess.Popen('echo $AWS_SECRET_ACCESS_KEY',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	teamname=subprocess.Popen('echo $RESEARCH_GROUP_NAME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
 	#Get AWS CLI directory location
 	awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -1115,27 +1149,38 @@ def relion_preprocess_mpi():
 	bucketname=''
 	if os.path.exists('.aws_relion'):
                 for line in open('.aws_relion','r'):
-                        if line.split()[0] == micstar:
-				bucketname=line.split()[1]
-				#Check if it exists:
-				if os.path.exists('s3out.log'):
+                        if line.split()[0].strip() == micstar.strip():
+                                bucketname=line.split()[1]
+                                #Check if it exists:
+                                if os.path.exists('s3out.log'):
                                         os.remove('s3out.log')
-                                cmd='aws s3 ls > s3out.log'
+                                cmd='aws s3 ls %s > s3out.log' %(bucketname.split('s3://')[-1])
                                 subprocess.Popen(cmd,shell=True).wait()
-                                for line in open('s3out.log','r'):
-                                        if line.split()[-1] == bucketname.split('s3://')[-1]:
-                                                s3_exist=True
-				os.remove('s3out.log')
+                                if len(open('s3out.log','r').readlines()) > 0:
+                                        s3_exist=True
+	keyname=keypair.split('/')[-1].split('.pem')[0]
+        keyname=keyname.split('_')
+        keyname='-'.join(keyname)
+        outdirname=outdir.split('/')
+        if len(outdirname[-1]) == 0:
+                del outdirname[-1]
+        outdirname='-'.join(outdirname)
+        outdirname=outdirname.lower().strip()
+        keyname=keyname.lower().strip()
+        project=project.strip()
 
 	#Upload data to S3
 	if s3_exist is False:
 		writeToLog('Started upload to AWS on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-		bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+		if len(project) == 0:
+                        bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+                if len(project) > 0:
+                        bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
                 	numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 	                numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
-		bucketname,micdir,origdir=rclone_to_s3_preprocess(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir)
+		bucketname,micdir,origdir=rclone_to_s3_preprocess(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project)
 		writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 
 	inputfilesize=subprocess.Popen('du %s' %(micdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
@@ -1180,7 +1225,7 @@ def relion_preprocess_mpi():
 
 	writeToLog('Transferring data ...','%s/run.out' %(outdir))
 
-	cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s  ubuntu@%s:%s/ > rsync.log' %(keypair,boxdir,userIP,dirlocation)
+	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s  ubuntu@%s:%s/ > rsync.log' %(keypair,boxdir,userIP,dirlocation)
         subprocess.Popen(cmd,shell=True).wait()
 
 	#Make output directories
@@ -1199,7 +1244,7 @@ def relion_preprocess_mpi():
 	locallocation='/'.join(locallocation)
 
 	micInDir=dirlocation
-	cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/  ubuntu@%s:%s/ > rsync.log' %(keypair,locallocation,userIP,micInDir)
+	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/  ubuntu@%s:%s/ > rsync.log' %(keypair,locallocation,userIP,micInDir)
         subprocess.Popen(cmd,shell=True).wait()
 
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -1218,20 +1263,20 @@ def relion_preprocess_mpi():
 	o2.close()
 	st = os.stat('run_aws.job')
 	os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
-	cmd='rsync -q -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
+	cmd='rsync -q -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+	cmd='ssh -q -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
 	subprocess.Popen(cmd,shell=True)
 
 	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
 
-	cmd='rsync -q --ignore-errors -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/run.out ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,outdir)
+	cmd='rsync -q --ignore-errors -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/run.out ubuntu@%s:%s/ > rsync.log' %(keypair,outdir,userIP,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	isdone=0
 	while isdone == 0:
-		cmd='rsync -avzu -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > rsync.log' %(keypair,userIP,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		if os.path.exists('%s/particles.star' %(outdir)):
 			isdone=1
@@ -1240,7 +1285,6 @@ def relion_preprocess_mpi():
 	time.sleep(30)
 
 	writeToLog('Job finished!','%s/run.out' %(outdir))
-	#writeToLog('Creating snapshot of data ...','%s/run.out' %(outdir))
 
 	cmd='%s/kill_instance.py %s > awslog.log' %(awsdir,instanceID)
 	subprocess.Popen(cmd,shell=True).wait()
@@ -1289,6 +1333,36 @@ def relion_preprocess_mpi():
 
 	cmd='echo "%s     %s      %s" >> .aws_relion' %(outdir,bucketname,volID)
         subprocess.Popen(cmd,shell=True).wait()
+
+	if len(project) > 0:
+                projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
+
+                cmd='aws s3 cp .aws_relion s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                if os.path.exists('.aws_relion_project_info'):
+                        cmd='aws s3 cp .aws_relion_project_info s3://%s/ > s3tmp.log' %(projectbucket)
+                        subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+		#Remove all micrographs in bucket already
+		cmd='aws s3 rm s3://%s/%s/ --recursive > s3tmp.log' %(projectbucket,outdirname)
+		subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 sync %s/ s3://%s/%s > s3tmp.log ' %(outdir,projectbucket,outdirname)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp default_pipeline.star s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                guilist=glob.glob('.gui*')
+                for gui in guilist:
+                        cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(gui,projectbucket)
+                        subprocess.Popen(cmd,shell=True).wait()
+                if os.path.exists('s3tmp.log'):
+                        os.remove('s3tmp.log')
 
 	#Cleanup
 	if os.path.exists('awslog.log'):
@@ -1672,7 +1746,6 @@ def relion_run_ctffind(project):
                 subprocess.Popen(cmd,shell=True).wait()
 
                 cmd='aws s3 sync %s/ s3://%s/%s > s3tmp.log ' %(outdir,projectbucket,outdirname)
-                print cmd
 		subprocess.Popen(cmd,shell=True).wait()
 
                 cmd='aws s3 cp default_pipeline.star s3://%s/ > s3tmp.log' %(projectbucket)
@@ -1681,7 +1754,6 @@ def relion_run_ctffind(project):
                 guilist=glob.glob('.gui*')
                 for gui in guilist:
                         cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(gui,projectbucket)
-                        print cmd
                         subprocess.Popen(cmd,shell=True).wait()
 		if os.path.exists('s3tmp.log'): 
 			os.remove('s3tmp.log')
@@ -1766,26 +1838,24 @@ def relion_run_motioncorr(project):
                 writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
         	inputfilesize=subprocess.Popen('du %s' %(micdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
 	if len(micstar.split('s3-')) > 1:
-		bucketname='s3://%s' %(micstar.split('s3-')[-1])
+		bucketname='s3://rln-aws-%s-%s/%s' %(teamname,keyname,micstar.split('s3-')[-1])
 		micdir='Micrographs'
 		if os.path.exists('s3out.log'):
 			os.remove('s3out.log')
 		#Check that it exists
-		cmd='aws s3 ls > s3out.log'
-                subprocess.Popen(cmd,shell=True).wait()
+		cmd='aws s3 ls %s > s3out.log' %(bucketname.split('s3://')[-1])
+		subprocess.Popen(cmd,shell=True).wait()
 		flagExist=False
-		s3open=open('s3out.log','r')
-                for s3 in s3open:
-                        if s3.split()[0] == 'PRE':
-                                continue
-			if s3.split()[-1] == micstar.split('s3-')[-1]:
-				flagExist=True
+                if len(open('s3out.log','r').readlines()) > 0: 
+			flagExist=True
 		os.remove('s3out.log')
 		if flagExist is False:
-			writeToLog('Error: Could not find specified s3 bucket %s. Exiting' %(micstar),'%s/run.err' %(outdir))
+			writeToLog('Error: Could not find specified s3 bucket %s. Exiting' %(bucketname.split('s3://')[-1]),'%s/run.err' %(outdir))
 			sys.exit()
-		cmd='aws s3 ls %s/ > s3out.log' %(bucketname)
+		cmd='aws s3 ls %s > s3out.log' %(bucketname.split('s3://')[-1])
 		subprocess.Popen(cmd,shell=True).wait()
+		if os.path.exists('movies.star'): 
+			os.remove('movies.star')
 		micout=open('movies.star','w')
 		micout.write('data_\n')
 		micout.write('loop_\n')
@@ -1794,6 +1864,8 @@ def relion_run_motioncorr(project):
 		for s3 in s3open:
 			if s3.split()[0] == 'PRE':
 				continue
+			if s3.split()[-1] == '.tmp': 
+				continue 
 			if s3.split()[-1].split('.')[-1] == '.mrc' or s3.split()[-1].split('.')[-1] == '.mrcs' or s3.split()[-1] != gainref:
 				micout.write('%s/%s\n' %(micdir,s3.split()[-1].strip()))
 			if s3.split()[-1] == gainref:
@@ -1814,9 +1886,9 @@ def relion_run_motioncorr(project):
                 numInstancesRequired=math.ceil(movieCounter/32)
                 if numInstancesRequired <=1:
 			numInstancesRequired=1
-		instance='r4.8xlarge' #m4.16xlarge
-                mpi=32 #64
-                cost=2.128 #3.447
+		instance='r4.8xlarge'
+                mpi=32
+                cost=2.128
                 gpu=0
 		if numInstancesRequired > maxm4:
                         numInstancesRequired=5
@@ -1845,11 +1917,17 @@ def relion_run_motioncorr(project):
         		mpi=4
 		        cost=0.90
 
+	instance='p2.8xlarge'
+        numInstancesRequired=1
+        gpu=8
+        mpi=32
+        cost=7.2
+
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
-		ntasks=mpi
-	sizeneeded=ntasks*10
+		ntasks=mpi-24
+	sizeneeded=ntasks*60
 	numMoviesPerInstance=math.ceil((movieCounter+1)/numInstancesRequired)
 	count=0
 	instancenum=0
@@ -1970,7 +2048,7 @@ def relion_run_motioncorr(project):
 
         	o2=open('run_aws.job','w')
 		o2.write('cd /data\n')
-		o2.write('chmod +x relion_movie_align.py\n')
+		o2.write('/bin/chmod +x relion_movie_align.py\n')
 		o2.write('./relion_movie_align.py %s_%i.star %i rclonename:%s/Micrographs %s %i %s "%s" "%s" %s %f %s' %(micstar[:-5],instanceNum,ntasks,bucketname.split('s3://')[-1],bucketname.split('s3://')[-1],ntasks*2,movieAlignType,relioncmd,gainref,outdir,angpix,savemovies))
         	o2.close()
         	st = os.stat('run_aws.job')
@@ -1978,7 +2056,7 @@ def relion_run_motioncorr(project):
         	cmd='rsync -q -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,IPlist[instanceNum])
         	subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+		cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/home/EM_Packages/relion2-beta/build/bin:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(cmd,shell=True)
 
 		instanceNum=instanceNum+1
@@ -1991,12 +2069,13 @@ def relion_run_motioncorr(project):
 		if len(micname.split('/')) > 1:
 			micname=micname.split('/')[-1]
 		isdone=0
-		newnamesplit=micname.split('.')
-                if len(newnamesplit) > 2:
- 	               del newnamesplit[-1]
-                       newnamesplit='_'.join(newnamesplit)
-                       newmicname=newnamesplit+'.'+micname.split('.')[-1]
-		micname=newmicname
+		if movieAlignType != 'unblur': 
+			newnamesplit=micname.split('.')
+	                if len(newnamesplit) > 2:
+ 		               del newnamesplit[-1]
+                	       newnamesplit='_'.join(newnamesplit)
+                       	       newmicname=newnamesplit+'.'+micname.split('.')[-1]
+			       micname=newmicname
 		while isdone == 0:
 			if os.path.exists('s3testlog.log'):
 				os.remove('s3testlog.log')
@@ -2007,7 +2086,10 @@ def relion_run_motioncorr(project):
 			for qline in sopen:
 				if len(qline.split()) > 0:
 					if savemovies is True: 
-						movname='%s_movie.mrcs' %(micname[:-4])
+						if movieAlignType != 'unblur': 
+							movname='%s_movie.mrcs' %(micname[:-4])
+						if movieAlignType == 'unblur': 
+							movname='%s_movie.mrc' %(micname[:-4])
 						if qline.split()[-1].strip() == movname:
 							basename=micname.split('.')
 							del basename[-1]
@@ -2040,7 +2122,7 @@ def relion_run_motioncorr(project):
 			sopen.close()
 			if os.path.exists('s3testlog.log'):
 				os.remove('s3testlog.log')
-			time.sleep(30)
+			time.sleep(5)
 		miccount=miccount+1
 
 	writeToLog('Finished all movies. Shutting down virtual machines...', '%s/run.out' %(outdir))
@@ -2054,6 +2136,8 @@ def relion_run_motioncorr(project):
 		newout.write('%s\n' %(newmic))
 	newout.close()
 
+	if os.path.exists('awslog.log'): 
+		os.remove('awslog.log')
 	for instanceID in instanceIDlist:
 		cmd='%s/kill_instance.py %s > awslog.log' %(awsdir,instanceID)
         	subprocess.Popen(cmd,shell=True).wait()
@@ -2136,7 +2220,6 @@ def relion_run_motioncorr(project):
 		guilist=glob.glob('.gui*')
 		for gui in guilist: 
 			cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(gui,projectbucket)
-			print cmd 
 			subprocess.Popen(cmd,shell=True).wait() 
 
 		indir=micstar.split('/')
@@ -2144,7 +2227,6 @@ def relion_run_motioncorr(project):
 		indirbucket='-'.join(indir).lower()
 		indir='/'.join(indir)
 		cmd='aws s3 sync %s s3://%s/%s/ > s3tmp.log' %(indir,projectbucket,indirbucket)
-		print cmd
 		subprocess.Popen(cmd,shell=True).wait()
 
 	if os.path.exists('rsync.log'):
@@ -2159,7 +2241,7 @@ def relion_run_motioncorr(project):
 		os.remove('run_aws.job')
 
 #==============================
-def relion_autopick_mpi():
+def relion_autopick_mpi(project):
 
 	#`which relion_autopick` --i CtfFind/job038/micrographs_ctf.star --ref Select/job059/class_averages.star --odir AutoPick/job070/ --pickname autopick --ang 5 --shrink 0 --lowpass 20 --write_fom_maps  --threshold 1 --min_distance 100 --max_stddev_noise 1.5
 	#echo CtfFind/job038/micrographs_ctf.star > AutoPick/job070/coords_suffix_autopick.star
@@ -2183,6 +2265,7 @@ def relion_autopick_mpi():
         key_ID=subprocess.Popen('echo $AWS_ACCESS_KEY_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
         secret_ID=subprocess.Popen('echo $AWS_SECRET_ACCESS_KEY',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
         teamname=subprocess.Popen('echo $RESEARCH_GROUP_NAME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
         #Get AWS CLI directory location
         awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -2203,15 +2286,27 @@ def relion_autopick_mpi():
                                 #Check if it exists:
                                 if os.path.exists('s3out.log'):
                                         os.remove('s3out.log')
-                                cmd='aws s3 ls > s3out.log'
+                                cmd='aws s3 ls %s > s3out.log' %(bucketname.split('s3://')[-1])
                                 subprocess.Popen(cmd,shell=True).wait()
-                                for line in open('s3out.log','r'):
-                                        if line.split()[-1] == bucketname.split('s3://')[-1]:
-                                                s3_exist=True
-                                os.remove('s3out.log')
+                                if len(open('s3out.log','r').readlines()) > 0:
+                                        s3_exist=True
+        keyname=keypair.split('/')[-1].split('.pem')[0]
+        keyname=keyname.split('_')
+        keyname='-'.join(keyname)
+        outdirname=outdir.split('/')
+        if len(outdirname[-1]) == 0:
+                del outdirname[-1]
+        outdirname='-'.join(outdirname)
+        outdirname=outdirname.lower().strip()
+        keyname=keyname.lower().strip()
+        project=project.strip()
+        #Upload data to S3
         if s3_exist is False:
                 writeToLog('Started micrograph upload on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-                bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+                if len(project) == 0:
+                        bucketname='rln-aws-tmp-%s-%0.f' %(teamname,time.time())
+                if len(project) > 0:
+                        bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
                         numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
@@ -2527,7 +2622,38 @@ def relion_autopick_mpi():
                 os.remove('.aws_relion_tmp')
         cmd='echo "%s     %s      ---" >> .aws_relion' %(outdir,bucketname)
         subprocess.Popen(cmd,shell=True).wait()
-        if os.path.exists('rsync.log'):
+        
+	if len(project) > 0:
+                projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
+
+                cmd='aws s3 cp .aws_relion s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                if os.path.exists('.aws_relion_project_info'):
+                        cmd='aws s3 cp .aws_relion_project_info s3://%s/ > s3tmp.log' %(projectbucket)
+                        subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                #Remove all micrographs in bucket already
+                #cmd='aws s3 rm s3://%s/%s/ --recursive > s3tmp.log' %(projectbucket,outdirname)
+                #subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 sync %s/ s3://%s/%s > s3tmp.log ' %(outdir,projectbucket,outdirname)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp default_pipeline.star s3://%s/ > s3tmp.log' %(projectbucket)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                guilist=glob.glob('.gui*')
+                for gui in guilist:
+                        cmd='aws s3 cp %s s3://%s/ > s3tmp.log' %(gui,projectbucket)
+                        subprocess.Popen(cmd,shell=True).wait()
+                if os.path.exists('s3tmp.log'):
+                        os.remove('s3tmp.log')	
+
+	if os.path.exists('rsync.log'):
                 os.remove('rsync.log')
         moviestarlist=glob.glob('movies*.star')
         for moviestar in moviestarlist:

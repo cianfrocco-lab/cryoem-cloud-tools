@@ -24,6 +24,29 @@ summoviepath='/home/EM_Packages/summovie_1.0.2/bin/sum_movie_openmp_7_17_15.exe'
 relionpath='/home/EM_Packages/relion2-beta/build/bin/relion_run_motioncorr'
 relionhandler='/home/EM_Packages/relion2-beta/build/bin/relion_image_handler'
 
+def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4): 
+	
+	outfile='rcloneupload_%0.i.txt' %(time.time())
+	if os.path.exists(outfile): 
+		time.sleep(2)
+	outfile='rcloneupload_%0.i.txt' %(time.time())
+
+	o33=open(outfile,'w')
+	o33.write('#!/bin/bash\n')
+	o33.write('~/rclone sync %s %s --quiet --include-from %s --transfers %i\n' %(dirToSync,outbucket,rclonetxt,filesAtATime))
+	o33.write('rm %s\n' %(f1))  #newcheck))
+	o33.write('rm %s\n' %(f2)) #newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4])
+	if os.path.exists(f3): 
+		o33.write('rm %s\n' %(f3)) 
+	if os.path.exists(f4): 
+		o33.write('rm %s\n' %(f4))
+	o33.write('rm %s\n' %(rclonetxt))
+	o33.close()
+	cmd='/bin/chmod +x %s' %(outfile)
+        subprocess.Popen(cmd,shell=True).wait()
+        cmd='./%s' %(outfile)
+        subprocess.Popen(cmd,shell=True)
+
 def writeRunUnBlurSum(relioncmd,micname,additionalcmds,totframes): 
 	#--o MotionCorr/job082/ --first_frame_sum 1 --last_frame_sum 0 --use_unblur --j 1  --angpix 0.6 --dose_weighting --voltage 200 --dose_per_frame 1.3 --preexposure 0
 	tot=len(relioncmd.split())
@@ -59,11 +82,24 @@ def writeRunUnBlurSum(relioncmd,micname,additionalcmds,totframes):
 	sumlog='%s_sum.log' %(outmicname[:-(len(outmicname.split('.')[-1])+1)])
 	shifts='%s_shifts.txt' %(outmicname[:-(len(outmicname.split('.')[-1])+1)])
 
+	finddirs=outmicname.split('/')
+	curr=''
+	for find in finddirs: 
+		if len(find) == 0: 
+			continue
+		if len(curr) > 0: 
+			curr=curr+'/'+find+'/'
+		if len(curr) == 0:
+                        curr=find+'/'
+		if os.path.isdir(curr) is False: 
+			if len(curr.split('.mrc')) == 1:
+				if curr != micname.split('/')[-1]: 
+					os.makedirs(curr)
 	if os.path.exists(scriptrun): 
 		os.remove(scriptrun)
 	o1=open(scriptrun,'w')
-	o1.write('#!/usr/bin/env bash\n')
-	#o1.write('export  OMP_NUM_THREADS=4\n')
+	o1.write('#!/usr/bin/env /bin/bash\n')
+	o1.write('export  OMP_NUM_THREADS=1\n')
 	o1.write('/home/EM_Packages/unblur_1.0.2/bin/unblur_openmp_7_17_15.exe > %s << EOF\n' %(unblurlog))
 	o1.write('%s\n' %(micname))
 	o1.write('%s\n' %(totframes))
@@ -79,33 +115,17 @@ def writeRunUnBlurSum(relioncmd,micname,additionalcmds,totframes):
 		o1.write('NO\n')
 	if savemovies is True: 
 		o1.write('YES\n')
+		movieout=outmicname.split('.')
+		del movieout[-1]
+		movieout='.'.join(movieout)
+		o1.write('%s_movie.mrc\n' %(movieout))
 	if savemovies is False: 
 		o1.write('NO\n')
 	o1.write('NO\n')
 	o1.write('EOF\n')
-	o1.write('\n')
-	o1.write('/home/EM_Packages/summovie_1.0.2/bin/sum_movie_openmp_7_17_15.exe > %s << EOF\n' %(sumlog))
-	o1.write('%s\n' %(micname))
-	o1.write('%s\n' %(totframes))
-	o1.write('%s\n' %(outmicname))
-	o1.write('%s\n' %(shifts))
-	o1.write('%s_frc.txt\n' %(shifts[:-4]))
-	o1.write('%s\n' %(firstframe))
-	o1.write('%s\n' %(lastframesum))
-	o1.write('%s\n' %(apix))
-	if doseweight is False: 
-		o1.write('NO\n')
-	if doseweight is True: 
-		o1.write('YES\n')
-		o1.write('%s\n' %(doseperframe))
-		o1.write('%s\n' %(voltage))
-		o1.write('%s\n' %(prexpose))
-		o1.write('YES\n')
-	o1.write('EOF\n')
 	o1.close()
-	cmd='chmod +x %s' %(scriptrun)
+	cmd='/bin/chmod +x %s' %(scriptrun)
 	subprocess.Popen(cmd,shell=True).wait()
-
 	cmd='./%s' %(scriptrun)
 	subprocess.Popen(cmd,shell=True)
 
@@ -136,6 +156,8 @@ miclist=[]
 if len(destdir) > 0: 
 	if not os.path.exists(destdir): 
 		os.makedirs(destdir)
+	if not os.path.exists('%s/%s/' %(outdir,destdir)): 
+		os.makedirs('%s/%s/' %(outdir,destdir))
 if os.path.exists('rcloneMicList.txt'): 
 	os.remove('rcloneMicList.txt')
 r1=open('rcloneMicList.txt','w')
@@ -173,7 +195,7 @@ while movieCounter < len(movielist):
 				cmd='/home/EM_Packages/relion2-beta/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
 				subprocess.Popen(cmd,shell=True).wait()
 				outline=linecache.getline('handler.txt',1).split('=')[1].split('x')[2]
-				#lastframe=subprocess.Popen('relion_image_handler --i %s --stats' %(micname),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('=')[1].split('x')[2]
+				lastframe=subprocess.Popen('relion_image_handler --i %s --stats' %(micname),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('=')[1].split('x')[2]
 			if aligntype == 'unblur': 
 				additionlcmds=additionalcmds+' --use_unblur'+' --unblur_exe %s' %(unblurpath)+' --summovie_exe %s' %(summoviepath)+' --j 1'
 			if aligntype == 'motioncorr':
@@ -220,7 +242,7 @@ while movieCounter < len(movielist):
                         	newnamesplit='_'.join(newnamesplit)
                        		newmicname=newnamesplit+'.'+micname.split('.')[-1]
                 	if len(newnamesplit) == 2:
-                        	newmicname=micname
+                        	newmicname=check
                 	newcheck=outdir+'/'+newmicname
 			newcheck=newcheck.strip()
 		if aligntype == 'unblur': 
@@ -258,19 +280,22 @@ while movieCounter < len(movielist):
 						cmd='echo "%s_movie.mrcs" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
 						subprocess.Popen(cmd,shell=True)
 
-                         	        cmd='~/rclone sync %s/%s %s --quiet --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,int(numFilesAtATime))
-                                	subprocess.Popen(cmd,shell=True).wait()
+                         	        uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucket),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
+					
+					#cmd='~/rclone sync %s/%s %s --quiet --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,int(numFilesAtATime))
+                                	#subprocess.Popen(cmd,shell=True).wait()
 			
-					os.remove(newcheck)
-					os.remove('%s/%s' %(destdir,check.split('/')[-1]))
-					if savemovies == 'True': 
-						os.remove('%s_movie.mrcs' %(newcheck[:-4]))
-					os.remove('%s_bin.mrc' %(newcheck[:-4]))
-					os.remove(rclonetxt)	
+					#os.remove(newcheck)
+					#os.remove('%s/%s' %(destdir,check.split('/')[-1]))
+					#if savemovies == 'True': 
+					#	os.remove('%s_movie.mrcs' %(newcheck[:-4]))
+					#if os.path.exists('%s_bin.mrc' %(newcheck[:-4])): 
+					#	os.remove('%s_bin.mrc' %(newcheck[:-4]))
+					#os.remove(rclonetxt)	
 			if aligntype == 'unblur': 
 				unblurbase=newcheck[:-(len(newcheck.split('.')[-1])+1)]
-				if os.path.exists('%s_sum.log' %(unblurbase)):
-					checkdone=subprocess.Popen('cat %s_sum.log | grep cleanly' %(unblurbase),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+				if os.path.exists('%s_unblur.log' %(unblurbase)):
+					checkdone=subprocess.Popen('/bin/cat %s_unblur.log | /bin/grep cleanly' %(unblurbase),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 					if len(checkdone) > 0: 
 						isdone=1
 						rclonetxt='rcloneMicList_%0.i' %(time.time())
@@ -302,6 +327,10 @@ while movieCounter < len(movielist):
 	
 						cmd='echo "%s_shifts_frc.txt" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
                                                 subprocess.Popen(cmd,shell=True)
+	
+						if savemovies == 'True':
+							cmd='echo "%s_movie.mrc" >> %s'%(newcheck.split('/')[-1][:-4],rclonetxt)
+							subprocess.Popen(cmd,shell=True)
 
 						cmd='~/rclone sync %s/%s %s --quiet --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,int(numFilesAtATime))
 						subprocess.Popen(cmd,shell=True).wait()
