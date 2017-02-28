@@ -127,12 +127,12 @@ You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *
 	* <pre>$ unzip rclone-v1.35-linux-amd64.zip</pre>
 
 ###Environment setup
-For each user, you will create a hidden directory in their home directory into which you will add the aws_init.sh file and their keypair.  
+For each user, you will create a hidden directory in their home directory into which you will add the aws/aws_init.sh file and their keypair.  
 
 * Create hidden folder: 
 <pre>$ mkdir /home/[user]/.aws</pre>
 
-* Copy aws_init.sh file & edit to include credentials
+* Copy aws/aws_init.sh file & edit to include credentials
 
 * Copy keypair into directory, making sure to modify permissions of file using <pre>chmod 600</pre>
 
