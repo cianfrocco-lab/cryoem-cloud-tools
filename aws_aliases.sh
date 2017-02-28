@@ -1,14 +1,8 @@
 #Set paths
-export AWS_CLI_DIR=/home/michaelc/Scripts/AWS/aws/
-export AWS_RELION=/home/michaelc/Scripts/AWS/relion/
-export PATH=/home/michaelc/Scripts/AWS/aws/:$PATH
-export PATH=/home/michaelc/Scripts/AWS/relion/:$PATH
-
-#Set lifetime values for EBS and S3: Number of days, after which they will be deleted  
-export EBS_LIFETIME=14
-export S3_LIFETIME=12
-export RESEARCH_GROUP_NAME=leschziner
-
+export AWS_CLI_DIR=$AWS_DIR/aws/
+export AWS_RELION=$AWS_DIR/relion/
+export PATH=$AWS_CLI_DIR/:$PATH
+export PATH=$AWS_RELION/:$PATH
 ##List all instances for given user (based on tag)
 alias awsls=$AWS_CLI_DIR/list_instances.py
 ##Kill specified instance 

@@ -1790,10 +1790,13 @@ def relion_run_motioncorr(project):
 
         #Get AWS CLI directory location
         awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
-        if len(awsdir) == 0:
+        reliondir=subprocess.Popen('echo $AWS_RELION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+	if len(awsdir) == 0:
                 print 'Error: Could not find AWS scripts directory specified as $AWS_CLI_DIR. Please set this environmental variable and try again.'
                 sys.exit()
-
+	if len(reliondir) == 0: 
+		print 'Error: Could not find AWS relion directory specified as $AWS_RELION. Please set this environmental variable and try again.'	
+		sys.exit()
 	writeToLog('Starting relion job in the cloud...','%s/run.out' %(outdir))
 
 	#.aws_relion will Have: [particledir] [s3 bucket name] [ebs volume]
@@ -2032,7 +2035,7 @@ def relion_run_motioncorr(project):
 			cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,gainref,IPlist[instanceNum])
 			subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,awsdir,IPlist[instanceNum])
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,reliondir,IPlist[instanceNum])
 		subprocess.Popen(cmd,shell=True).wait()
 
 		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/rclone ubuntu@%s:~/'%(keypair,awsdir,IPlist[instanceNum])

@@ -206,7 +206,7 @@ while movieCounter < len(movielist):
 			if aligntype == 'unblur': 
 				additionlcmds=additionalcmds+' --use_unblur'+' --unblur_exe %s' %(unblurpath)+' --summovie_exe %s' %(summoviepath)+' --j 1'
 			if aligntype == 'motioncorr':
-				additionalcmds=additionalcmds+' --motioncorr_exe %s' %(motioncorrpath)
+				additionalcmds=additionalcmds+' --motioncorr_exe %s' %(motioncorrpath)+' --gpu %i' %(threadnum)
 			if aligntype == 'motioncor2': 
 				additionalcmds=additionalcmds+' --motioncorr_exe %s' %(motioncor2path)+' --use_motioncor2'+' --gpu %i' %(threadnum)
 			if gainref != '-1': 
@@ -214,6 +214,7 @@ while movieCounter < len(movielist):
 			
 			if aligntype != 'unblur': 
 				cmd='nohup %s --i %s' %(relionpath,micname)+' '+relioncmd+' '+additionalcmds+' &'
+				print cmd 
 				subprocess.Popen(cmd,shell=True)
 			if aligntype == 'unblur': 
 				writeRunUnBlurSum(relioncmd,micname,additionalcmds,lastframe)
@@ -242,7 +243,10 @@ while movieCounter < len(movielist):
 			threadnum=threadnum+1
 
 	#Start transfer of next batch
-	while toGetCounter <= toGetCounter+numToGet: 
+	maxnumnext=toGetCounter+numToGet
+	if maxnumnext >=len(movielist): 
+		maxnumnext=len(movielist)
+	while toGetCounter < maxnumnext: 
 		micname=movielist[toGetCounter]
 		if os.path.exists('rcloneMicList1111.txt'):
                 	os.remove('rcloneMicList1111.txt')	
@@ -253,11 +257,16 @@ while movieCounter < len(movielist):
                	cmd='echo "%s" >> rcloneMicList1111.txt' %(micnameonly)
 		subprocess.Popen(cmd,shell=True).wait()
 		toGetCounter=toGetCounter+1
-	
-	cmd='~/rclone sync rclonename:%s %s/ --quiet --include-from rcloneMicList1111.txt --transfers %i' %(movieBucket,destdir,numToGet)
+	cmd='touch rclonestart'
 	subprocess.Popen(cmd,shell=True).wait()
-	
-	os.remove('rcloneMicList1111.txt')
+
+	cmd='~/rclone sync rclonename:%s %s/ --include-from rcloneMicList1111.txt --transfers %i' %(movieBucket,destdir,numToGet)
+	subprocess.Popen(cmd,shell=True).wait()
+	cmd='touch rclonefin'
+        subprocess.Popen(cmd,shell=True).wait()
+
+	if os.path.exists('rcloneMicList1111.txt'): 
+		os.remove('rcloneMicList1111.txt')
 	
 	#Start waiting for 1) jobs to finish and 2) movies have been downloaded
 	for check in outCheckList: 
@@ -277,6 +286,7 @@ while movieCounter < len(movielist):
 		while isdone == 0:
 			time.sleep(3)
 			if aligntype != 'unblur': 
+				print 'waiting for %s' %(newcheck)
 				if os.path.exists(newcheck):
 					isdone=1
 					rclonetxt='rcloneMicList_%0.i' %(time.time())
@@ -307,7 +317,7 @@ while movieCounter < len(movielist):
 						cmd='echo "%s_movie.mrcs" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
 						subprocess.Popen(cmd,shell=True)
 
-                         	        uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucket),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
+                         	        uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
 					
 					#cmd='~/rclone sync %s/%s %s --quiet --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,int(numFilesAtATime))
                                 	#subprocess.Popen(cmd,shell=True).wait()
