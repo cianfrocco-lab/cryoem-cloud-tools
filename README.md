@@ -16,7 +16,7 @@ Shortcut AWS commands found in this Github repo:
 
 * **awshelp** - List available AWS commands from this repo
 
-* **awsls** - List volumes and instances (Include -c to list STARclusters)
+* **awsls** - List volumes and instances (Include -i to list only instances)
 
 * **awskill** - Terminate instance OR cluster
 
@@ -117,6 +117,7 @@ You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *
 * **starcluster**: 
 	* http://star.mit.edu/cluster/docs/latest/index.html
 	* <pre>$ sudo pip install starcluster </pre>
+	* Only required if you want to boot up clusters of CPU instances
 * **fabric**: 
 	* http://www.fabfile.org/installing.html
 	* <pre>$ sudo pip install fabric</pre>
@@ -143,6 +144,8 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 
 * **awsls**
 	* Lists all instances & volumes assigned to user, where user instances are assigned based upon being tagged with key pair name as the instance Owner. 
+	* Include **-i** to only show instances that are running
+	* Include **-v** to only show EBS volumes
 	* Include **-c** to include listings of any clusters created with STARcluster 
 	* Example usage: 
 		<pre>$ awsls
