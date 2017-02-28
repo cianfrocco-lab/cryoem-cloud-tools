@@ -236,8 +236,8 @@ if installRelion is True:
 	o1.write('export LD_LIBRARY_PATH=%s/relion2.0/build/lib:$LD_LIBRARY_PATH\n' %(install_location))
 if cloudtoolsonly is False: 
 	if installMPI is True: 
-		o1.write('export PATH=%s/relion2.0/external_software/openmpi-2.0.2/bin:$PATH' %(install_location))
-		o1.write('export LD_LIBRARY_PATH=%s/relion2.0/external_software/openmpi-2.0.2/lib:$LD_LIBRARY_PATH' %(install_location))
+		o1.write('export PATH=%s/relion2.0/external_software/openmpi-2.0.2/bin:$PATH\n' %(install_location))
+		o1.write('export LD_LIBRARY_PATH=%s/relion2.0/external_software/openmpi-2.0.2/lib:$LD_LIBRARY_PATH\n' %(install_location))
 o1.close()
 
 #Copy aws_init.sh into install_location
@@ -265,7 +265,6 @@ if uname == 'Darwin':
 if uname == 'Linux': 
 	print '\n1.) Please add the following line to the file %s/.bashrc or %s/.cshrc\n' %(homepath,homepath)
         print 'source %s/aws_init.sh' %(install_location)
-print '\n'
 print '\n2.) Download AWS keypair and put it in a secure location (e.g. %s/)' %(install_location)
 print '\n3.) Open and edit the file %s/aws_init.sh\n' %(install_location)
 print 'Place your information for AWS into the lines indicated: #INPUT REQUIRED\n'
