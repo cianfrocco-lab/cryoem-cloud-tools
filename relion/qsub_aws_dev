@@ -811,7 +811,7 @@ def relion_refine_mpi(project):
 	if initmodel != 'None':
 		cmd='rsync -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,initmodel,userIP)
         	subprocess.Popen(cmd,shell=True).wait()
-	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
+	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
 
 	o2=open('run_aws.job','w')
 	o2.write('#!/bin/bash\n')
@@ -823,7 +823,7 @@ def relion_refine_mpi(project):
 	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='ssh -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+	cmd='ssh -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
 	subprocess.Popen(cmd,shell=True)
 
 	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
@@ -1254,7 +1254,7 @@ def relion_preprocess_mpi(project):
 	if ebs_exist is False:
 		s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(origdir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,math.ceil(mpi*2.4))
 
-	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_preprocess_mpi %s' %(mpi,relioncmd)
+	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_preprocess_mpi %s' %(mpi,relioncmd)
 
 	o2=open('run_aws.job','w')
 	o2.write('#!/bin/bash\n')
@@ -1266,7 +1266,7 @@ def relion_preprocess_mpi(project):
 	cmd='rsync -q -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='ssh -q -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+	cmd='ssh -q -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
 	subprocess.Popen(cmd,shell=True)
 
 	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
@@ -1645,9 +1645,9 @@ def relion_run_ctffind(project):
 			exec_remote_cmd('~/rclone sync gctfdownload:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi*3))
 
 		if gpu  == 1:
-			relion_remote_cmd='/home/EM_Packages/relion2-beta/build/bin/relion_run_ctffind %s --gpu --gctf_exe /home/EM_Packages/Gctf_v0.50/bin/Gctf-v0.50_sm_30_cu7.5_x86_64' %(relioncmd)
+			relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_run_ctffind %s --gpu --gctf_exe /home/EM_Packages/Gctf_v0.50/bin/Gctf-v0.50_sm_30_cu7.5_x86_64' %(relioncmd)
 		if gpu > 1:
-			relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_run_ctffind_mpi %s --gpu --gctf_exe /home/EM_Packages/Gctf_v0.50/bin/Gctf-v0.50_sm_30_cu7.5_x86_64' %(gpu,relioncmd)
+			relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_run_ctffind_mpi %s --gpu --gctf_exe /home/EM_Packages/Gctf_v0.50/bin/Gctf-v0.50_sm_30_cu7.5_x86_64' %(gpu,relioncmd)
 	        o2=open('run_aws.job','w')
 	        o2.write('#!/bin/bash\n')
 	        o2.write('cd /data\n')
@@ -1658,7 +1658,7 @@ def relion_run_ctffind(project):
         	cmd='rsync -avzu -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,IPlist[instanceNum])
 	        subprocess.Popen(cmd,shell=True).wait()
 
-        	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+        	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(cmd,shell=True)
 
                 instanceNum=instanceNum+1
@@ -2032,7 +2032,7 @@ def relion_run_motioncorr(project):
 			cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,gainref,IPlist[instanceNum])
 			subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,awsdir,IPlist[instanceNum])
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,awsdir,IPlist[instanceNum])
 		subprocess.Popen(cmd,shell=True).wait()
 
 		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/rclone ubuntu@%s:~/'%(keypair,awsdir,IPlist[instanceNum])
@@ -2056,7 +2056,7 @@ def relion_run_motioncorr(project):
         	cmd='rsync -q -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,IPlist[instanceNum])
         	subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/home/EM_Packages/relion2-beta/build/bin:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+		cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/home/EM_Packages/relion2.0/build/bin:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(cmd,shell=True)
 
 		instanceNum=instanceNum+1
@@ -2529,9 +2529,9 @@ def relion_autopick_mpi(project):
                         exec_remote_cmd('~/rclone sync gctfdownload:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi*3))
 
                 if gpu  == 1:
-                        relion_remote_cmd='/home/EM_Packages/relion2-beta/build/bin/relion_autopick %s --gpu ' %(relioncmd)
+                        relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_autopick %s --gpu ' %(relioncmd)
                 if gpu > 1:
-                        relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2-beta/build/bin/relion_autopick_mpi %s --gpu ' %(gpu,relioncmd)
+                        relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_autopick_mpi %s --gpu ' %(gpu,relioncmd)
                 o2=open('run_aws.job','w')
                 o2.write('#!/bin/bash\n')
                 o2.write('cd /data\n')
@@ -2542,7 +2542,7 @@ def relion_autopick_mpi(project):
                 cmd='rsync -avzu -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,IPlist[instanceNum])
                 subprocess.Popen(cmd,shell=True).wait()
 
-                cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2-beta/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+                cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
                 subprocess.Popen(cmd,shell=True)
 
                 instanceNum=instanceNum+1

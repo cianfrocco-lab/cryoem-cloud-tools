@@ -16,13 +16,14 @@ gainref=sys.argv[8]
 outdir=sys.argv[9]
 angpix=float(sys.argv[10])
 savemovies=sys.argv[11]
-
+if numThreads<=8: 
+	numToGet=10
 motioncor2path='/home/EM_Packages/MotionCor2/MotionCor2-08-22-2016'
 motioncorrpath='/home/EM_Packages/motioncorr_v2.1/bin/dosefgpu_driftcorr'
 unblurpath='/home/EM_Packages/unblur_1.0.2/bin/unblur_openmp_7_17_15.exe'
 summoviepath='/home/EM_Packages/summovie_1.0.2/bin/sum_movie_openmp_7_17_15.exe'
-relionpath='/home/EM_Packages/relion2-beta/build/bin/relion_run_motioncorr'
-relionhandler='/home/EM_Packages/relion2-beta/build/bin/relion_image_handler'
+relionpath='/home/EM_Packages/relion2.0/build/bin/relion_run_motioncorr'
+relionhandler='/home/EM_Packages/relion2.0/build/bin/relion_image_handler'
 
 def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4): 
 	
@@ -152,6 +153,10 @@ for line in o1:
 o1.close()
 #Get initial round of mics
 counter=0
+
+if numToGet > len(movielist): 
+	numToGet==len(movielist)
+
 miclist=[]
 if len(destdir) > 0: 
 	if not os.path.exists(destdir): 
@@ -161,7 +166,8 @@ if len(destdir) > 0:
 if os.path.exists('rcloneMicList.txt'): 
 	os.remove('rcloneMicList.txt')
 r1=open('rcloneMicList.txt','w')
-while counter < int(numFilesAtATime): 
+#while counter < int(numFilesAtATime): 
+while counter < numToGet+numThreads:
 	#Get mic and copy into correct location
 	localmicpath=linecache.getline(micstar,counter+numheader).strip()
 	if len(localmicpath.split('/')) == 1: 
@@ -179,6 +185,7 @@ cmd='~/rclone sync rclonename:%s %s/ --quiet --include-from rcloneMicList.txt --
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('rcloneMicList.txt')
 movieCounter=0
+toGetCounter=numToGet-1
 while movieCounter < len(movielist): 
 	threadnum=0
 	outCheckList=[]
@@ -192,7 +199,7 @@ while movieCounter < len(movielist):
 			micname=movielist[micnum].strip()
 			additionalcmds=''
 			if micnum == 0:	
-				cmd='/home/EM_Packages/relion2-beta/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
+				cmd='/home/EM_Packages/relion2.0/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
 				subprocess.Popen(cmd,shell=True).wait()
 				outline=linecache.getline('handler.txt',1).split('=')[1].split('x')[2]
 				lastframe=subprocess.Popen('relion_image_handler --i %s --stats' %(micname),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('=')[1].split('x')[2]
@@ -217,6 +224,7 @@ while movieCounter < len(movielist):
 				os.remove('rcloneMicList_%i.txt' %(threadnum))
 			
 			nextmicNum=micnum+numThreads+1
+			'''
 			if nextmicNum < len(movielist):
 				micname=movielist[nextmicNum]
 				if len(micname.split('/')) == 1:
@@ -230,8 +238,27 @@ while movieCounter < len(movielist):
 				time.sleep(3)
 				movieDLchecklist.append(micname)
 				os.remove('rcloneMicList_%i.txt' %(threadnum)) 
+			'''
 			threadnum=threadnum+1
 
+	#Start transfer of next batch
+	while toGetCounter <= toGetCounter+numToGet: 
+		micname=movielist[toGetCounter]
+		if os.path.exists('rcloneMicList1111.txt'):
+                	os.remove('rcloneMicList1111.txt')	
+		if len(micname.split('/')) == 1:
+                	micnameonly=micname.strip()
+                if len(micname.split('/')) > 1:
+                        micnameonly=micname.split('/')[-1].strip()
+               	cmd='echo "%s" >> rcloneMicList1111.txt' %(micnameonly)
+		subprocess.Popen(cmd,shell=True).wait()
+		toGetCounter=toGetCounter+1
+	
+	cmd='~/rclone sync rclonename:%s %s/ --quiet --include-from rcloneMicList1111.txt --transfers %i' %(movieBucket,destdir,numToGet)
+	subprocess.Popen(cmd,shell=True).wait()
+	
+	os.remove('rcloneMicList1111.txt')
+	
 	#Start waiting for 1) jobs to finish and 2) movies have been downloaded
 	for check in outCheckList: 
 		isdone=0
