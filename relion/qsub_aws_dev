@@ -2084,7 +2084,9 @@ def relion_run_motioncorr(project):
 				os.remove('s3testlog.log')
 			cmd='aws s3 ls %s/Micrographs/ > s3testlog.log' %(bucketname)
 			subprocess.Popen(cmd,shell=True).wait()
-
+			if not os.path.exists('s3testlog.log'): 
+				cmd='touch s3testlog.log'
+				subprocess.Popen(cmd,shell=True).wait()
 			sopen=open('s3testlog.log','r')
 			for qline in sopen:
 				if len(qline.split()) > 0:

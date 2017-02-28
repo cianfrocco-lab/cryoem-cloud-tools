@@ -190,35 +190,21 @@ if cloudtoolsonly is False:
 	if needFabric is True: 
 		cmd='pip install --install-option="--prefix=%s/fabric" fabric' %(install_location)
 		subprocess.Popen(cmd,shell=True).wait()
+
+cmd='git clone git@github.com:leschzinerlab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
+subprocess.Popen(cmd,shell=True).wait()
+
 if cloudtoolsonly is False:
 
 	if installRelion is True: 
-		if installMPI is True: 
-			cmd='curl -s "https://www.open-mpi.org/software/ompi/v2.0/downloads/openmpi-2.0.2.tar.gz" -o "openmpi-2.0.2.tar.gz"'
-			subprocess.Popen(cmd,shell=True).wait()
-		
-			o11=open('installmpi.sh','w')
-			o11.write('tar -xvzf openmpi-2.0.2.tar.gz\n')
-			o11.write('mkdir %s/openmpi-2.0.2\n' %(install_location))
-			o11.write('cd openmpi-2.0.2\n')
-			o11.write('./configure --prefix=%s/openmpi-2.0.2\n' %(install_location))
-			o11.write('make all\n')
-			o11.write('make install\n')
-			o11.close()
-
-			cmd='chmod +x installmpi.sh'	
-			subprocess.Popen(cmd,shell=True).wait()
-
-			cmd='./installmpi.sh'
-			subprocess.Popen(cmd,shell=True).wait()
-			os.remove('installmpi.sh')
-			os.remove('openmpi-2.0.2.tar.gz')
-			shutil.rmtree('openmpi-2.0.2/')
-
+			
 		cmd='git clone https://github.com/3dem/relion.git'
 		subprocess.Popen(cmd,shell=True).wait()
 
 		o11=open('installrelion.sh','w')
+		if installMPI is True: 
+			o11.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/openmpi-2.0.2/lib/:$LD_LIBRARY_PATH\n' %(install_location))
+			o11.write('export PATH=%s/cryoem-cloud-tools/external_software/openmpi-2.0.2/bin/:$PATH\n' %(install_location))
 		o11.write('cd relion/\n')
 		o11.write('mkdir build\n ')
 		o11.write('cd build\n ')
@@ -231,12 +217,11 @@ if cloudtoolsonly is False:
 	
 		cmd='./installrelion.sh'
 		subprocess.Popen(cmd,shell=True).wait()
-
+		
 		cmd='mv relion/ %s/relion2.0' %(install_location)
 		subprocess.Popen(cmd,shell=True).wait()
 	
-cmd='git clone git@github.com:leschzinerlab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
-subprocess.Popen(cmd,shell=True).wait()
+		os.remove('installrelion.sh')
 
 #Write environmental variables into text file
 o1=open('%s/external_software.init' %(install_location),'w')
@@ -246,22 +231,23 @@ if cloudtoolsonly is False:
 		o1.write('export PYTHONPATH=%s/fabric/lib/python2.7/site-packages/:$PYTHONPATH\n' %(install_location))
 if needAWSCLI is True:
 	o1.write('export PATH=%s/awscli/bin:$PATH\n' %(install_location))
+if installRelion is True: 
+	o1.write('export PATH=%s/relion2.0/build/bin:$PATH\n' %(install_location))
+	o1.write('export LD_LIBRARY_PATH=%s/relion2.0/build/lib:$LD_LIBRARY_PATH\n' %(install_location))
 if cloudtoolsonly is False: 
 	if installMPI is True: 
-		o1.write('export PATH=%s/openmpi-2.0.2/bin:$PATH' %(install_location))
-		o1.write('export LD_LIBRARY_PATH=%s/openmpi-2.0.2/lib:$LD_LIBRARY_PATH' %(install_location))
+		o1.write('export PATH=%s/relion2.0/external_software/openmpi-2.0.2/bin:$PATH' %(install_location))
+		o1.write('export LD_LIBRARY_PATH=%s/relion2.0/external_software/openmpi-2.0.2/lib:$LD_LIBRARY_PATH' %(install_location))
 o1.close()
 
 #Copy aws_init.sh into install_location
-shutil.copy('%s/cryoem-cloud-tools/aws/aws_init.sh' %(install_location),'%s/aws_init.sh' %(install_location))
-
 o1=open('%s/cryoem-cloud-tools/aws/aws_init.sh' %(install_location),'r')
 newout=open('%s/aws_init.sh' %(install_location),'w')
 
 for line in o1: 
 	if 'export AWS_DIR' in line: 
 		l=line.split('=')
-		l[1]='%s/cryoem-cloud-tools/aws' %(install_location)
+		l[1]='%s/cryoem-cloud-tools' %(install_location)
 		line='='.join(l)+'\n'
 	newout.write(line)
 newout.write('source %s/external_software.init' %(install_location))
