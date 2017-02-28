@@ -18,11 +18,11 @@ export AWS_ACCOUNT_ID= #INPUT REQUIRED
 export AWS_DEFAULT_REGION= #INPUT REQUIRED
 export KEYPAIR_PATH= #INPUT REQUIRED
 
-#Set paths
-export AWS_DIR= #INPUT REQUIRED
-
 #Research group name
 export RESEARCH_GROUP_NAME= #INPUT REQUIRED: no capital letters or punctuation (e.g. leschziner)
+
+#Set paths
+export AWS_DIR= #INPUT REQUIRED
 
 #Set lifetime values for EBS and S3: Number of days, after which they will be deleted  
 export EBS_LIFETIME=14

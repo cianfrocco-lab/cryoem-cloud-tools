@@ -2035,7 +2035,7 @@ def relion_run_motioncorr(project):
 			cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > rsync.log' %(keypair,gainref,IPlist[instanceNum])
 			subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,reliondir,IPlist[instanceNum])
+		cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/relion_movie_align.py ubuntu@%s:/data/ > rsync.log' %(keypair,reliondir,IPlist[instanceNum])
 		subprocess.Popen(cmd,shell=True).wait()
 
 		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/rclone ubuntu@%s:~/'%(keypair,awsdir,IPlist[instanceNum])
