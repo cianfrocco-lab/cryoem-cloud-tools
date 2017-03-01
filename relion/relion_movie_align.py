@@ -35,13 +35,13 @@ def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4):
 	o33=open(outfile,'w')
 	o33.write('#!/bin/bash\n')
 	o33.write('~/rclone sync %s %s --quiet --include-from %s --transfers %i\n' %(dirToSync,outbucket,rclonetxt,filesAtATime))
-	o33.write('rm %s\n' %(f1))  #newcheck))
-	o33.write('rm %s\n' %(f2)) #newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4])
+	o33.write('/bin/rm %s\n' %(f1))  #newcheck))
+	o33.write('/bin/rm %s\n' %(f2)) #newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4])
 	if os.path.exists(f3): 
-		o33.write('rm %s\n' %(f3)) 
+		o33.write('/bin/rm %s\n' %(f3)) 
 	if os.path.exists(f4): 
-		o33.write('rm %s\n' %(f4))
-	o33.write('rm %s\n' %(rclonetxt))
+		o33.write('/bin/rm %s\n' %(f4))
+	o33.write('/bin/rm %s\n' %(rclonetxt))
 	o33.close()
 	cmd='/bin/chmod +x %s' %(outfile)
         subprocess.Popen(cmd,shell=True).wait()

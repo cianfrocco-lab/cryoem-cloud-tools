@@ -327,7 +327,7 @@ def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awsp
 		subprocess.Popen(cmd,shell=True).wait()
 		os.remove('s3.log')
 	
-	cmd='%s copy %s %s:%s --quiet --transfers %i > rclone.log' %(rclonepath,indir,bucketname,bucketname,math.ceil(numfiles))
+	cmd='%s copy %s rclonename:%s --quiet --transfers %i > rclone.log' %(rclonepath,indir,bucketname,math.ceil(numfiles))
 	subprocess.Popen(cmd,shell=True).wait()
 	os.remove('rclone.log')
 	return 's3://%s' %(bucketname)
