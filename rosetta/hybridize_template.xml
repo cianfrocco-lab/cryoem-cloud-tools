@@ -1,0 +1,31 @@
+<dock_design>
+    <TASKOPERATIONS>
+    </TASKOPERATIONS>
+    <SCOREFXNS>
+         <stage1 weights=score3 symmetric=0>
+            <Reweight scoretype=elec_dens_fast weight=10.0/>
+            <Reweight scoretype=atom_pair_constraint weight=0.1/>
+        </stage1>
+        <stage2 weights=score4_smooth_cart symmetric=0>
+            <Reweight scoretype=elec_dens_fast weight=10.0/>
+            <Reweight scoretype=atom_pair_constraint weight=0.1/>
+        </stage2>
+        <fullatom weights=talaris2013_cart symmetric=0>
+            <Reweight scoretype=elec_dens_fast weight=30.0/>
+            <Reweight scoretype=atom_pair_constraint weight=0.1/>
+        </fullatom>
+    </SCOREFXNS>
+    <FILTERS>
+    </FILTERS>
+    <MOVERS>
+        <Hybridize name=hybridize stage1_scorefxn=stage1 stage2_scorefxn=stage2 fa_scorefxn=fullatom batch=1 stage1_increase_cycles=1 stage2_increase_cycles=1 linmin_only=0 skip_long_min=1 add_hetatm=1>
+            <Template pdb="Reference_pdb/S_29_A_coot_IL-mod_relabel_renum-Jun-coot-0_renum.pdb" weight=1.0 cst_file="AUTO"/>
+        </Hybridize>
+    </MOVERS>
+    <APPLY_TO_POSE>
+    </APPLY_TO_POSE>
+    <PROTOCOLS>
+        <Add mover=hybridize/>
+    </PROTOCOLS>
+    <OUTPUT scorefxn=fullatom/>
+</dock_design>

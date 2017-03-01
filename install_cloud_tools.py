@@ -96,11 +96,28 @@ os.makedirs(install_location)
 
 uname=subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
 
+#Check if xcode is installed
+if uname == 'Darwin': 
+	xcode='which xcodebuild',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+	if len(xcode) == 0: 
+		print 'Could not find xcode tools. Please install and try again.'
+		print 'To learn how to install xcode: https://developer.apple.com/xcode/'
+		sys.exit() 
+
+#Check if anaconda is installed
+if uname == 'Darwin': 
+	conda='which conda',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+	if len(conda) > 0: 
+		print 'anaconda python is installed. Please remove from environment and try again'
+		print 'To do this, comment out any lines for anaconda in your .bash_profile'
+		sys.exit()
+
 pip=subprocess.Popen('which pip',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
 
 if cloudtoolsonly is False: 
 	if len(pip) == 0: 
-		print 'Could not find pip. Please install pip and try again'
+		print 'Could not find pip. Please install pip and try again:'
+		print '$ sudo easy_install pip'
 		sys.exit()
 
 #Check fabric installation

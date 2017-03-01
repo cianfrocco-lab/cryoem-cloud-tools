@@ -1841,7 +1841,10 @@ def relion_run_motioncorr(project):
                 writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
         	inputfilesize=subprocess.Popen('du %s' %(micdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
 	if len(micstar.split('s3-')) > 1:
-		bucketname='s3://rln-aws-%s-%s/%s' %(teamname,keyname,micstar.split('s3-')[-1])
+		micstarinput=micstar.split('s3-')[-1]
+		if micstarinput[-1] == '/': 
+			micstarinput=micstarinput[:-1]
+		bucketname='s3://rln-aws-%s-%s/%s' %(teamname,keyname,micstarinput)
 		micdir='Micrographs'
 		if os.path.exists('s3out.log'):
 			os.remove('s3out.log')
@@ -2080,21 +2083,26 @@ def relion_run_motioncorr(project):
                        	       newmicname=newnamesplit+'.'+micname.split('.')[-1]
 			       micname=newmicname
 		while isdone == 0:
+			print micname 
 			if os.path.exists('s3testlog.log'):
 				os.remove('s3testlog.log')
 			cmd='aws s3 ls %s/Micrographs/ > s3testlog.log' %(bucketname)
+			print cmd 
 			subprocess.Popen(cmd,shell=True).wait()
 			if not os.path.exists('s3testlog.log'): 
 				cmd='touch s3testlog.log'
 				subprocess.Popen(cmd,shell=True).wait()
 			sopen=open('s3testlog.log','r')
 			for qline in sopen:
+				print 's3testlog:'
+				print qline 
 				if len(qline.split()) > 0:
 					if savemovies is True: 
 						if movieAlignType != 'unblur': 
 							movname='%s_movie.mrcs' %(micname[:-4])
 						if movieAlignType == 'unblur': 
 							movname='%s_movie.mrc' %(micname[:-4])
+						print qline.split()[-1].strip()
 						if qline.split()[-1].strip() == movname:
 							basename=micname.split('.')
 							del basename[-1]
