@@ -1,7 +1,7 @@
 # Cryo-EM Cloud Tools
 Software to interface with AWS through convenient command line inputs, ultimately connecting into Relion-2.0's GUI to launch cloud processing from local Relion-2.0 GUI. 
 
-To learn more: [cryoem-tools.cloud] (cryoem-tools.cloud)
+To learn more: [cryoem-tools.cloud] (http://cryoem-tools.cloud)
 
 *Contents:*
 * [Typical Workflow] (https://github.com/leschzinerlab/AWS#typical-workflow)
