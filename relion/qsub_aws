@@ -442,13 +442,18 @@ def getCMDrefine(f1):
 			itercounter=counter
 		counter=counter+1
 
-	partdir=rlncmd.split()[indircounter].split('particles.star')[0]
-	outdir=rlncmd.split()[outcounter].split('run')[0]
+	partstarname=rlncmd.split()[indircounter].split('/')[-1]
+	partdir=rlncmd.split()[indircounter].split('/')
+	del partdir[-1]
+	partdir='/'.join(partdir)
+	outdir=rlncmd.split()[outcounter].split('/')
+	del outdir[-1]
+	outdir='/'.join(outdir)
 	if itercounter > 0:
 		numiters=int(rlncmd.split()[itercounter])
 	if refcounter > 0:
 		ref=rlncmd.split()[refcounter]
-	return rlncmd,partdir,ref,outdir,autoref,numiters
+	return rlncmd,partdir,ref,outdir,autoref,numiters,partstarname
 
 #==============================
 def parseCMDrefine(relioncmd):
@@ -624,16 +629,16 @@ def parseCMDpreprocess(relioncmd):
 def relion_refine_mpi(project):
 
 	#Get relion command and input options
-	relioncmd,particledir,initmodel,outdir,autoref,numiters=getCMDrefine(infile)
+	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname=getCMDrefine(infile)
 
 	#Get number of particles to decide how big of a machine to spin up
-	numParticles=len(open('%s/particles.star' %(particledir),'r').readlines())
+	numParticles=len(open('%s/%s' %(particledir,partstarname),'r').readlines())
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
 	relioncmd,select=parseCMDrefine(relioncmd)
 	if len(select) > 0:
  		particledir=getSelectParticleDir(select)
- 		selectdir=select.split('particles.star')[0]
+ 		selectdir=select.split(partstarname)[0]
 
 	#Choose instance type
 	if initmodel == 'None': #2D classification
@@ -1841,7 +1846,10 @@ def relion_run_motioncorr(project):
                 writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
         	inputfilesize=subprocess.Popen('du %s' %(micdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
 	if len(micstar.split('s3-')) > 1:
-		bucketname='s3://rln-aws-%s-%s/%s' %(teamname,keyname,micstar.split('s3-')[-1])
+		micstarinput=micstar.split('s3-')[-1]
+		if micstarinput[-1] == '/': 
+			micstarinput=micstarinput[:-1]
+		bucketname='s3://rln-aws-%s-%s/%s' %(teamname,keyname,micstarinput)
 		micdir='Micrographs'
 		if os.path.exists('s3out.log'):
 			os.remove('s3out.log')
@@ -1855,7 +1863,7 @@ def relion_run_motioncorr(project):
 		if flagExist is False:
 			writeToLog('Error: Could not find specified s3 bucket %s. Exiting' %(bucketname.split('s3://')[-1]),'%s/run.err' %(outdir))
 			sys.exit()
-		cmd='aws s3 ls %s > s3out.log' %(bucketname.split('s3://')[-1])
+		cmd='aws s3 ls %s/ > s3out.log' %(bucketname.split('s3://')[-1])
 		subprocess.Popen(cmd,shell=True).wait()
 		if os.path.exists('movies.star'): 
 			os.remove('movies.star')
@@ -1921,10 +1929,10 @@ def relion_run_motioncorr(project):
 		        cost=0.90
 
 	instance='p2.8xlarge'
-        numInstancesRequired=1
+        numInstancesRequired=2
         gpu=8
         mpi=32
-        cost=7.2
+        cost=14.4
 
 	if gpu > 0:
 		ntasks=gpu
@@ -2024,7 +2032,7 @@ def relion_run_motioncorr(project):
 			counter=counter+1
 		indirlocation=dirlocation
         	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s_%i.star ubuntu@%s:/%s/ > rsync.log' %(keypair,micstar[:-5],instanceNum,IPlist[instanceNum],dirlocation)
-        	subprocess.Popen(cmd,shell=True).wait()
+		subprocess.Popen(cmd,shell=True).wait()
 
         	#Make output directories
         	dirlocation='/data'

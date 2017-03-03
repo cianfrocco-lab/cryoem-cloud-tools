@@ -50,10 +50,11 @@ if answer is True:
 		projectname=projectname[:-1]
 
 	cmd='aws s3 rm s3://%s/%s/ --recursive > s3tmpout.txt' %(bucketname,projectname)
-	print cmd
-	#subprocess.Popen(cmd,shell=True).wait()
+	subprocess.Popen(cmd,shell=True).wait()
 
 	if os.path.exists('s3tmpout.txt'): 
 		os.remove('s3tmpout.txt')
 
 
+	print ''
+	print 'Success!'

@@ -28,7 +28,7 @@ if AZ not in allowedZones:
 	print '\n'
 	sys.exit() 
 
-if  float(volSize) > 500: 
+if  float(volSize) > 2000: 
 	print 'Error: Volume size too large %s GB' %(volSize)
 	sys.exit()
  

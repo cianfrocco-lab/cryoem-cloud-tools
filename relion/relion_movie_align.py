@@ -18,6 +18,8 @@ angpix=float(sys.argv[10])
 savemovies=sys.argv[11]
 if numThreads<=8: 
 	numToGet=10
+if numThreads == 16: 
+	numToGet=20
 motioncor2path='/home/EM_Packages/MotionCor2/MotionCor2-08-22-2016'
 motioncorrpath='/home/EM_Packages/motioncorr_v2.1/bin/dosefgpu_driftcorr'
 unblurpath='/home/EM_Packages/unblur_1.0.2/bin/unblur_openmp_7_17_15.exe'

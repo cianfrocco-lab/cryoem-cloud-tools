@@ -36,6 +36,8 @@ Shortcut AWS commands found in this Github repo:
 
 * **aws_ebs_detach** - Detach EBS volume from instance
 
+* **delete_temp_s3_ebs** - Delete all S3 bucket and EBS volumes with temporary status (name starts with rln-aws-tmp)
+ 
 ## Typical Workflow
 In using these wrappers, we typically use only a few of the commands for booting up & terminating instances.
 
@@ -190,32 +192,6 @@ The underlying code is written in python and aliased to simple commands: awsls, 
 		Instance is ready! To log in:
 		ssh -i /home/[user]/.aws/keyName_virginia.pem ubuntu@54.209.133.219</pre>
 
-* **awslaunch_cluster**
-	* Command to launch a cluster of instances using STARcluster. Note: Must have starcluster already installed (see above for install info). 
-	* Example usage: 
-		<pre>$ awslaunch_cluster 
-Usage: awslaunch_cluster --instance=<instanceType>
-Options:
-  -h, --help          show this help message and exit
-  --instance=STRING   Specify instance type to launch into cluster
-  --num=INTEGER       Number of instances in cluster
-  --availZone=STRING  Specify availability zone
-  --volume=STRING     Optional: Volume ID for volume that will be mounted onto
-                      cluster
-  --spotPrice=FLOAT   Optional: Specify spot price (if spot instance
-                      requested)
-  --instanceList      Flag to list available instances
-  -d                  debug</pre>
-		<pre>$ awslaunch_cluster --instance=c3.xlarge --num=4 --availZone=us-west-2a --spotPrice=0.2</pre>
-
-* **aws_spot_price_history**
-	* Command to list spot prices over the past 24 hours
-	* Example usage: 
-	<pre>$ aws_spot_price_history
-Usage: aws_spot_price_history [instance type] [avail. zone]
-Specify instance type over which spot price history will be listed based upon availability zone</pre>
-	<pre>$ aws_spot_price_history m3.meduim us-west-2a</pre>
-
 * **awskill**
 	* Command to terminate running instance or STARcluster
 	* Example usage: 
@@ -259,4 +235,38 @@ Specify instance type over which spot price history will be listed based upon av
                 Detach EBS volume from instance.</pre>
                 <pre>$ aws_ebs_detach vol-id559699</pre>
 
+* **awslaunch_cluster**
+        * Command to launch a cluster of instances using STARcluster. Note: Must have starcluster already installed (see above for install info).
+        * Example usage:
+                <pre>$ awslaunch_cluster
+Usage: awslaunch_cluster --instance=<instanceType>
+Options:
+  -h, --help          show this help message and exit
+  --instance=STRING   Specify instance type to launch into cluster
+  --num=INTEGER       Number of instances in cluster
+  --availZone=STRING  Specify availability zone
+  --volume=STRING     Optional: Volume ID for volume that will be mounted onto
+                      cluster
+  --spotPrice=FLOAT   Optional: Specify spot price (if spot instance
+                      requested)
+  --instanceList      Flag to list available instances
+  -d                  debug</pre>
+                <pre>$ awslaunch_cluster --instance=c3.xlarge --num=4 --availZone=us-west-2a --spotPrice=0.2</pre>
 
+* **aws_spot_price_history**
+        * Command to list spot prices over the past 24 hours
+        * Example usage:
+        <pre>$ aws_spot_price_history
+Usage: aws_spot_price_history [instance type] [avail. zone]
+Specify instance type over which spot price history will be listed based upon availability zone</pre>
+        <pre>$ aws_spot_price_history m3.meduim us-west-2a</pre>
+
+## Removing temporary data storage on AWS
+
+During the course of processing, this workflow will temporarily place data onto S3 and EBS volumes to speed up data processing. This data can be removed by running the command: 
+
+<pre>$ ./delete_temp_s3_ebs </pre>
+
+This will remove all S3 buckets and EBS volumes that have the naming pattern: rln-aws-tmp. 
+
+All buckets and volumes will be removed based upon the number of days specified in your aws_init.sh file, where any bucket or volume older than the specified time will be removed. 
