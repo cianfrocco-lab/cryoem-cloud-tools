@@ -137,12 +137,14 @@ For each user, you will create a hidden directory in their home directory into w
 * Create hidden folder: 
 <pre>$ mkdir /home/[user]/.aws</pre>
 
-* Copy aws/aws_init.sh file & edit to include credentials
+* Copy aws/aws_init.sh into this new directory & edit to include credentials and path to the cryoem-cloud-tools github repository on your local machine.
 
-* Copy keypair into directory, making sure to modify permissions of file using <pre>chmod 600</pre>
+* Add the following line to your .bashrc (or .cshrc, .bash_profile): 
+<pre>source /home/[user]/.aws/aws_init.sh
 
-* Add the following line to .bashrc file: 
-<pre>source /home/[user]/.aws/aws_init.sh</pre>
+* Copy keypair into this new directory, double checking that this path is in the /home/[user]/.aws/aws_init.sh correctly. Also, make sure to modify permissions of file using: 
+<pre>$ chmod 600 path/to/keypair.pem </pre>
+
 
 ## Usage
 The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
