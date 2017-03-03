@@ -7,6 +7,7 @@ Software to interface with AWS through easy command line inputs
 	* [Software dependences] (https://github.com/leschzinerlab/AWS#software-dependencies)
 	* [Environment setup] (https://github.com/leschzinerlab/AWS#environment-setup)
 * [Usage] (https://github.com/leschzinerlab/AWS#usage)
+* [Removing temporary data storage on AWS] (https://github.com/leschzinerlab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
 
 *Overview:*
 
@@ -265,7 +266,7 @@ Specify instance type over which spot price history will be listed based upon av
 
 During the course of processing, this workflow will temporarily place data onto S3 and EBS volumes to speed up data processing. This data can be removed by running the command: 
 
-<pre>$ ./delete_temp_s3_ebs </pre>
+<pre>$ delete_temp_s3_ebs </pre>
 
 This will remove all S3 buckets and EBS volumes that have the naming pattern: rln-aws-tmp. 
 
