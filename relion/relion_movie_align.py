@@ -36,7 +36,7 @@ def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4):
 
 	o33=open(outfile,'w')
 	o33.write('#!/bin/bash\n')
-	o33.write('~/rclone sync %s %s --quiet --include-from %s --transfers %i\n' %(dirToSync,outbucket,rclonetxt,filesAtATime))
+	o33.write('~/rclone sync %s %s --quiet --include-from %s --transfers %i > rclonetmp1.txt\n' %(dirToSync,outbucket,rclonetxt,filesAtATime))
 	o33.write('/bin/rm %s\n' %(f1))  #newcheck))
 	o33.write('/bin/rm %s\n' %(f2)) #newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4])
 	if os.path.exists(f3): 
@@ -199,6 +199,7 @@ while movieCounter < len(movielist):
 		if micnum < len(movielist): 
 			#select single line from relion mic star file 
 			micname=movielist[micnum].strip()
+			print 'working on %s' %(micname)
 			additionalcmds=''
 			if micnum == 0:	
 				cmd='/home/EM_Packages/relion2.0/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
@@ -216,7 +217,6 @@ while movieCounter < len(movielist):
 			
 			if aligntype != 'unblur': 
 				cmd='nohup %s --i %s' %(relionpath,micname)+' '+relioncmd+' '+additionalcmds+' &'
-				print cmd 
 				subprocess.Popen(cmd,shell=True)
 			if aligntype == 'unblur': 
 				writeRunUnBlurSum(relioncmd,micname,additionalcmds,lastframe)
@@ -227,31 +227,16 @@ while movieCounter < len(movielist):
 				os.remove('rcloneMicList_%i.txt' %(threadnum))
 			
 			nextmicNum=micnum+numThreads+1
-			'''
-			if nextmicNum < len(movielist):
-				micname=movielist[nextmicNum]
-				if len(micname.split('/')) == 1:
-		                	micnameonly=micname.strip()
-        			if len(micname.split('/')) > 1:
-                			micnameonly=micname.split('/')[-1].strip()
-				cmd='echo "%s" >> rcloneMicList_%i.txt' %(micnameonly,threadnum)
-				subprocess.Popen(cmd,shell=True).wait()
-				cmd='~/rclone sync rclonename:%s %s/ --quiet --include-from rcloneMicList_%i.txt --transfers %i' %(movieBucket,destdir,threadnum,int(numFilesAtATime))	
-				subprocess.Popen(cmd,shell=True)
-				time.sleep(3)
-				movieDLchecklist.append(micname)
-				os.remove('rcloneMicList_%i.txt' %(threadnum)) 
-			'''
 			threadnum=threadnum+1
 
 	#Start transfer of next batch
+	if os.path.exists('rcloneMicList1111.txt'):
+        	os.remove('rcloneMicList1111.txt')
 	maxnumnext=toGetCounter+numToGet
 	if maxnumnext >=len(movielist): 
 		maxnumnext=len(movielist)
 	while toGetCounter < maxnumnext: 
 		micname=movielist[toGetCounter]
-		if os.path.exists('rcloneMicList1111.txt'):
-                	os.remove('rcloneMicList1111.txt')	
 		if len(micname.split('/')) == 1:
                 	micnameonly=micname.strip()
                 if len(micname.split('/')) > 1:
@@ -259,13 +244,9 @@ while movieCounter < len(movielist):
                	cmd='echo "%s" >> rcloneMicList1111.txt' %(micnameonly)
 		subprocess.Popen(cmd,shell=True).wait()
 		toGetCounter=toGetCounter+1
-	cmd='touch rclonestart'
-	subprocess.Popen(cmd,shell=True).wait()
 
 	cmd='~/rclone sync rclonename:%s %s/ --include-from rcloneMicList1111.txt --transfers %i' %(movieBucket,destdir,numToGet)
 	subprocess.Popen(cmd,shell=True).wait()
-	cmd='touch rclonefin'
-        subprocess.Popen(cmd,shell=True).wait()
 
 	if os.path.exists('rcloneMicList1111.txt'): 
 		os.remove('rcloneMicList1111.txt')
@@ -288,8 +269,8 @@ while movieCounter < len(movielist):
 		while isdone == 0:
 			time.sleep(3)
 			if aligntype != 'unblur': 
-				print 'waiting for %s' %(newcheck)
 				if os.path.exists(newcheck):
+					print 'finished %s' %(newcheck)
 					isdone=1
 					rclonetxt='rcloneMicList_%0.i' %(time.time())
 					if os.path.exists(rclonetxt): 
@@ -321,16 +302,6 @@ while movieCounter < len(movielist):
 
                          	        uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
 					
-					#cmd='~/rclone sync %s/%s %s --quiet --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,int(numFilesAtATime))
-                                	#subprocess.Popen(cmd,shell=True).wait()
-			
-					#os.remove(newcheck)
-					#os.remove('%s/%s' %(destdir,check.split('/')[-1]))
-					#if savemovies == 'True': 
-					#	os.remove('%s_movie.mrcs' %(newcheck[:-4]))
-					#if os.path.exists('%s_bin.mrc' %(newcheck[:-4])): 
-					#	os.remove('%s_bin.mrc' %(newcheck[:-4]))
-					#os.remove(rclonetxt)	
 			if aligntype == 'unblur': 
 				unblurbase=newcheck[:-(len(newcheck.split('.')[-1])+1)]
 				if os.path.exists('%s_unblur.log' %(unblurbase)):
