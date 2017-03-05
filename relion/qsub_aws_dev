@@ -49,18 +49,12 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 		rcloneexe='rclone'
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 		rcloneexe='rclone_mac'
-	print '%s/%s copy rclonename:%s %s --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime)
 	exec_remote_cmd('%s/%s copy rclonename:%s %s --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime))
 
-	print dironebs
-	print dironebs.split('.')
 	fileonly=dironebs.split('/')[-1]
 	if dironebs.split('.')[-1] == 'mrcs' or dironebs.split('.')[-1] == 'spi': 
-		print 'mv %s/%s tmp.mrcs' %(dironebs,fileonly)
 		exec_remote_cmd('mv %s/%s tmp.mrcs' %(dironebs,fileonly))
-		print 'rm -rf /%s/' %(dironebs)
 		exec_remote_cmd('rm -rf /%s/' %(dironebs))
-		print 'mv tmp.mrcs /data/%s' %(fileonly)
 		exec_remote_cmd('mv tmp.mrcs /data/%s' %(fileonly))
 #=========================
 def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketname,awspath,project):
@@ -733,7 +727,7 @@ def relion_refine_mpi(project):
 		particledir=continueRun.split('/')
 		del particledir[-1]
 		particledir='/'.join(particledir)
-		partstarname='%s_data.star' %(continueRun[:-15])
+		partstarname='%s_data.star' %(continueRun.split('/')[-1][:-15])
 
 	if len(particledir) == 0: 
 		particledir=partstarname	
@@ -1931,7 +1925,7 @@ def relion_run_ctffind(project):
 #==============================
 def relion_run_motioncorr(project):
 	maxm4=5
-	maxp216=5
+	maxp28=10
 	
 	relioncmd,micstar,outdir,gainref,movieAlignType,ifMotionCor2,savemovies,angpix=getCMDmovie(infile)
         #Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
@@ -2062,20 +2056,14 @@ def relion_run_motioncorr(project):
                         numInstancesRequired=5
 
         if movieAlignType == 'motioncorr':
-                numInstancesRequired=int(math.ceil(movieCounter/16))
-                if numInstancesRequired > maxp216:
-                        numInstancesRequired=maxp216
-		if numInstancesRequired >1:
-                	instance='p2.16xlarge'
-                	mpi=64
-                	gpu=16
-                	cost=14.40
-                if numInstancesRequired <=1:
-			instance='p2.8xlarge'
-			numInstancesRequired=1
-			mpi=32
+                numInstancesRequired=int(math.ceil(movieCounter/8))
+                if numInstancesRequired > maxp28:
+                        numInstancesRequired=maxp28
+		if numInstancesRequired >=1:
+                	instance='p2.8xlarge'
+                	mpi=32
                 	gpu=8
-                	cost=7.20
+                	cost=7.2
                 if ifMotionCor2 is True:
                         movieAlignType = 'motioncor2'
 		if movieCounter < 8:
@@ -2084,13 +2072,6 @@ def relion_run_motioncorr(project):
 	        	gpu=1
         		mpi=4
 		        cost=0.90
-
-	instance='p2.8xlarge'
-        numInstancesRequired=2
-        gpu=8
-        mpi=32
-        cost=7.2
-
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
