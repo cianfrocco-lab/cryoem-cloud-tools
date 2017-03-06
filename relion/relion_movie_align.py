@@ -182,6 +182,9 @@ while counter < numToGet+numThreads:
 	counter=counter+1
 r1.close()
 
+cmd='touch done_list.txt'
+subprocess.Popen(cmd,shell=True).wait()
+
 #Rclone movies to destindation directory 
 cmd='~/rclone sync rclonename:%s %s/ --quiet --include-from rcloneMicList.txt --transfers %i' %(movieBucket,destdir,int(numFilesAtATime))
 subprocess.Popen(cmd,shell=True).wait()
@@ -201,6 +204,10 @@ while movieCounter < len(movielist):
 			micname=movielist[micnum].strip()
 			print 'working on %s' %(micname)
 			additionalcmds=''
+			checkexist=0
+                        while checkexist == 0:
+                                if os.path.exist(micname):
+                        		checkexist=1
 			if micnum == 0:	
 				cmd='/home/EM_Packages/relion2.0/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
 				subprocess.Popen(cmd,shell=True).wait()
@@ -299,6 +306,9 @@ while movieCounter < len(movielist):
 					if savemovies == 'True': 
 						cmd='echo "%s_movie.mrcs" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
 						subprocess.Popen(cmd,shell=True)
+
+					cmd='echo "%s" >> done_list.txt' %(newcheck.split('/')[-1])
+					subprocess.Popen(cmd,shell=True)
 
                          	        uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
 					
