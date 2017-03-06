@@ -725,11 +725,18 @@ def relion_refine_mpi(project):
 	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename=getCMDrefine(infile)
 
 	if len(continueRun) > 0: 
-		#`which relion_refine_mpi` --continue Class3D/job170/run_it002_optimiser.star --o Class3D/job170/run_ct2 --dont_combine_weights_via_disc --preread_images  --pool 100 --iter 2 --tau2_fudge 4 --particle_diameter 210 --solvent_mask MaskCreate/job169/mask.mrc --oversampling 1 --healpix_order 2 --offset_range 5 --offset_step 2 --j 3 --gpu  --dont_check_norm
 		particledir=continueRun.split('/')
 		del particledir[-1]
 		particledir='/'.join(particledir)
 		partstarname='%s_data.star' %(continueRun.split('/')[-1][:-15])
+		for line in open(continueRun,'r'): 
+			if len(line) > 4: 
+				if line.split()[0] == '_rlnCurrentIteration': 
+					iterationNumOpt=int(line.split()[1].strip())			
+
+		if iterationNumOpt <= numiters: 
+			writeToLog('Error: Number of iterations=%i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
+			sys.exit()
 
 	if len(particledir) == 0: 
 		particledir=partstarname	
@@ -737,19 +744,99 @@ def relion_refine_mpi(project):
 	#Get number of particles to decide how big of a machine to spin up
 	if stack is False:
 		numParticles=len(open('%s/%s' %(particledir,partstarname),'r').readlines())
+		magcheck=False
+		pixcheck=False
+		ctfcheck=False
+		partcolnum=-1
+		for line in open('%s/%s' %(particledir,partstarname),'r'): 
+			if len(line) > 3: 
+				if line.split()[0] == '_rlnMagnification': 
+					magcheck=True
+				if line.split()[0] == '_rlnDetectorPixelSize': 
+					pixcheck=True
+				if line.split()[0] == '_rlnDefocusU': 
+					ctfcheck=True
+				if line.split()[0] == '_rlnImageName': 
+					partcolnum=int(line.split()[1].split('#')[-1])
+		ctfin=False
+		apixin=False
+		for rln in relioncmd.split(): 
+			if rln == '--ctf': 
+				ctfin=True
+			if rln == '--angpix': 
+				apixin=True
+		if partcolnum < 0: 
+			writeToLog('Error: could not find _rlnImageName in .star file. Exiting','%s/run.err' %(outdir))
+			sys.exit()
+		if apixin is False: 
+			if magcheck is False: 
+				writeToLog('Error: No magnification information found in .star file. Exiting', '%s/run.err' %(outdir))
+				sys.exit()
+		if apixin is False: 
+                        if pixcheck is False:
+                                writeToLog('Error: No detector pixel size information found in .star file. Exiting', '%s/run.err' %(outdir))
+                                sys.exit()
+		if ctfin is True: 
+			if ctfcheck is False: 
+				writeToLog('Error: no defocus information found in .star file. Exiting', '%s/run.err' %(outdir))
+				sys.exit()
+
+		#Get xdims
+		examplePart=line.split()[partcolnum-1]
+		if os.path.exists('handler.txt'):
+                        os.remove('handler.txt')
+                cmd='relion_image_handler --i %s --stats > handler.txt' %(examplePart)
+                subprocess.Popen(cmd,shell=True).wait()
+		partxdim=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[0].strip())	
+		print 'partxdim %i' %(partxdim)
+
 	if stack is True:
 		if os.path.exists('handler.txt'): 
 			os.remove('handler.txt') 
 		cmd='relion_image_handler --i %s --stats > handler.txt' %(partstarname)
                 subprocess.Popen(cmd,shell=True).wait()
                 numParticles=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[3].split(';')[0])
+		partxdim=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[0].strip())
 		os.remove('handler.txt')
+		ctf=False
+		angpix=False
+		splitrln=relioncmd.split()
+		for rln in splitrln: 
+			if rln == '--ctf': 
+				ctf=True
+			if rln == '--angpix': 
+				angpix=True
+		if ctf is True: 
+			writeToLog('Error: CTF correction was selected for a particle stack without a star file (which means that Relion cannot do CTF correction). Exiting','%s/run.err' %(outdir))
+			sys.exit()
+		if angpix is False: 
+			writeToLog('Error: Pixel size required. Please include --angpix into "Additional arguments" and resubmit','%s/run.err' %(outdir))
+			sys.exit()
+	if initmodel != 'None': 
+		if os.path.exists('handler2.txt'): 
+			os.remove('handler2.txt')
+		time.sleep(2)
+		cmd='relion_image_handler --i %s --stats > handler2.txt' %(initmodel)
+		subprocess.Popen(cmd,shell=True).wait()	
+		time.sleep(2)
+		modxdim=int(linecache.getline('handler2.txt',1).split('=')[1].split('x')[0].strip())
+		os.remove('handler2.txt')
+		if modxdim != partxdim: 
+			writeToLog('Error: 3D model and particles do not have the same dimensions. Exiting','%s/run.err' %(outdir))
+			sys.exit()
+
+	#Re-write note.txt without 'Kill'
+	cmd='mv %s/note.txt %s/note_bckup.txt' %(outdir,outdir)
+	subprocess.Popen(cmd,shell=True).wait()
+	newNoteOut=open('%s/note.txt' %(outdir),'w')
+	for line in open('%s/note_bckup.txt' %(outdir),'r'): 
+		if 'Kill' not in line: 
+			newNoteOut.write(line)
+	newNoteOut.close()
+	os.remove('%s/note_bckup.txt' %(outdir))
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
 	relioncmd,select=parseCMDrefine(relioncmd)
-	#if len(select) > 0:
- 	#	particledir=getSelectParticleDir(select)
- 	#	selectdir=select.split(partstarname)[0]
 
 	#Check where input particles are located
 	if stack is False: 
@@ -1926,7 +2013,7 @@ def relion_run_ctffind(project):
         if os.path.exists('run_aws.job'):
                 os.remove('run_aws.job')
 #==============================
-def checkStatusInstances(instanceID,keypair,IPaddress,outdir)):
+def checkStatusInstances(instanceID,keypair,IPaddress,outdir):
 
 	SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
         InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
@@ -2256,12 +2343,12 @@ def relion_run_motioncorr(project):
 			micname=micname.split('/')[-1]
 		
 		#Check that all instances are running, reboot if something happens
-		if miccount % 10 == 0: 
-			instanceCounter=0
-			while instanceCounter <= numInstancesRequired: 
-				instanceID=[]
-				checkStatusInstances(instanceID,keypair,IPlist[instanceCounter],outdir)
-				instanceCounter=instanceCounter+1	
+		#if miccount % 10 == 0: 
+		#	instanceCounter=0
+		#	while instanceCounter <= numInstancesRequired: 
+		#		instanceID=[]
+		#		checkStatusInstances(instanceID,keypair,IPlist[instanceCounter],outdir)
+		#		instanceCounter=instanceCounter+1	
 
 		isdone=0
 		if movieAlignType != 'unblur': 
