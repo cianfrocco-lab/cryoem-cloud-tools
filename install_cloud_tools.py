@@ -103,7 +103,7 @@ if uname == 'Darwin':
 		print 'Could not find xcode tools. Please install and try again.'
 		print 'To learn how to install xcode: https://developer.apple.com/xcode/'
 		sys.exit() 
-
+'''
 #Check if anaconda is installed
 if uname == 'Darwin': 
 	conda='which conda',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
@@ -111,7 +111,8 @@ if uname == 'Darwin':
 		print 'anaconda python is installed. Please remove from environment and try again'
 		print 'To do this, comment out any lines for anaconda in your .bash_profile'
 		sys.exit()
-
+'''
+'''
 pip=subprocess.Popen('which pip',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
 
 if cloudtoolsonly is False: 
@@ -132,7 +133,7 @@ needAWSCLI=True
 aws_version=subprocess.Popen('which aws',shell=True, stdout=subprocess.PIPE).stdout.read().strip()	
 if len(aws_version) > 0: 
 	needAWSCLI=False
-
+'''
 #Git clone git@github.com:leschzinerlab/cryoem-cloud-tools.git
 needGIT=True
 git=subprocess.Popen('which git',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -154,6 +155,7 @@ if pingstatus == 'bad':
 	print 'Error: Cannot connect to internet. Check your networking and try again'
 	sys.exit()
 #Check relion
+'''
 installRelion=True
 relion=subprocess.Popen('which relion',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 if len(relion) > 0: 
@@ -207,10 +209,10 @@ if cloudtoolsonly is False:
 	if needFabric is True: 
 		cmd='pip install --install-option="--prefix=%s/fabric" fabric' %(install_location)
 		subprocess.Popen(cmd,shell=True).wait()
-
+'''
 cmd='git clone https://github.com/leschzinerlab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
 subprocess.Popen(cmd,shell=True).wait()
-
+'''
 if cloudtoolsonly is False:
 
 	if installRelion is True: 
@@ -239,22 +241,22 @@ if cloudtoolsonly is False:
 		subprocess.Popen(cmd,shell=True).wait()
 	
 		os.remove('installrelion.sh')
-
+'''
 #Write environmental variables into text file
 o1=open('%s/external_software.init' %(install_location),'w')
-if cloudtoolsonly is False: 
-	if needFabric is True: 
-		o1.write('export PATH=%s/fabric/bin:$PATH\n' %(install_location))
-		o1.write('export PYTHONPATH=%s/fabric/lib/python2.7/site-packages/:$PYTHONPATH\n' %(install_location))
-if needAWSCLI is True:
-	o1.write('export PATH=%s/awscli/bin:$PATH\n' %(install_location))
-if installRelion is True: 
-	o1.write('export PATH=%s/relion2.0/build/bin:$PATH\n' %(install_location))
-	o1.write('export LD_LIBRARY_PATH=%s/relion2.0/build/lib:$LD_LIBRARY_PATH\n' %(install_location))
-if cloudtoolsonly is False: 
-	if installMPI is True: 
-		o1.write('export PATH=%s/relion2.0/external_software/openmpi-2.0.2/bin:$PATH\n' %(install_location))
-		o1.write('export LD_LIBRARY_PATH=%s/relion2.0/external_software/openmpi-2.0.2/lib:$LD_LIBRARY_PATH\n' %(install_location))
+#if cloudtoolsonly is False: 
+#	if needFabric is True: 
+#		o1.write('export PATH=%s/fabric/bin:$PATH\n' %(install_location))
+#		o1.write('export PYTHONPATH=%s/fabric/lib/python2.7/site-packages/:$PYTHONPATH\n' %(install_location))
+#if needAWSCLI is True:
+o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws/bin/:$PATH\n' %(install_location))
+#if installRelion is True: 
+o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/bin/:$PATH\n' %(install_location))
+o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/lib:$LD_LIBRARY_PATH\n' %(install_location))
+#if cloudtoolsonly is False: 
+#	if installMPI is True: 
+#		o1.write('export PATH=%s/relion2.0/external_software/openmpi-2.0.2/bin:$PATH\n' %(install_location))
+#		o1.write('export LD_LIBRARY_PATH=%s/relion2.0/external_software/openmpi-2.0.2/lib:$LD_LIBRARY_PATH\n' %(install_location))
 o1.close()
 
 #Copy aws_init.sh into install_location
