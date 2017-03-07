@@ -115,9 +115,13 @@ def launchInstance(params,keyName,keyPath,AMI):
 
     print '\nLaunching AWS instance %s for user %s\n' %(params['instance'],keyName)
 
+    uname=subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     securityGroupName='sg_%i' %(int(time.time()))
     securityGroupDescript='Automated security group'
-    IPaddress=subprocess.Popen('curl -s icanhazip.com',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    if uname == 'Linux': 
+	IPaddress=subprocess.Popen('curl -s icanhazip.com',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    if uname == 'Darwin': 
+	IPaddress=subprocess.Popen('curl ipecho.net/plain ; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     if len(IPaddress) == 0:
         print 'Error: Could not get IP address of your computer. Exiting.'
         sys.exit()
