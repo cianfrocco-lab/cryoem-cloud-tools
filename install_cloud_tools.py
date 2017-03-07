@@ -98,7 +98,7 @@ uname=subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read()
 
 #Check if xcode is installed
 if uname == 'Darwin': 
-	xcode='which xcodebuild',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+	xcode=subprocess.Popen('which xcodebuild',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
 	if len(xcode) == 0: 
 		print 'Could not find xcode tools. Please install and try again.'
 		print 'To learn how to install xcode: https://developer.apple.com/xcode/'
@@ -250,6 +250,7 @@ o1=open('%s/external_software.init' %(install_location),'w')
 #		o1.write('export PYTHONPATH=%s/fabric/lib/python2.7/site-packages/:$PYTHONPATH\n' %(install_location))
 #if needAWSCLI is True:
 o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws/bin/:$PATH\n' %(install_location))
+o1.write('export PYTHONPATH=%s/cryoem-cloud-tools/external_software/aws/lib/python2.7/site-packages/\n' %(install_location))
 #if installRelion is True: 
 o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/bin/:$PATH\n' %(install_location))
 o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/lib:$LD_LIBRARY_PATH\n' %(install_location))
