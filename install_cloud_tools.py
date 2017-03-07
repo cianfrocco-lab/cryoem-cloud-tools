@@ -269,6 +269,11 @@ for line in o1:
 		l=line.split('=')
 		l[1]='%s/cryoem-cloud-tools' %(install_location)
 		line='='.join(l)+'\n'
+	if 'aws_aliases.sh' in line: 
+		if uname == 'Linux': 
+			line='source $AWS_DIR/aws_aliases.sh\n'
+		if uname == 'Darwin': 
+			line='source $AWS_DIR/aws_aliases_osx.sh\n'
 	newout.write(line)
 newout.write('source %s/external_software.init' %(install_location))
 o1.close()
