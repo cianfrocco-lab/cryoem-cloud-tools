@@ -743,12 +743,18 @@ def relion_refine_mpi(project):
 
 	#Get number of particles to decide how big of a machine to spin up
 	if stack is False:
-		numParticles=len(open('%s/%s' %(particledir,partstarname),'r').readlines())
+		if len(particledir) == 0: 
+			starfilename=particledir
+			numParticles=len(open(particledir,'r').readlines())
+		if len(particledir) > 0: 
+			starfilename='%s/%s' %(particledir,partstarname)
+			numParticles=len(open('%s/%s' %(particledir,partstarname),'r').readlines())
 		magcheck=False
 		pixcheck=False
 		ctfcheck=False
 		partcolnum=-1
-		for line in open('%s/%s' %(particledir,partstarname),'r'): 
+		exampleline=''	
+		for line in open(starfilename,'r'): 
 			if len(line) > 3: 
 				if line.split()[0] == '_rlnMagnification': 
 					magcheck=True
@@ -758,6 +764,7 @@ def relion_refine_mpi(project):
 					ctfcheck=True
 				if line.split()[0] == '_rlnImageName': 
 					partcolnum=int(line.split()[1].split('#')[-1])
+				exampleline=line
 		ctfin=False
 		apixin=False
 		for rln in relioncmd.split(): 
@@ -782,7 +789,10 @@ def relion_refine_mpi(project):
 				sys.exit()
 
 		#Get xdims
-		examplePart=line.split()[partcolnum-1]
+		if len(exampleline) == 0: 			
+			writeToLog('Error: no inputline found','%s/run.err' %(outdir))
+			sys.exit()
+		examplePart=exampleline.split()[partcolnum-1]
 		if os.path.exists('handler.txt'):
                         os.remove('handler.txt')
                 cmd='relion_image_handler --i %s --stats > handler.txt' %(examplePart)
@@ -840,7 +850,7 @@ def relion_refine_mpi(project):
 
 	#Check where input particles are located
 	if stack is False: 
-		otherPartDir,otherPartRclone,error=checkPartLocation('%s/%s' %(particledir,partstarname),particledir)
+		otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
 
 	if len(error) > 0: 
 		writeToLog(error,'%s/run.err' %(outdir))
@@ -2049,7 +2059,7 @@ def checkStatusInstances(instanceID,keypair,IPaddress,outdir):
 #==============================
 def relion_run_motioncorr(project):
 	maxm4=5
-	maxp28=10
+	maxp28=1
 	
 	relioncmd,micstar,outdir,gainref,movieAlignType,ifMotionCor2,savemovies,angpix=getCMDmovie(infile)
         #Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
@@ -2200,7 +2210,7 @@ def relion_run_motioncorr(project):
 		ntasks=gpu
 	if gpu == 0:
 		ntasks=mpi-24
-	sizeneeded=ntasks*60
+	sizeneeded=ntasks*600
 	numMoviesPerInstance=math.ceil((movieCounter+1)/numInstancesRequired)
 	count=0
 	instancenum=0

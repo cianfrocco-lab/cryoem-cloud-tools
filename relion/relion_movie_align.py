@@ -206,7 +206,7 @@ while movieCounter < len(movielist):
 			additionalcmds=''
 			checkexist=0
                         while checkexist == 0:
-                                if os.path.exist(micname):
+                                if os.path.exists(micname):
                         		checkexist=1
 			if micnum == 0:	
 				cmd='/home/EM_Packages/relion2.0/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
@@ -275,9 +275,10 @@ while movieCounter < len(movielist):
 			newcheck=outdir+'/'+check
 		while isdone == 0:
 			time.sleep(3)
+			print 'waiting on %s' %(newcheck)
 			if aligntype != 'unblur': 
 				if os.path.exists(newcheck):
-					print 'finished %s' %(newcheck)
+					print '--------------finished %s' %(newcheck)
 					isdone=1
 					rclonetxt='rcloneMicList_%0.i' %(time.time())
 					if os.path.exists(rclonetxt): 
@@ -288,14 +289,14 @@ while movieCounter < len(movielist):
 						micname=check.split('/')[-1]
 					if angpix == -1: 
 						angpix=1	
-					cmd='%s --i %s --o %s_bin.mrc --angpix %f --rescale_angpix %f' %(relionhandler,newcheck,newcheck[:-4],angpix,angpix*4)
-					subprocess.Popen(cmd,shell=True).wait()
+					#cmd='%s --i %s --o %s_bin.mrc --angpix %f --rescale_angpix %f' %(relionhandler,newcheck,newcheck[:-4],angpix,angpix*4)
+					#subprocess.Popen(cmd,shell=True).wait()
 
 					cmd='echo "%s" >> %s' %(newcheck.split('/')[-1],rclonetxt)
         	                        subprocess.Popen(cmd,shell=True)
 	
-					cmd='echo "%s_bin.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                	                subprocess.Popen(cmd,shell=True)
+					#cmd='echo "%s_bin.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
+                	                #subprocess.Popen(cmd,shell=True)
 
 					cmd='echo "%s.out" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
                                 	subprocess.Popen(cmd,shell=True)
@@ -310,7 +311,10 @@ while movieCounter < len(movielist):
 					cmd='echo "%s" >> done_list.txt' %(newcheck.split('/')[-1])
 					subprocess.Popen(cmd,shell=True)
 
-                         	        uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
+
+					cmd='~/rclone sync %s/%s rclonename:%s --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,numToGet)
+					subprocess.Popen(cmd,shell=True)
+                         	        #uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
 					
 			if aligntype == 'unblur': 
 				unblurbase=newcheck[:-(len(newcheck.split('.')[-1])+1)]

@@ -21,8 +21,6 @@ def setupParserOptions():
             help="Optional: Specifiy volume ID to be mounted onto instance (Must be same avail. zone)")
     parser.add_option("--relion2",action="store_true",dest="relion2",default=False,
             help="Optional: Flag to use relion2 environment on non-GPU machines (By default, relion2 software is only loaded onto GPU (p2) instances)") 
-    parser.add_option("--rosetta",action="store_true",dest="rosetta",default=False,
-            help="Optional: Flag to use rosetta environment (Rosetta runs on CPUs)")
     parser.add_option("--AMI",dest="AMI",type="string",metavar="STRING",default='None',
             help="Optional: Specifiy AMI to use when booting instance (Must be in same region, overrides any other AMI)")
     parser.add_option("--noEBS",action="store_true",dest="force",default=False,
@@ -101,10 +99,8 @@ def checkConflicts(params,availInstances):
 		AMI='ami-bc08c3dc'
 	if params['relion2'] is True:
 		AMI='ami-26139046'
-	if params['rosetta'] is True:
-		AMI='ami-5d48f83d'
-	if params['AMI'] != 'None': 
-		AMI=params['AMI']
+    if params['AMI'] != 'None': 
+        AMI=params['AMI']
 
     #Check that instance is in approved list
     if not params['instance'] in availInstances:
@@ -264,8 +260,17 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
 
    print '\n\nAttaching volume %s to instance %s ...\n' %(volID,instanceID)
 
+   SysStatus='init'
+   InsStatus='init'
+
+   while SysStatus != 'ok' and InsStatus != 'ok':
+        SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+        InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+        time.sleep(4)
+
    volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdf > tmp3re3333.log' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
+   time.sleep(3)
    if os.path.exists('tmp3re3333.log'):
 	os.remove('tmp3re3333.log')
    time.sleep(10)
