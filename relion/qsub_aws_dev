@@ -733,8 +733,7 @@ def relion_refine_mpi(project):
 			if len(line) > 4: 
 				if line.split()[0] == '_rlnCurrentIteration': 
 					iterationNumOpt=int(line.split()[1].strip())			
-
-		if iterationNumOpt <= numiters: 
+		if float(iterationNumOpt) <= float(numiters): 
 			writeToLog('Error: Number of iterations=%i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
 			sys.exit()
 
@@ -2059,7 +2058,7 @@ def checkStatusInstances(instanceID,keypair,IPaddress,outdir):
 #==============================
 def relion_run_motioncorr(project):
 	maxm4=5
-	maxp28=1
+	maxp28=8
 	
 	relioncmd,micstar,outdir,gainref,movieAlignType,ifMotionCor2,savemovies,angpix=getCMDmovie(infile)
         #Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
@@ -2210,7 +2209,7 @@ def relion_run_motioncorr(project):
 		ntasks=gpu
 	if gpu == 0:
 		ntasks=mpi-24
-	sizeneeded=ntasks*600
+	sizeneeded=ntasks*220
 	numMoviesPerInstance=math.ceil((movieCounter+1)/numInstancesRequired)
 	count=0
 	instancenum=0

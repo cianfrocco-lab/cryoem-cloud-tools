@@ -312,9 +312,10 @@ while movieCounter < len(movielist):
 					subprocess.Popen(cmd,shell=True)
 
 
-					cmd='~/rclone sync %s/%s rclonename:%s --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,numToGet)
+					cmd='~/rclone sync %s/%s %s --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,numToGet)
 					subprocess.Popen(cmd,shell=True)
-                         	        #uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
+                         	        print cmd 
+					#uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
 					
 			if aligntype == 'unblur': 
 				unblurbase=newcheck[:-(len(newcheck.split('.')[-1])+1)]
