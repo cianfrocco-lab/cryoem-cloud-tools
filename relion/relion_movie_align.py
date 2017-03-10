@@ -27,6 +27,24 @@ summoviepath='/home/EM_Packages/summovie_1.0.2/bin/sum_movie_openmp_7_17_15.exe'
 relionpath='/home/EM_Packages/relion2.0/build/bin/relion_run_motioncorr'
 relionhandler='/home/EM_Packages/relion2.0/build/bin/relion_image_handler'
 
+def checkLog(newcheck,aligntype): 
+	
+	finished='nope'
+	restart='no'
+
+	if aligntype == 'motioncorr': 
+		o44=open('.log','r')
+		for line in o44: 
+			if len(line) > 0: 
+				if line.split()[0] == 'Done.': 
+					finished='done'
+				if line.split()[0] == 'Failed': 
+					finished='nope'
+					restart='yes'
+		o44.close()
+
+	return finished,restart
+
 def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4): 
 	
 	outfile='rcloneupload_%0.i.txt' %(time.time())
@@ -277,44 +295,49 @@ while movieCounter < len(movielist):
 			time.sleep(3)
 			print 'waiting on %s' %(newcheck)
 			if aligntype != 'unblur': 
-				if os.path.exists(newcheck):
-					print '--------------finished %s' %(newcheck)
-					isdone=1
-					rclonetxt='rcloneMicList_%0.i' %(time.time())
-					if os.path.exists(rclonetxt): 
-						os.remove(rclonetxt)
-					if len(check.split('/')) == 1:
-						micname=check
-					if len(check.split('/')) > 1:
-						micname=check.split('/')[-1]
-					if angpix == -1: 
-						angpix=1	
+				micstatus,restart=checkLog(newcheck,aligntype)
+				if restart == 'yes': 
+					cmd='%s.com' %()
+					###FIL> IN HERE
+				if micstatus == 'done':
+					if os.path.exists(newcheck):
+						print '--------------finished %s' %(newcheck)
+						isdone=1
+						rclonetxt='rcloneMicList_%0.i' %(time.time())
+						if os.path.exists(rclonetxt): 
+							os.remove(rclonetxt)
+						if len(check.split('/')) == 1:
+							micname=check
+						if len(check.split('/')) > 1:
+							micname=check.split('/')[-1]
+						if angpix == -1: 
+							angpix=1	
 					#cmd='%s --i %s --o %s_bin.mrc --angpix %f --rescale_angpix %f' %(relionhandler,newcheck,newcheck[:-4],angpix,angpix*4)
 					#subprocess.Popen(cmd,shell=True).wait()
 
-					cmd='echo "%s" >> %s' %(newcheck.split('/')[-1],rclonetxt)
-        	                        subprocess.Popen(cmd,shell=True)
+						cmd='echo "%s" >> %s' %(newcheck.split('/')[-1],rclonetxt)
+        	                        	subprocess.Popen(cmd,shell=True)
 	
 					#cmd='echo "%s_bin.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
                 	                #subprocess.Popen(cmd,shell=True)
 
-					cmd='echo "%s.out" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                                	subprocess.Popen(cmd,shell=True)
+						cmd='echo "%s.out" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
+        	                        	subprocess.Popen(cmd,shell=True)
 
-					cmd='echo "%s_shifts.eps" >> %s' %(check.split('/')[-1][:-4],rclonetxt)
-                                       	subprocess.Popen(cmd,shell=True)
+						cmd='echo "%s_shifts.eps" >> %s' %(check.split('/')[-1][:-4],rclonetxt)
+                        	               	subprocess.Popen(cmd,shell=True)
 
-					if savemovies == 'True': 
-						cmd='echo "%s_movie.mrcs" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
+						if savemovies == 'True': 
+							cmd='echo "%s_movie.mrcs" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
+							subprocess.Popen(cmd,shell=True)
+
+						cmd='echo "%s" >> done_list.txt' %(newcheck.split('/')[-1])
 						subprocess.Popen(cmd,shell=True)
+	
 
-					cmd='echo "%s" >> done_list.txt' %(newcheck.split('/')[-1])
-					subprocess.Popen(cmd,shell=True)
-
-
-					cmd='~/rclone sync %s/%s %s --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,numToGet)
-					subprocess.Popen(cmd,shell=True)
-                         	        print cmd 
+						cmd='~/rclone sync %s/%s %s --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,numToGet)
+						subprocess.Popen(cmd,shell=True)
+                        	 	        print cmd 
 					#uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numFilesAtATime),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
 					
 			if aligntype == 'unblur': 

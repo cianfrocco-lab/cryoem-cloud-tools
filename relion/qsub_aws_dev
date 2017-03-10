@@ -724,6 +724,11 @@ def relion_refine_mpi(project):
 	#Get relion command and input options
 	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename=getCMDrefine(infile)
 
+	if os.path.exists('%s/run.err' %(outdir)): 
+		os.remove('%s/run.err' %(outdir))
+		cmd='touch %s/run.err' %(outdir)
+		subprocess.Popen(cmd,shell=True).wait()
+
 	if len(continueRun) > 0: 
 		particledir=continueRun.split('/')
 		del particledir[-1]
@@ -732,9 +737,9 @@ def relion_refine_mpi(project):
 		for line in open(continueRun,'r'): 
 			if len(line) > 4: 
 				if line.split()[0] == '_rlnCurrentIteration': 
-					iterationNumOpt=int(line.split()[1].strip())			
-		if float(iterationNumOpt) <= float(numiters): 
-			writeToLog('Error: Number of iterations=%i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
+					iterationNumOpt=int(line.split()[1].strip())
+		if float(iterationNumOpt) >= float(numiters): 
+			writeToLog('Error: Number of iterations requested %i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
 			sys.exit()
 
 	if len(particledir) == 0: 
@@ -797,7 +802,6 @@ def relion_refine_mpi(project):
                 cmd='relion_image_handler --i %s --stats > handler.txt' %(examplePart)
                 subprocess.Popen(cmd,shell=True).wait()
 		partxdim=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[0].strip())	
-		print 'partxdim %i' %(partxdim)
 
 	if stack is True:
 		if os.path.exists('handler.txt'): 
@@ -1064,7 +1068,6 @@ def relion_refine_mpi(project):
                 subprocess.Popen(cmd,shell=True).wait()
 
 	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
-	print relion_remote_cmd
 
 	o2=open('run_aws.job','w')
 	o2.write('#!/bin/bash\n')
@@ -2058,7 +2061,7 @@ def checkStatusInstances(instanceID,keypair,IPaddress,outdir):
 #==============================
 def relion_run_motioncorr(project):
 	maxm4=5
-	maxp28=8
+	maxp28=1
 	
 	relioncmd,micstar,outdir,gainref,movieAlignType,ifMotionCor2,savemovies,angpix=getCMDmovie(infile)
         #Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
