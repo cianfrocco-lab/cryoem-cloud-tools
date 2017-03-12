@@ -567,7 +567,7 @@ def parseCMDrefine(relioncmd):
 					counter=counter+1
 				else:
 					counter=counter+2
-			if counter+1 >= tot: 
+			else: 
 				counter=counter+1
 			continue
 		if l[counter] == '--j':
@@ -850,7 +850,6 @@ def relion_refine_mpi(project):
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
 	relioncmd,select=parseCMDrefine(relioncmd)
-
 	#Check where input particles are located
 	if stack is False: 
 		otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)

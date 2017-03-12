@@ -32,10 +32,12 @@ def checkLog(newcheck,aligntype):
 	finished='nope'
 	restart='no'
 
-	if aligntype == 'motioncorr': 
-		o44=open('.log','r')
+	if aligntype == 'motioncorr':
+		print 'checking'
+		print '%s.log' %(newcheck[:-4])
+		o44=open('%s.log' %(newcheck[:-4]),'r')
 		for line in o44: 
-			if len(line) > 0: 
+			if len(line.split()) > 0: 
 				if line.split()[0] == 'Done.': 
 					finished='done'
 				if line.split()[0] == 'Failed': 
@@ -297,7 +299,9 @@ while movieCounter < len(movielist):
 			if aligntype != 'unblur': 
 				micstatus,restart=checkLog(newcheck,aligntype)
 				if restart == 'yes': 
-					cmd='%s.com' %()
+					cmd='%s.com&' %(newcheck[:-4])
+					print cmd
+					subprocess.Popen(cmd,shell=True)
 					###FIL> IN HERE
 				if micstatus == 'done':
 					if os.path.exists(newcheck):
