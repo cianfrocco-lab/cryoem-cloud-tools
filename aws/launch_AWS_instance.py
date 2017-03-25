@@ -50,6 +50,15 @@ def checkConflicts(params,availInstances):
 	print 'Error: No availability zone specified. Exiting'
 	sys.exit()
 
+    allowedzones=['us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','us-west-1a', 'us-west-1b','us-west-1c','eu-west-1a','eu-west-1b','eu-west-1c','ap-southeast-1a','ap-southeast-1b','ap-northeast-1a','ap-northeast-1b','ap-northeast-1c','ap-southeast-2a','ap-southeast-2b','sa-east-1a','sa-east-1b','us-east-2a','us-east-2b','us-east-2c','ca-central-1a','ca-central-1b','eu-west-2a','eu-west-2b','eu-central-1a','eu-central-1b','ap-northeast-2a','ap-northeast-2c','ap-south-1a','ap-south-1b']
+
+    gpuzones=['us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c']
+
+    if params['zone'] not in allowedzones: 
+	print 'Error: Input zone %s is not in allowed zones:' %(params['zone'])
+	print allowedzones
+	sys.exit()
+
     if params['spot'] <= 0:
 	if params['spot'] != -1:
 		print 'Error: Spot price requested is less than or equal to 0. Try again. Exiting\n'
@@ -85,6 +94,12 @@ def checkConflicts(params,availInstances):
     if len(AWS_DEFAULT_REGION) == 0:
     	print '\nError: AWS_DEFAULT_REGION not specified as environment variable. Exiting\n'
     	sys.exit()
+    if params['instance'].split('.')[0] == 'p2':
+	if params['zone'] not in gpuzones: 
+		print 'Error: Specified availability zone %s does not have GPU instances (p2). Please use one of the availability zones (regions) below:' %(params['zone'])
+		print gpuzones
+		sys.exit()
+
     if AWS_DEFAULT_REGION == 'us-east-1':
 	if params['instance'].split('.')[0] == 'p2':
         	AMI='ami-69eba27e'
@@ -182,8 +197,17 @@ def launchInstance(params,keyName,keyPath,AMI):
 
     if params['spot'] == -1:
 	    print '\nBooting up instance ...\n'
-	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}"|grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-   
+	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	    if len(InstanceID) == 0:
+		awsclidir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		numRunning=subprocess.Popen('%s/list_all.py %s -i | grep %s | wc -l' %(awsclidir,params['zone'][:-1],params['instance']), shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+	   	if len(numRunning) == 0: 
+			numRunning=str(0)
+		print '\nError: Could not boot up requested instance. It is likely that you exceeded your limit for your AWS account.'
+		print '\nCurrently, there are %s instances of %s running in region %s' %(numRunning,params['instance'],params['zone'][:-1])
+		print '\nTo increase your limit, please see http://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html.\n'
+		sys.exit()
+	    InstanceID=InstanceID.split()[-1].split('"')[1]
    	    Status='init'
     	    while Status != 'running':
 	    	Status=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{State:State}" | grep Name' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]

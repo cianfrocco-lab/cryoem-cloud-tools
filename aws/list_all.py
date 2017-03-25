@@ -3,13 +3,15 @@
 import subprocess
 import os
 import sys 
-
+onlyinstances=False
 if len(sys.argv) ==1:
         print '\nUsage: awsls_admin [region]\n'
         print '\nSpecify region (NOT availability zone) that will be displayed for all users\n'
         sys.exit()
 
 region=sys.argv[1]
+if sys.argv[-1] == '-i':
+        onlyinstances=True
 
 #List instances given a users tag
 keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -102,6 +104,9 @@ while counter < float(numSpotInstances):
         print '%s\t\t%s\t%s\t%s\t\t%s\t%s\t%s\t$%1.3f' %(instanceType,availZone,spotID,spotStatus,instanceID,status,PublicIP,float(spotPrice))
 
         counter=counter+1
+
+if onlyinstances is True: 
+	sys.exit()
 
 #Get number of instances to loop over
 numVols=subprocess.Popen('aws ec2 describe-volumes --region %s  --query "Volumes[*].{VolumeID:VolumeId}" | grep VolumeID | wc -l' %(region) ,shell=True, stdout=subprocess.PIPE).stdout.read().strip()
