@@ -1,15 +1,15 @@
 # Cryo-EM Cloud Tools
 Software to interface with AWS through convenient command line inputs, ultimately connecting into Relion-2.0's GUI to launch cloud processing from local Relion-2.0 GUI. 
 
-To learn more: [cryoem-tools.cloud] (http://cryoem-tools.cloud)
+To learn more: [cryoem-tools.cloud](http://cryoem-tools.cloud)
 
 *Contents:*
-* [Typical Workflow] (https://github.com/leschzinerlab/AWS#typical-workflow)
-* [Getting started] (https://github.com/leschzinerlab/AWS#getting-started)
-	* [Software dependences] (https://github.com/leschzinerlab/AWS#software-dependencies)
-	* [Environment setup] (https://github.com/leschzinerlab/AWS#environment-setup)
-* [Usage] (https://github.com/leschzinerlab/AWS#usage)
-* [Removing temporary data storage on AWS] (https://github.com/leschzinerlab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
+* [Typical Workflow](https://github.com/leschzinerlab/AWS#typical-workflow)
+* [Getting started](https://github.com/leschzinerlab/AWS#getting-started)
+	* [Software dependences](https://github.com/leschzinerlab/AWS#software-dependencies)
+	* [Environment setup](https://github.com/leschzinerlab/AWS#environment-setup)
+* [Usage](https://github.com/leschzinerlab/AWS#usage)
+* [Removing temporary data storage on AWS](https://github.com/leschzinerlab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
 
 *Overview:*
 
@@ -112,7 +112,7 @@ To kill your instance:
 
 ## Getting started
 
-###Software dependencies 
+### Software dependencies 
 You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *fabric*: 
 * **pip**: 
 	* https://pypi.python.org/pypi/pip
@@ -131,7 +131,7 @@ You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *
 	* <pre>$ wget http://downloads.rclone.org/rclone-v1.35-linux-amd64.zip</pre>
 	* <pre>$ unzip rclone-v1.35-linux-amd64.zip</pre>
 
-###Environment setup
+### Environment setup
 For each user, you will create a hidden directory in their home directory into which you will add the aws/aws_init.sh file and their keypair.  
 
 * Create hidden folder: 
@@ -140,11 +140,10 @@ For each user, you will create a hidden directory in their home directory into w
 * Copy aws/aws_init.sh into this new directory & edit to include credentials and path to the cryoem-cloud-tools github repository on your local machine.
 
 * Add the following line to your .bashrc (or .cshrc, .bash_profile): 
-<pre>source /home/[user]/.aws/aws_init.sh
+<pre>source /home/[user]/.aws/aws_init.sh</pre>
 
 * Copy keypair into this new directory, double checking that this path is in the /home/[user]/.aws/aws_init.sh correctly. Also, make sure to modify permissions of file using: 
 <pre>$ chmod 600 path/to/keypair.pem </pre>
-
 
 ## Usage
 The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
