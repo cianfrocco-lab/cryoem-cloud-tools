@@ -529,9 +529,9 @@ def checkPartLocation(instarfile,indir):
 									micdironly=micro.split('/')
 									del micdironly[-1]
 									micdironly='/'.join(micdironly)
-									otherPartRclone.append('%s/%s' %(micdironly,partfilename))
+									otherPartRclone.append('%s%s' %(micdironly,partfilename))
 									if len(starfile) > 0: 
-										instarfile='%s/%s_extract.star' %(micdironly,partfilename[:-5])
+										instarfile='%s%s_extract.star' %(micdironly,partfilename[:-5])
 										if instarfile not in otherPartRclone:
 											otherPartRclone.append(instarfile)
 		o44.close()
@@ -945,8 +945,11 @@ def relion_refine_mpi(project):
 			ebs_exist=False
 			cmd='aws ec2 delete-volume --volume-id %s' %(ebsvolname)
 			subprocess.Popen(cmd,shell=True).wait()
-	inputfilesize=subprocess.Popen('du %s' %(particledir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
-	sizeneeded='%.0f' %(math.ceil((float(inputfilesize)*3)/1000000))
+	if len(otherPartDir) == 0: 
+		inputfilesize=subprocess.Popen('du %s' %(particledir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
+	if len(otherPartDir) > 0: 
+		inputfilesize=subprocess.Popen('du %s' %(otherPartDir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
+	sizeneeded='%.0f' %(math.ceil((float(inputfilesize)*4)/1000000))
         actualsize='%.0f' %(math.ceil((float(inputfilesize)/1000000)))
 
 	#Upload data to S3
