@@ -147,57 +147,79 @@ def launchInstance(params,keyName,keyPath,AMI):
     if params['debug'] is True:
     	print '\nConfiguring security group %s to use IP address %s/32 ...' %(securityGroupName,IPaddress)
 
-    print '\nConfiguring security settings ...\n'
+    #Check if IP address already has security group
+    numSecurityGroups=float(subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[*].{SG:GroupName}" | grep SG | wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+    SGexist=False
+    SGGroupName=''
+    cmd='aws ec2 describe-security-groups --query "SecurityGroups[*]" | grep Cidr > cidrtmp.log'
+    subprocess.Popen(cmd,shell=True).wait()
+    r1=open('cidrtmp.log','r')
+    counter=0
+    for l1 in r1: 
+	sgIP=l1.split(':')[-1].split('"')[1]	
+        if sgIP == IPaddress+'/32': 
+		SGout=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]"' %((counter+1)/2), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+  		if SGout != 'null': 
+			SGGroupName=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupName' %((counter+1)/2), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+			if len(SGGroupName) > 0: 
+				SGGroupName=SGGroupName.split(':')[-1].split('"')[1]	
+				SGexist=True
+	counter=counter+1
+    r1.close()
+    os.remove('cidrtmp.log')
+
+    if SGexist is False:
+	print '\nConfiguring security settings ...\n'
 
     #Get VPC ID for 'default' VPC:
     #Strategy: List all VPCs, then loop through to get any default VPC
     #Get number of VPCs available to user
-    numVPCs=float(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[*].{VPC:VpcId}" | grep VPC | wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+    	numVPCs=float(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[*].{VPC:VpcId}" | grep VPC | wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 
-    if params['debug'] is True:
-    	print 'Number of VPCs=%0.f\n' %(numVPCs)
-    if numVPCs == 0:
-    	print 'Error: No VPCs found. Exiting'
-    	sys.exit()
+    	if params['debug'] is True:
+    		print 'Number of VPCs=%0.f\n' %(numVPCs)
+    	if numVPCs == 0:
+    		print 'Error: No VPCs found. Exiting'
+    		sys.exit()
 
     ##Loop over all VPCs
-    vpcCounter=0
-    while vpcCounter < numVPCs:
-    	if int(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[%0.f].{Check:IsDefault}" | grep true | wc -l' %(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()) == 1:
-    		VPC=subprocess.Popen('aws ec2 describe-vpcs --query Vpcs[%0.f].{vpc:VpcId} | grep vpc-'%(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-    		if params['debug'] is True:
-    			print 'Default VPC=%s\n' %(VPC)
-    	vpcCounter=vpcCounter+1
+    	vpcCounter=0
+    	while vpcCounter < numVPCs:
+    		if int(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[%0.f].{Check:IsDefault}" | grep true | wc -l' %(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()) == 1:
+    			VPC=subprocess.Popen('aws ec2 describe-vpcs --query Vpcs[%0.f].{vpc:VpcId} | grep vpc-'%(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+    			if params['debug'] is True:
+    				print 'Default VPC=%s\n' %(VPC)
+    		vpcCounter=vpcCounter+1
 
-    if params['debug'] is True:
-    	print '\nAdding security group into VPC %s ...\n' %(VPC)
+    	if params['debug'] is True:
+    		print '\nAdding security group into VPC %s ...\n' %(VPC)
 
     ##Create security group for given IP address
     ##Check if there are more than 500 security groups. If so, throw error
 
-    numSecurityGroups=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[*].{Groups:GroupName}" | grep Groups| wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    	numSecurityGroups=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[*].{Groups:GroupName}" | grep Groups| wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
-    if params['debug'] is True:
-    	print 'Number of Security Groups=%s\n' %(numSecurityGroups)
+    	if params['debug'] is True:
+    		print 'Number of Security Groups=%s\n' %(numSecurityGroups)
 
-    if int(numSecurityGroups) >= 499:
-    	print 'Error: Too many security groups. Exiting\n'
-    	sys.exit()
+    	if int(numSecurityGroups) >= 499:
+    		print 'Error: Too many security groups. Exiting\n'
+    		sys.exit()
 
-    securityGroupId=subprocess.Popen('aws ec2 create-security-group --group-name %s --vpc-id %s --description "%s" | grep GroupId' %(securityGroupName,VPC,securityGroupDescript), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+    	securityGroupId=subprocess.Popen('aws ec2 create-security-group --group-name %s --vpc-id %s --description "%s" | grep GroupId' %(securityGroupName,VPC,securityGroupDescript), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
-    if params['debug'] is True:
-    	print 'Security Group Name=%s' %(securityGroupName)
-    	print 'Security Group ID=%s' %(securityGroupId)
+    	if params['debug'] is True:
+    		print 'Security Group Name=%s' %(securityGroupName)
+    		print 'Security Group ID=%s' %(securityGroupId)
 
-    cmd='aws ec2 authorize-security-group-ingress --group-id %s --protocol tcp --port 22 --cidr %s/32' %(securityGroupId,IPaddress)
-    if params['debug'] is True:
-    	print cmd
-    subprocess.Popen(cmd,shell=True).wait()
-
+    	cmd='aws ec2 authorize-security-group-ingress --group-id %s --protocol tcp --port 22 --cidr %s/32' %(securityGroupId,IPaddress)
+    	if params['debug'] is True:
+    		print cmd
+    	subprocess.Popen(cmd,shell=True).wait()
+	SGGroupName=securityGroupId
     if params['spot'] == -1:
 	    print '\nBooting up instance ...\n'
-	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],SGGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	    if len(InstanceID) == 0:
 		awsclidir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 		numRunning=subprocess.Popen('%s/list_all.py %s -i | grep %s | wc -l' %(awsclidir,params['zone'][:-1],params['instance']), shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
@@ -251,7 +273,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 	    json='{\n'
   	    json+='\t"ImageId": "%s",\n' %(AMI)
 	    json+='\t"KeyName": "%s",\n' %(keyName)
-  	    json+='\t"SecurityGroupIds": [ "%s" ],\n' %(securityGroupId)
+  	    json+='\t"SecurityGroupIds": [ "%s" ],\n' %(SGGroupName)
 	    json+='\t"InstanceType": "%s",\n'%(params['instance'])
 	    json+='\t"Placement": {\n'
 	    json+='\t\t"AvailabilityZone": "%s"\n' %(params['zone'])

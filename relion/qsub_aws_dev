@@ -444,6 +444,8 @@ def getCMDrefine(f1):
 	partstarname=''
 	partdir=''
 	contLocation=''
+	particlediameter=-999
+	partdiamcounter=-1
 	for l in rlncmd.split():
 		if l == '--i':
 			indircounter=counter
@@ -459,6 +461,8 @@ def getCMDrefine(f1):
 			maskcounter=counter
 		if l == '--continue':
 			continuecounter=counter
+		if l == '--particle_diameter':
+			partdiamcounter=counter
 		counter=counter+1
 
 	if indircounter > 0: 
@@ -468,6 +472,8 @@ def getCMDrefine(f1):
 		partdir=rlncmd.split()[indircounter].split('/')
 		del partdir[-1]
 		partdir='/'.join(partdir)
+	if partdiamcounter > 0: 
+		particlediameter=float(rlncmd.split()[partdiamcounter])
 	outbasename=rlncmd.split()[outcounter]
 	outdir=rlncmd.split()[outcounter].split('/')
 	del outdir[-1]
@@ -480,7 +486,7 @@ def getCMDrefine(f1):
 		mask=rlncmd.split()[maskcounter]
 	if continuecounter > 0: 
 		contLocation=rlncmd.split()[continuecounter]
-	return rlncmd,partdir,ref,outdir,autoref,numiters,partstarname,mask,stack,contLocation,outbasename
+	return rlncmd,partdir,ref,outdir,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter
 
 #==============================
 def checkPartLocation(instarfile,indir): 
@@ -722,7 +728,7 @@ def relion_refine_mpi(project):
 	error=''
 
 	#Get relion command and input options
-	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename=getCMDrefine(infile)
+	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename,diameter=getCMDrefine(infile)
 
 	if os.path.exists('%s/run.err' %(outdir)): 
 		os.remove('%s/run.err' %(outdir))
@@ -757,13 +763,17 @@ def relion_refine_mpi(project):
 		pixcheck=False
 		ctfcheck=False
 		partcolnum=-1
+		detectorcolnum=-1
+		magcolnum=-1
 		exampleline=''	
 		for line in open(starfilename,'r'): 
 			if len(line) > 3: 
 				if line.split()[0] == '_rlnMagnification': 
 					magcheck=True
+					magcolnum=int(line.split()[1].split('#')[-1])
 				if line.split()[0] == '_rlnDetectorPixelSize': 
 					pixcheck=True
+					detectorcolnum=int(line.split()[1].split('#')[-1])
 				if line.split()[0] == '_rlnDefocusU': 
 					ctfcheck=True
 				if line.split()[0] == '_rlnImageName': 
@@ -771,11 +781,14 @@ def relion_refine_mpi(project):
 				exampleline=line
 		ctfin=False
 		apixin=False
-		for rln in relioncmd.split(): 
-			if rln == '--ctf': 
+		rlncounter=1
+		while rlncounter <= len(relioncmd.split()): 
+			if relioncmd.split()[rlncounter-1] == '--ctf': 
 				ctfin=True
-			if rln == '--angpix': 
+			if relioncmd.split()[rlncounter-1] == '--angpix': 
 				apixin=True
+				apixVal=float(relioncmd.split()[rlncounter])
+			rlncounter=rlncounter+1
 		if partcolnum < 0: 
 			writeToLog('Error: could not find _rlnImageName in .star file. Exiting','%s/run.err' %(outdir))
 			sys.exit()
@@ -803,6 +816,10 @@ def relion_refine_mpi(project):
                 subprocess.Popen(cmd,shell=True).wait()
 		partxdim=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[0].strip())	
 
+		if apixin is False: 
+			example_detector=float(exampleline.split()[detectorcolnum-1])
+			example_mag=float(exampleline.split()[magcolnum-1])
+			apixVal=example_detector/example_mag
 	if stack is True:
 		if os.path.exists('handler.txt'): 
 			os.remove('handler.txt') 
@@ -813,12 +830,14 @@ def relion_refine_mpi(project):
 		os.remove('handler.txt')
 		ctf=False
 		angpix=False
-		splitrln=relioncmd.split()
-		for rln in splitrln: 
-			if rln == '--ctf': 
-				ctf=True
-			if rln == '--angpix': 
-				angpix=True
+		rlncounter=1
+                while rlncounter <= len(relioncmd.split()):
+                        if relioncmd.split()[rlncounter-1] == '--ctf':
+                                ctf=True
+                        if relioncmd.split()[rlncounter-1] == '--angpix':
+                                angpix=True
+                                apixVal=float(relioncmd.split()[rlncounter])
+                        rlncounter=rlncounter+1
 		if ctf is True: 
 			writeToLog('Error: CTF correction was selected for a particle stack without a star file (which means that Relion cannot do CTF correction). Exiting','%s/run.err' %(outdir))
 			sys.exit()
@@ -837,6 +856,12 @@ def relion_refine_mpi(project):
 		if modxdim != partxdim: 
 			writeToLog('Error: 3D model and particles do not have the same dimensions. Exiting','%s/run.err' %(outdir))
 			sys.exit()
+
+	#Check that diameter specified fits within box
+	if float(diameter) >= float(apixVal)*float(partxdim)-1: 
+		writeToLog('Error: Diameter specified (%.0f Angstroms) is greater than box size (%.0f Angstroms). Exiting' %(diameter,apixVal*partxdim),'%s/run.err' %(outdir))
+		writeToLog('Error: Diameter specified (%.0f Angstroms) is greater than box size (%.0f Angstroms). Exiting' %(diameter,apixVal*partxdim),'%s/run.out' %(outdir))
+		sys.exit() 
 
 	#Re-write note.txt without 'Kill'
 	cmd='mv %s/note.txt %s/note_bckup.txt' %(outdir,outdir)
@@ -1092,6 +1117,13 @@ def relion_refine_mpi(project):
 		#Check if job was specified to be killed
 		if isdone ==0:
  			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
+
+		#Check if there are any errors
+		if isdone == 0: 
+			if os.path.exists('%s/run.err' %(outdir)): 
+				if float(subprocess.Popen('cat %s/run.err | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0: 
+					writeToLog('\nError detected in run.err. Shutting down instance.','%s/run.out' %(outdir))
+					isdone=1
 
 		time.sleep(10)
 	time.sleep(30)
