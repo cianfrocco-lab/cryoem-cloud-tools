@@ -127,6 +127,7 @@ if instanceID.split('-')[0] != 'cluster':
 			os.remove('tmp4949585940.txt')
 
 		#Check if instance has volume mounted aws ec2 describe-instance-attribute --instance-id i-0d4524ffad3ac020b --attribute blockDeviceMapping
+		'''
 		numDevices=float(subprocess.Popen('aws ec2 describe-instances --instance-id %s  --query "Reservations[*].Instances[*].BlockDeviceMappings" | grep DeviceName  | wc -l' %(instanceID), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[0])
 
 		if numDevices > 1:
@@ -154,6 +155,7 @@ if instanceID.split('-')[0] != 'cluster':
 				vol=subprocess.Popen('aws ec2 detach-volume --volume-id %s ' %(volID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	
 				counter=counter+1
+		'''
 		cmd='aws ec2 terminate-instances --instance-ids %s > tmp4949585940.txt' %(instanceID)
 		subprocess.Popen(cmd,shell=True).wait()
 		os.remove('tmp4949585940.txt')

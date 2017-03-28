@@ -535,9 +535,9 @@ def checkPartLocation(instarfile,indir):
 									micdironly=micro.split('/')
 									del micdironly[-1]
 									micdironly='/'.join(micdironly)
-									otherPartRclone.append('%s%s' %(micdironly,partfilename))
+									otherPartRclone.append('%s/%s' %(micdironly,partfilename))
 									if len(starfile) > 0: 
-										instarfile='%s%s_extract.star' %(micdironly,partfilename[:-5])
+										instarfile='%s/%s_extract.star' %(micdironly,partfilename[:-5])
 										if instarfile not in otherPartRclone:
 											otherPartRclone.append(instarfile)
 		o44.close()
@@ -810,24 +810,23 @@ def relion_refine_mpi(project):
 			writeToLog('Error: no inputline found','%s/run.err' %(outdir))
 			sys.exit()
 		examplePart=exampleline.split()[partcolnum-1]
-		if os.path.exists('handler.txt'):
-                        os.remove('handler.txt')
-                cmd='relion_image_handler --i %s --stats > handler.txt' %(examplePart)
+		if os.path.exists('%s/handler.txt' %(outdir)):
+                        os.remove('%s/handler.txt' %(outdir))
+                cmd='relion_image_handler --i %s --stats > %s/handler.txt' %(examplePart,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
-		partxdim=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[0].strip())	
+		partxdim=int(linecache.getline('%s/handler.txt' %(outdir),1).split('=')[1].split('x')[0].strip())	
 
 		if apixin is False: 
 			example_detector=float(exampleline.split()[detectorcolnum-1])
 			example_mag=float(exampleline.split()[magcolnum-1])
-			apixVal=example_detector/example_mag
+			apixVal=(example_detector/example_mag)*10000
 	if stack is True:
-		if os.path.exists('handler.txt'): 
-			os.remove('handler.txt') 
-		cmd='relion_image_handler --i %s --stats > handler.txt' %(partstarname)
+		if os.path.exists('%s/handler.txt' %(outdir)): 
+			os.remove('%s/handler.txt' %(outdir)) 
+		cmd='relion_image_handler --i %s --stats > %s/handler.txt' %(partstarname,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
-                numParticles=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[3].split(';')[0])
-		partxdim=int(linecache.getline('handler.txt',1).split('=')[1].split('x')[0].strip())
-		os.remove('handler.txt')
+                numParticles=int(linecache.getline('%s/handler.txt' %(outdir),1).split('=')[1].split('x')[3].split(';')[0])
+		partxdim=int(linecache.getline('%s/handler.txt' %(outdir),1).split('=')[1].split('x')[0].strip())
 		ctf=False
 		angpix=False
 		rlncounter=1
@@ -1017,9 +1016,9 @@ def relion_refine_mpi(project):
 	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
-	instanceID=linecache.getline('%s/awslog.log' %(outdir),18).split()[-1]
-	keypair=linecache.getline('%s/awslog.log' %(outdir),16).split()[3].strip()
-	userIP=linecache.getline('%s/awslog.log' %(outdir),16).split('@')[-1].strip()
+	instanceID=linecache.getline('%s/awslog.log' %(outdir),15).split()[-1]
+	keypair=linecache.getline('%s/awslog.log' %(outdir),13).split()[3].strip()
+	userIP=linecache.getline('%s/awslog.log' %(outdir),13).split('@')[-1].strip()
 
 	#Create directories on AWS
 	if instance == 'p2.xlarge':
@@ -1204,6 +1203,14 @@ def relion_refine_mpi(project):
 		os.remove('%s/awslog.log' %(outdir))
 	if os.path.exists('%s/awsebs.log' %(outdir)):
 		os.remove('%s/awsebs.log' %(outdir))
+	if os.path.exists('run_aws.job'): 
+		os.remove('run_aws.job')
+	if os.path.exists('rclonetmplist1298.txt'): 
+		os.remove('rclonetmplist1298.txt')
+	if os.path.exists('rclone.conf'): 
+		os.remove('rclone.conf')
+	if os.path.exists('runningProcs.txt'): 
+		os.remove('runningProcs.txt')
 
 #==============================
 def check_and_kill_job(note,IP,keypair):

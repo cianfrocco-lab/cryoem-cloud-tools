@@ -140,35 +140,43 @@ def launchInstance(params,keyName,keyPath,AMI):
     if len(IPaddress) == 0:
         print 'Error: Could not get IP address of your computer. Exiting.'
         sys.exit()
-
     if params['debug'] is True:
         print 'Current IP address=%s/32' %(IPaddress)
-
-    if params['debug'] is True:
-    	print '\nConfiguring security group %s to use IP address %s/32 ...' %(securityGroupName,IPaddress)
 
     #Check if IP address already has security group
     numSecurityGroups=float(subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[*].{SG:GroupName}" | grep SG | wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip())
     SGexist=False
     SGGroupName=''
-    cmd='aws ec2 describe-security-groups --query "SecurityGroups[*]" | grep Cidr > cidrtmp.log'
-    subprocess.Popen(cmd,shell=True).wait()
-    r1=open('cidrtmp.log','r')
-    counter=0
-    for l1 in r1: 
-	sgIP=l1.split(':')[-1].split('"')[1]	
-        if sgIP == IPaddress+'/32': 
-		SGout=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]"' %((counter+1)/2), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-  		if SGout != 'null': 
-			SGGroupName=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupName' %((counter+1)/2), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-			if len(SGGroupName) > 0: 
-				SGGroupName=SGGroupName.split(':')[-1].split('"')[1]	
-				SGexist=True
-	counter=counter+1
-    r1.close()
-    os.remove('cidrtmp.log')
+    SGcounter=0 
+    while SGcounter < numSecurityGroups: 
+	cmd='aws ec2 describe-security-groups --query "SecurityGroups[%i].IpPermissions[*]" | grep Cidr > cidrtmp.log' %(SGcounter)
+	if params['debug'] is True:
+		print cmd
+	subprocess.Popen(cmd,shell=True).wait()
+    	r1=open('cidrtmp.log','r')
+    	for l1 in r1:	
+		sgIP=l1.split(':')[-1].split('"')[1]	
+        	if params['debug'] is True: 
+			print sgIP
+		if sgIP == IPaddress+'/32': 
+			if params['debug'] is True: 
+				print 'matched'
+			SGout=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i].IpPermissions[*]"' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+			if SGout != 'null': 
+				SGGroupName=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupName' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+				if len(SGGroupName) > 0: 
+					securityGroupName=SGGroupName.split(':')[-1].split('"')[1]	
+					SGexist=True
+    	r1.close()
+    	os.remove('cidrtmp.log')
+    	SGcounter=SGcounter+1
 
+    if params['debug'] is True:
+	print securityGroupName
+    	print SGexist
     if SGexist is False:
+	if params['debug'] is True:
+        	print '\nConfiguring security group %s to use IP address %s/32 ...' %(securityGroupName,IPaddress)
 	print '\nConfiguring security settings ...\n'
 
     #Get VPC ID for 'default' VPC:
@@ -216,13 +224,12 @@ def launchInstance(params,keyName,keyPath,AMI):
     	if params['debug'] is True:
     		print cmd
     	subprocess.Popen(cmd,shell=True).wait()
-	SGGroupName=securityGroupId
     if params['spot'] == -1:
 	    print '\nBooting up instance ...\n'
-	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-groups %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],SGGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-group-ids %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	    if len(InstanceID) == 0:
 		awsclidir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-		numRunning=subprocess.Popen('%s/list_all.py %s -i | grep %s | wc -l' %(awsclidir,params['zone'][:-1],params['instance']), shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+		numRunning=subprocess.Popen('%s/list_all.py %s -i | grep %s  | grep running | wc -l' %(awsclidir,params['zone'][:-1],params['instance']), shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
 	   	if len(numRunning) == 0: 
 			numRunning=str(0)
 		print '\nError: Could not boot up requested instance. It is likely that you exceeded your limit for your AWS account.'
@@ -273,7 +280,7 @@ def launchInstance(params,keyName,keyPath,AMI):
 	    json='{\n'
   	    json+='\t"ImageId": "%s",\n' %(AMI)
 	    json+='\t"KeyName": "%s",\n' %(keyName)
-  	    json+='\t"SecurityGroupIds": [ "%s" ],\n' %(SGGroupName)
+  	    json+='\t"SecurityGroupIds": [ "%s" ],\n' %(securityGroupName)
 	    json+='\t"InstanceType": "%s",\n'%(params['instance'])
 	    json+='\t"Placement": {\n'
 	    json+='\t\t"AvailabilityZone": "%s"\n' %(params['zone'])
