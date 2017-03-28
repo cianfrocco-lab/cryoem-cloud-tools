@@ -1016,9 +1016,9 @@ def relion_refine_mpi(project):
 	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
-	instanceID=linecache.getline('%s/awslog.log' %(outdir),15).split()[-1]
-	keypair=linecache.getline('%s/awslog.log' %(outdir),13).split()[3].strip()
-	userIP=linecache.getline('%s/awslog.log' %(outdir),13).split('@')[-1].strip()
+	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+	keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+	userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 
 	#Create directories on AWS
 	if instance == 'p2.xlarge':
@@ -1134,12 +1134,12 @@ def relion_refine_mpi(project):
         subprocess.Popen(cmd,shell=True).wait()
 
 	isdone=0
-	while isdone == 0:
-		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-		if status == 'terminated':
-			isdone=1
-		time.sleep(10)
-
+	#while isdone == 0:
+	#	status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	#	if status == 'terminated':
+	#		isdone=1
+	#	time.sleep(10)
+	
 	now=datetime.datetime.now()
         finday=now.day
         finhr=now.hour
@@ -1493,9 +1493,9 @@ def relion_preprocess_mpi(project):
         startday=now.day
         starthr=now.hour
         startmin=now.minute
-	instanceID=linecache.getline('%s/awslog.log'%(outdir),18).split()[-1]
-	keypair=linecache.getline('%s/awslog.log'%(outdir),16).split()[3].strip()
-	userIP=linecache.getline('%s/awslog.log'%(outdir),16).split('@')[-1].strip()
+	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+        keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+        userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 
 	#Create directories on AWS
 	env.host_string='ubuntu@%s' %(userIP)
@@ -1571,13 +1571,6 @@ def relion_preprocess_mpi(project):
 
 	cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
         subprocess.Popen(cmd,shell=True).wait()
-
-	isdone=0
-	while isdone == 0:
-		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-		if status == 'terminated':
-			isdone=1
-		time.sleep(10)
 
 	now=datetime.datetime.now()
         finday=now.day
@@ -1833,9 +1826,9 @@ def relion_run_ctffind(project):
                                                 isdone=1
                         r1.close()
                         time.sleep(10)
-                keypair=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),16).split()[3].strip()
-                userIP=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),16).split('@')[-1].strip()
-                instanceID=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),18).split()[-1]
+                instanceID=subprocess.Popen('cat %s/awslog_%i.log | grep ID' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+	        keypair=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+        	userIP=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
                 os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
                 IPlist.append(userIP)
                 instanceIDlist.append(instanceID)
@@ -1975,14 +1968,6 @@ def relion_run_ctffind(project):
 		cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 		
-        for instanceID in instanceIDlist:
-                isdone=0
-                while isdone == 0:
-                        status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                        if status == 'terminated':
-                                isdone=1
-                        time.sleep(10)
-
         for volID in ebsVolList:
                 cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
@@ -2054,10 +2039,6 @@ def checkStatusInstances(instanceID,keypair,IPaddress,outdir):
 
 	SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
         InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-
-	print instanceID
-	print SysStatus
-	print InsStatus
 
 	if SysStatus != 'ok' or InsStatus != 'ok': 
 		print 'Instance %s lost connection. Rebooting and relaunching' %(instanceID)
@@ -2301,9 +2282,9 @@ def relion_run_motioncorr(project):
 						isdone=1
 			r1.close()
 			time.sleep(10)
-		keypair=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),16).split()[3].strip()
-                userIP=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),16).split('@')[-1].strip()
-                instanceID=linecache.getline('%s/awslog_%i.log' %(outdirinstanceNum),18).split()[-1]
+		instanceID=subprocess.Popen('cat %s/awslog_%i.log | grep ID' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+       		keypair=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+	        userIP=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 		os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
 		IPlist.append(userIP)
 		instanceIDlist.append(instanceID)
@@ -2463,14 +2444,7 @@ def relion_run_motioncorr(project):
 		cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 
-        for instanceID in instanceIDlist:
-		isdone=0
-        	while isdone == 0:
-                	status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                	if status == 'terminated':
-                        	isdone=1
-                	time.sleep(10)
-
+	time.sleep(30)
 	for volID in ebsVolList:
 		cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
@@ -2714,9 +2688,10 @@ def relion_autopick_mpi(project):
                                                 isdone=1
                         r1.close()
                         time.sleep(10)
-                keypair=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),16).split()[3].strip()
-                userIP=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),16).split('@')[-1].strip()
-                instanceID=linecache.getline('%s/awslog_%i.log' %(outdir,instanceNum),18).split()[-1]
+                instanceID=subprocess.Popen('cat %s/awslog_%i.log | grep ID' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+        	keypair=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+	        userIP=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
+
                 os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
                 IPlist.append(userIP)
                 instanceIDlist.append(instanceID)
