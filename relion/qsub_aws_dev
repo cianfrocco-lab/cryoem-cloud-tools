@@ -512,10 +512,10 @@ def checkPartLocation(instarfile,indir):
 	if microcolnum != 0: 
 		o44=open(instarfile,'r')
 		for line in o44:	
-			if len(line) > 4: 
+			if len(line.split()) > 0: 
 				if 'data' not in line: 
 					if '_rln' not in line: 
-						if 'loop_' not in line: 
+						if 'loop_' not in line:
 							part=line.split()[imagecolnum-1].split('@')[-1]
 							starfile=''
 							if not os.path.exists(part): 
@@ -766,8 +766,8 @@ def relion_refine_mpi(project):
 		detectorcolnum=-1
 		magcolnum=-1
 		exampleline=''	
-		for line in open(starfilename,'r'): 
-			if len(line) > 3: 
+		for line in open(starfilename,'r'):
+			if len(line.split()) > 0: 
 				if line.split()[0] == '_rlnMagnification': 
 					magcheck=True
 					magcolnum=int(line.split()[1].split('#')[-1])
@@ -816,11 +816,17 @@ def relion_refine_mpi(project):
                 subprocess.Popen(cmd,shell=True).wait()
 		partxdim=int(linecache.getline('%s/handler.txt' %(outdir),1).split('=')[1].split('x')[0].strip())	
 
-		if apixin is False: 
+		if apixin is False:
+			if len(exampleline.split()) < detectorcolnum-1: 
+				writeToLog('Error: particle line is missing columns: %s' %(exampleline), '%s/run.err' %(outdir))
+				sys.exit()
 			example_detector=float(exampleline.split()[detectorcolnum-1])
 			example_mag=float(exampleline.split()[magcolnum-1])
 			apixVal=(example_detector/example_mag)*10000
 	if stack is True:
+		if partstarname.split('.')[-1] != 'mrcs': 
+			writeToLog('Error: input stack must have .mrcs extension. Exiting','%s/run.err' %(outdir))
+			sys.exit()
 		if os.path.exists('%s/handler.txt' %(outdir)): 
 			os.remove('%s/handler.txt' %(outdir)) 
 		cmd='relion_image_handler --i %s --stats > %s/handler.txt' %(partstarname,outdir)
@@ -1129,10 +1135,7 @@ def relion_refine_mpi(project):
 
 	writeToLog('Job finished!','%s/run.out' %(outdir))
 	writeToLog('Shutting everything down ...','%s/run.out' %(outdir))
-
-	cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
-        subprocess.Popen(cmd,shell=True).wait()
-
+	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	isdone=0
 	#while isdone == 0:
 	#	status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
@@ -1866,7 +1869,6 @@ def relion_run_ctffind(project):
         while instanceNum < numInstancesRequired:
 		env.host_string='ubuntu@%s' %(IPlist[instanceNum])
 		othername=''
-		print otherbucketDirName
 		if len(otherbucketDirName) > 0:
 			counter=0
 			dirlocation='/data'
@@ -2972,6 +2974,11 @@ if __name__ == "__main__":
 		infile=sys.argv[1]
 
 	#Determine type of relion job
+	numlines=subprocess.Popen('cat %s | wc -l' %(infile),shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+	if float(numlines) == 0: 
+		print 'Error: No job information in %s. Exiting' %(infile)
+		sys.exit()
+	
 	jobtype=getJobType(infile)
 	if jobtype == 'None':
 		print 'Error: unrecognized relion command'
