@@ -2216,6 +2216,11 @@ def relion_run_motioncorr(project):
 	        	gpu=1
         		mpi=4
 		        cost=0.90
+	instance='p2.8xlarge'
+	numInstancesRequired=1
+	gpu=8
+	mpi=32
+	cost=7.2
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
