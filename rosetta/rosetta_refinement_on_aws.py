@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import datetime
 import shutil
 import optparse
 from sys import *
@@ -11,6 +12,9 @@ from os import system
 import linecache
 import time
 import string
+from fabric.operations import run, put
+from fabric.api import env,run,hide,settings
+from fabric.context_managers import shell_env
 
 #=========================
 def setupParserOptions():
@@ -20,6 +24,8 @@ def setupParserOptions():
                     help=".txt file with the input pdbs and their weights")
         parser.add_option("--em_map",dest="em_map",type="string",metavar="FILE",
                     help="EM map in .mrc format")
+	parser.add_option("--fasta",dest="fasta",type="string",metavar="FILE",
+                    help="FASTA sequence file")
 	parser.add_option("--AMI",dest="AMI",type="string",metavar="AMI",
                     help="AMI for Rosetta software environment on AWS. (Read more here: cryoem-tools.cloud/rosetta-aws)")
 	options,args = parser.parse_args()
@@ -100,7 +106,8 @@ if __name__ == "__main__":
 
 	##Hard coded values
 	sizeneeded=100
-	instance='t2.micro'
+	instance='m4.xlarge'
+	numthreads=4
 
         params=setupParserOptions()
 	awsregion,AWS_ID,key_ID,secret_ID,teamname,keypair,awsdir,rosettadir,volsize=checkConflicts(params)
@@ -150,9 +157,9 @@ if __name__ == "__main__":
                                         isdone=1
                 r1.close()
                 time.sleep(10)
-        keypair=linecache.getline('awslog.log',16).split()[3].strip()
-        userIP=linecache.getline('awslog.log' ,16).split('@')[-1].strip()
-        instanceID=linecache.getline('awslog.log' ,18).split()[-1]
+        instanceID=subprocess.Popen('cat awslog.log | grep ID', shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+        keypair=subprocess.Popen('cat awslog.log | grep ssh', shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+        userIP=subprocess.Popen('cat awslog.log | grep ssh', shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
         os.remove('awslog.log')
 
         now=datetime.datetime.now()
@@ -163,27 +170,34 @@ if __name__ == "__main__":
 	#Upload data
 	env.host_string='ubuntu@%s' %(userIP)
         dirlocation='/data'
-	
+	cmd='chmod +x run_final.sh'
+	subprocess.Popen(cmd,shell=True).wait()
+
+	print '\nUploading files to AWS ...\n'
+
 	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s run_final.sh ubuntu@%s:~/'%(keypair,userIP)
-        subprocess.Popen(cmd,shell=True).wait()
+	subprocess.Popen(cmd,shell=True).wait()
 
 	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s hybridize_final.xml ubuntu@%s:~/'%(keypair,userIP)
         subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/' %(keypair,userIP,params['em_map'])
+	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/' %(keypair,params['em_map'],userIP)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	#Run job
-	o2=open('run_aws.job','w')
-        o2.write('./relion_movie_align.py %s_%i.star %i rclonename:%s/Micrographs %s %i %s "%s" "%s" %s %f %s' %(micstar[:-5],instanceNum,ntasks,bucketname.split('s3://')[-1],bucketname.split('s3://')[-1],ntasks*2,movieAlignType,relioncmd,gainref,outdir,angpix,savemovies))
-        o2.close()
-        st = os.stat('run_aws.job')
-        os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
-        cmd='rsync -q -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > rsync.log' %(keypair,userIP)
-        subprocess.Popen(cmd,shell=True).wait()
+	#Transfer PDB files
+	for pdb in open(params['pdb_list'],'r'): 
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/' %(keypair,pdb,userIP)
+		subprocess.Popen(cmd,shell=True).wait()
 
-        cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/home/EM_Packages/relion2.0/build/bin:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
-        subprocess.Popen(cmd,shell=True)
+	#Run job
+        cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/bin/$PATH && export PATH=/home/Rosetta/3.7/main/source/:$PATH && /usr/local/bin/parallel -j%i ./run_final.sh > /home/ubuntu/rosetta.out 2> /home/ubuntu/rosetta.err < /dev/null &"' %(keypair,userIP,numthreads)
+        print cmd
+	subprocess.Popen(cmd,shell=True)
+
+	#Start waiting script: Should be in teh background so users can log out
+	print 'Rosetta job submitted on AWS! Monitor output file: rosetta_output.out to check status of job\n'
+
+	#cmd='waiting'
 
 
 	

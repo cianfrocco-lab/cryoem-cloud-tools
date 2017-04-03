@@ -1,6 +1,6 @@
 #!/bin/sh
  
-/home/Rosetta/3.7_release/main/source/bin/rosetta_scripts.default.linuxgccrelease  \
+/home/Rosetta/2017_08/main/source/bin/rosetta_scripts.static.linuxgccrelease  \
     -parser:protocol hybridize_final.xml \
     -in:file:fasta cm_full_loops-removed.fasta \
     -relax::cartesian \

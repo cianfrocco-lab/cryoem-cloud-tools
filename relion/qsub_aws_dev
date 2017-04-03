@@ -692,7 +692,7 @@ def parseCMDmovie(relioncmd):
 			counter=counter+1
 			continue
 		if len(l[counter].split('_exe')) > 1:
-			counter=counter+2
+			counter=counter+1
 	        	continue
 		newcmd.append(l[counter])
                 counter=counter+1
@@ -2072,9 +2072,8 @@ def relion_run_motioncorr(project):
 	maxp28=8
 	
 	relioncmd,micstar,outdir,gainref,movieAlignType,ifMotionCor2,savemovies,angpix=getCMDmovie(infile)
-        #Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
+	#Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
         relioncmd,downloadBinnedOnly=parseCMDmovie(relioncmd)
-
         #Get AWS region from aws_init.sh environment variable
         awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
         if len(awsregion) == 0:
@@ -2225,7 +2224,7 @@ def relion_run_motioncorr(project):
 		ntasks=gpu
 	if gpu == 0:
 		ntasks=mpi-24
-	sizeneeded=ntasks*220
+	sizeneeded=ntasks*50
 	numMoviesPerInstance=math.ceil((movieCounter+1)/numInstancesRequired)
 	count=0
 	instancenum=0
@@ -2256,7 +2255,7 @@ def relion_run_motioncorr(project):
                 #Create EBS volume
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-                cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+                cmd='%s/create_volume_IOPS.py %i 20000 %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -2354,7 +2353,7 @@ def relion_run_motioncorr(project):
         	cmd='rsync -q -avzu -e "ssh -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(keypair,IPlist[instanceNum],outdir)
         	subprocess.Popen(cmd,shell=True).wait()
 
-		launchcmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/home/EM_Packages/relion2.0/build/bin:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+		launchcmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/local/bin:/home/EM_Packages/relion2.0/build/bin:/bin/:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(launchcmd,shell=True)
 
 		instanceNum=instanceNum+1
