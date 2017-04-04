@@ -196,17 +196,17 @@ def rclone_to_s3_movie(micstar,numfiles,region,keyid,secretid,rclonename,bucketn
 				dirtransfer=line.split()[microcol-1].split('/')[0]
         o22.close()
         #Create bucket on aws:
-        if len(project) == 0:
-		cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
-		subprocess.Popen(cmd,shell=True).wait()
-        	os.remove('s3.log')
-	if len(project) > 0:
-		cmd='touch .tmp'
-		subprocess.Popen(cmd,shell=True).wait()
-		cmd='aws s3 cp .tmp s3://%s/ --region %s > s3.log' %(bucketname,region)
-		subprocess.Popen(cmd,shell=True).wait()
-		os.remove('.tmp')
-		os.remove('s3.log')
+        #if len(project) == 0:
+	#	cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
+	#	subprocess.Popen(cmd,shell=True).wait()
+        #	os.remove('s3.log')
+	#if len(project) > 0:
+	#	cmd='touch .tmp'
+	#	subprocess.Popen(cmd,shell=True).wait()
+	#	cmd='aws s3 cp .tmp s3://%s/ --region %s > s3.log' %(bucketname,region)
+	#	subprocess.Popen(cmd,shell=True).wait()
+	#	os.remove('.tmp')
+	#	os.remove('s3.log')
 
         if len(dirtransfer)>0:
                 if symflag == 0:
@@ -1310,6 +1310,49 @@ def getCMDautopick(infile):
         return rlncmd,micstar,outdir,ref,killProcess
 
 #==============================
+def checkDoseInputs(infile): 
+	o1=open(infile,'r')
+        for line in o1:
+                if len(line.split('=')) > 0:
+                        if line.split('=')[0] == 'relioncmd':
+                                rlncmd=line.split('=')[1]
+	o1.close()
+	errormsg=''
+	checkdose=False
+	for l in rlncmd.split(): 
+		if l == '--dose_weighting':
+			checkdose=True
+	patchxnum=0
+	patchynum=0
+	kevnum=0
+	dosenum=0
+	prenum=0
+	counter=1
+	if checkdose is True:
+		for l in rlncmd.split():
+			if l=='--patch_x': 
+				patchxnum=counter+1
+			if l=='--patch_y':
+        	                patchynum=counter+1		
+			if l=='--voltage': 
+				kevnum=counter+1
+			if l=='--dose_per_frame':
+				dosenum=counter+1
+			if l=='--preexposure':
+				prenum=counter+1
+		if patchxnum==0: 
+			errormsg=errormsg+' Could not find value for Patch X, '
+		if patchynum==0:
+			errormsg=errormsg+' Could not find value for Patch Y, '
+		if kevnum ==0:
+			errormsg=errormsg+' Could not find value for accelerating voltage (kev) '
+		if dosenum == 0: 
+			errormsg=errormsg+' Could not find dose per frame information '
+		if prenum == 0: 
+			errormsg=errormsg+' Could not find pre-exposure information '
+			
+	return errormsg
+#==============================
 def getCMDmovie(infile):
 	o1=open(infile,'r')
         for line in o1:
@@ -2080,6 +2123,16 @@ def relion_run_motioncorr(project):
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
 
+	if movieAlignType == 'unblur': 
+		writeToLog('Unblur movie alignments are currently not supported. Please select motioncorr or motioncor2 and resbumit.','%s/run.err' %(outdir))
+		sys.exit()
+
+	#Check that all dose weighting parametser are specified
+	errormessage=checkDoseInputs(infile)
+	if len(errormessage)>0: 
+		writeToLog('Error: %s' %(errormessage),'%s/run.err' %(outdir))
+		sys.exit()
+
         #Get AWS ID
         AWS_ID=subprocess.Popen('echo $AWS_ACCOUNT_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
         key_ID=subprocess.Popen('echo $AWS_ACCESS_KEY_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -2157,6 +2210,11 @@ def relion_run_motioncorr(project):
 		if flagExist is False:
 			writeToLog('Error: Could not find specified s3 bucket %s. Exiting' %(bucketname.split('s3://')[-1]),'%s/run.err' %(outdir))
 			sys.exit()
+		cmd='aws s3 ls %s/Micrographs/ > %s/s3out.log' %(bucketname.split('s3://')[-1],outdir)
+		subprocess.Popen(cmd,shell=True).wait()
+		if len(open('%s/s3out.log' %(outdir),'r').readlines()) > 0: 
+			writeToLog("Error: Output aligned movies already exist %s/Micrographs/. Remove using aws_projects_remove_directory and re-submit." %(bucketname.split('s3://')[-1]),'%s/run.err' %(outdir))
+			sys.exit()
 		cmd='aws s3 ls %s/ > %s/s3out.log' %(bucketname.split('s3://')[-1],outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		if os.path.exists('movies.star'): 
@@ -2215,11 +2273,11 @@ def relion_run_motioncorr(project):
 	        	gpu=1
         		mpi=4
 		        cost=0.90
-	instance='p2.8xlarge'
+	instance='p2.xlarge'
 	numInstancesRequired=1
-	gpu=8
-	mpi=32
-	cost=7.2
+	gpu=1
+	mpi=4
+	cost=0.9
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
@@ -2255,7 +2313,7 @@ def relion_run_motioncorr(project):
                 #Create EBS volume
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-                cmd='%s/create_volume_IOPS.py %i 20000 %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+                cmd='%s/create_volume_IOPS.py %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),(int(sizeneeded)*50)-1,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -2293,7 +2351,7 @@ def relion_run_motioncorr(project):
 	        userIP=subprocess.Popen('cat %s/awslog_%i.log | grep ssh' %(outdir,instanceNum), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 		os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
 		IPlist.append(userIP)
-		instanceIDlist.append(instanceID)
+		instanceIDlist.append(instanceID.strip())
 		instanceNum=instanceNum+1
 
         now=datetime.datetime.now()
@@ -2305,6 +2363,8 @@ def relion_run_motioncorr(project):
 	env.key_filename = '%s' %(keypair)
 
 	writeToLog('Submitting movie alignment to the cloud...','%s/run.out' %(outdir))
+
+	writeToLog('Waiting for movie alignment to finish. For %i movies on %i GPUs, this job will be finished in approximately %i minutes.' %(movieCounter,numInstancesRequired*gpu,int((5*movieCounter)/(numInstancesRequired*gpu))+4), '%s/run.out' %(outdir))
 
 	while instanceNum < numInstancesRequired:
 		#Create directories on AWS
@@ -2430,26 +2490,57 @@ def relion_run_motioncorr(project):
 			sopen.close()
 			if os.path.exists('%s/s3testlog.log' %(outdir)):
 				os.remove('%s/s3testlog.log' %(outdir))
+			o9=open('%s/note.txt' %(outdir),'r')
+		        kill=0
+		        for line in o9:
+                		if len(line.split()) > 0:
+		                        if line.split()[0] == 'Kill':
+		                                kill=1
+                	        	if line.split()[0] == 'kill':
+                        	        	kill=1
+			if kill ==1: 
+				miccount=999999999
+			o9.close()
 			time.sleep(5)
 		miccount=miccount+1
 
-	writeToLog('Finished all movies. Shutting down virtual machines...', '%s/run.out' %(outdir))
+	if miccount != 999999999: 
+		writeToLog('Finished!','%s/run.out' %(outdir))
+
+	writeToLog('Shutting down virtual machines...', '%s/run.out' %(outdir))
 	#Write new output star file
 	newmicsinoutdir=glob.glob('%s/Micrographs/*.mrc' %(outdir))
+	dosemics=glob.glob('%s/Micrographs/*DW.mrc' %(outdir))
 	newout=open('%s/corrected_micrographs.star' %(outdir),'w')
 	newout.write('data_\n')
 	newout.write('loop_\n')
         newout.write('_rlnMicrographName\n')
 	for newmic in newmicsinoutdir:
+		if 'DW.' in newmic: 
+			continue
 		newout.write('%s\n' %(newmic))
 	newout.close()
-
+	if len(dosemics)>0: 
+		newout=open('%s/corrected_micrographs_doseWeighted.star' %(outdir),'w')
+        	newout.write('data_\n')
+	        newout.write('loop_\n')
+        	newout.write('_rlnMicrographName\n')
+	        for newmic in dosemics:
+        	        newout.write('%s\n' %(newmic))
+	        newout.close()	
 	if os.path.exists('%s/awslog.log'%(outdir)): 
 		os.remove('%s/awslog.log'%(outdir))
 	for instanceID in instanceIDlist:
-		cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
+		print 'aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
+		cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
                 subprocess.Popen(cmd,shell=True).wait()
-
+	for instanceID in instanceIDlist:
+                isdone=0
+                while isdone == 0:
+                        status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+			if status == 'terminated':
+                                isdone=1
+                        time.sleep(10)
 	time.sleep(30)
 	for volID in ebsVolList:
 		cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)

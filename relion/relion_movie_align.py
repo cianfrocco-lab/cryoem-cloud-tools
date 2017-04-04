@@ -16,7 +16,14 @@ gainref=sys.argv[8]
 outdir=sys.argv[9]
 angpix=float(sys.argv[10])
 savemovies=sys.argv[11]
-if numThreads<=8: 
+if numThreads==1:
+	numToGet=1
+	numFilesAtATime=1
+	group1_s=0
+	group1_f=1
+	group2_s=2
+        group2_f=3
+if numThreads==8: 
 	numToGet=8
 	numFilesAtATime=8
 	group1_s=8
@@ -41,7 +48,31 @@ relionhandler='/home/EM_Packages/relion2.0/build/bin/relion_image_handler'
 def parseCMD(rlncmd):
 	#Example cmd: --i s3-empiar-10061/motioncorr-job007/ --o MotionCorr/job051/ --first_frame_sum 1 --last_frame_sum 0 --bin_factor 1 --motioncorr_exe  --bfactor 150 --gpu 0
 	counter=0
+	patchxnum=0
+	patchynum=0
+	kevnum=0
+	dosenum=0
+	prenum=0	
+	apixnum=0
+	patchx=''
+	patchy=''
+	kev=''
+	dose=''
+	preexp=''
+	apix=''
 	for rln in rlncmd.split(): 
+		if rln=='--angpix':
+			apixnum=counter+1
+		if rln=='--patch_x': 
+			patchxnum=counter+1
+		if rln=='--patch_y':
+                        patchynum=counter+1		
+		if rln=='--voltage': 
+			kevnum=counter+1
+		if rln=='--dose_per_frame':
+			dosenum=counter+1
+		if rln=='--preexposure':
+			prenum=counter+1
 		if rln=='--o': 
 			outnum=counter+1
 		if rln == '--first_frame_sum': 
@@ -53,7 +84,19 @@ def parseCMD(rlncmd):
 		if rln == '--bfactor': 
 			bnum=counter+1	
 		counter=counter+1
-	return rlncmd.split()[outnum],rlncmd.split()[bnum],rlncmd.split()[firstnum],rlncmd.split()[lastnum],rlncmd.split()[binnum]	
+	if apixnum > 0: 
+		apix=rlncmd.split()[apixnum]
+	if patchxnum > 0:
+		patchx=rlncmd.split()[patchxnum]
+	if patchynum > 0: 
+		patchy=rlncmd.split()[patchynum]
+	if kevnum > 0: 
+		kev=rlncmd.split()[kevnum]
+	if dosenum > 0: 
+		dose=rlncmd.split()[dosenum]
+	if prenum > 0: 
+		preexp=rlncmd.split()[prenum]
+	return rlncmd.split()[outnum],rlncmd.split()[bnum],rlncmd.split()[firstnum],rlncmd.split()[lastnum],rlncmd.split()[binnum],patchx,patchy,kev,dose,preexp,apix
 
 #===================
 def checkLog(newcheck,aligntype): 
@@ -74,9 +117,14 @@ def checkLog(newcheck,aligntype):
 						finished='nope'
 						restart='yes'
 			o44.close()
-
+	if aligntype == 'motioncor2':
+	  	print 'checking'
+		status=subprocess.Popen('cat %s.out | grep Computational' %(newcheck[:-4]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		if len(status) > 0: 
+			finished='done'
 	return finished,restart
 
+#=====================
 def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4): 
 	
 	outfile='rcloneupload_%0.i.txt' %(time.time())
@@ -93,6 +141,8 @@ def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4):
 		o33.write('/bin/rm %s\n' %(f3)) 
 	if os.path.exists(f4): 
 		o33.write('/bin/rm %s\n' %(f4))
+	if os.path.exists("%s_DW.mrc" %(f4[:-4])): 
+		o33.write('/bin/rm %s_DW.mrc\n' %(f4[:-4]))
 	o33.write('/bin/rm %s\n' %(rclonetxt))
 	o33.close()
 	cmd='/bin/chmod +x %s' %(outfile)
@@ -275,18 +325,27 @@ while movieCounter < len(movielist):
 				additionalcmds=additionalcmds+' --gainref %s' %(gainref)
 			
 			#/home/EM_Packages/motioncorr_v2.1/bin/dosefgpu_driftcorr Micrographs/EMD-2984_0006_frames.mrc -fcs MotionCorr/job051/Micrographs/EMD-2984_0006_frames.mrc -flg MotionCorr/job051/Micrographs/EMD-2984_0006_frames.log -nst 0 -nss 0 -ned 0 -nes 0 -bft 150 -gpu 6 >> MotionCorr/job051/Micrographs/EMD-2984_0006_frames.out 2>> MotionCorr/job051/Micrographs/EMD-2984_0006_frames.err
+			outdir,bfactor,firstframe,lastframe,binfactor,patchx,patchy,kev,dose,preexp,apix=parseCMD(relioncmd)
 			if aligntype == 'motioncorr': 
 				#Parse relion command for info:
 				if savemovies == 'False':
 					savecmd=''
 				if savemovies == 'True':
 					savecmd=' -ssc 1 -fct %s/%s_movie.mrcs ' %(outdir,micname[:-4]) 
-				outdir,bfactor,firstframe,lastframe,binfactor=parseCMD(relioncmd)
 				cmd='taskset -c %i %s %s -fcs %s/%s -flg %s/%s.log -nss %s -nes %s -bft %s -gpu %i %s >> %s/%s.out 2>> %s/%s.err & ' %(threadnum,motioncorrpath,micname,outdir,micname,outdir,micname[:-4],firstframe,lastframe,bfactor,threadnum,savecmd,outdir,micname[:-4],outdir,micname[:-4])
 				print cmd 
 				subprocess.Popen(cmd,shell=True)
 			if aligntype == 'motioncor2': 
-				cmd='nohup %s --i %s' %(relionpath,micname)+' '+relioncmd+' '+additionalcmds+' &'
+				#cmd='nohup taskset -c %i %s --i %s' %(threadnum,relionpath,micname)+' '+relioncmd+' '+additionalcmds+' &'
+				lastframe=int(lastframe)-1
+				if lastframe <0:
+					lastframe=0
+				doseline='  '
+				if len(dose) > 0: 
+					doseline=' -FmDose %s -PixSize %s -InitDose %s -kV %s' %(dose,apix,preexp,kev)
+				cmd='taskset -c %i %s -InMrc %s -OutMrc %s/%s -Throw %i -Trunc %i -Bft %s -Iter 10 -Patch %s %s -Gpu %i -FtBin %s %s >> %s/%s.out 2>> %s/%s.err &' %(threadnum,motioncor2path,micname,outdir,micname,int(firstframe)-1,lastframe,bfactor,patchx,patchy,threadnum,binfactor,doseline,outdir,micname[:-4],outdir,micname[:-4])
+				#cmd = '%s -InMrc %s -OutMrc %s -Throw %i -Bft %i -Iter 10 -Patch %i %i -FtBin %i -FmDose %f %s %s' %(motionCor2Path,inmovie,outmicro,params['throw'],params['bfactor'],params['patch'],params['patch'],params['binning'],params['doserate'],doseinfo,gainref)
+				print cmd
 				subprocess.Popen(cmd,shell=True)
 			if aligntype == 'unblur': 
 				writeRunUnBlurSum(relioncmd,micname,additionalcmds,lastframe)
@@ -367,7 +426,10 @@ while movieCounter < len(movielist):
 
 						cmd='echo "%s" >> %s' %(newcheck.split('/')[-1],rclonetxt)
         	                        	subprocess.Popen(cmd,shell=True)
-	
+
+						if len(kev) > 0:
+							cmd='echo "%s_DW.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
+							subprocess.Popen(cmd,shell=True)	
 					#cmd='echo "%s_bin.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
                 	                #subprocess.Popen(cmd,shell=True)
 
