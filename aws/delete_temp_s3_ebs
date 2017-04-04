@@ -46,28 +46,25 @@ if os.path.exists('awslog.log'):
 	os.remove('awslog.log')
 
 #S3 cleanup
-if os.path.exists('s3.log'): 
-	os.remove('s3.log')
-
-cmd='aws s3 ls > s3.log'
-subprocess.Popen(cmd,shell=True).wait()	
+if os.path.exists('s3.log'):
+        os.remove('s3.log')
+if os.path.exists('s3b.log'):
+        os.remove('s3b.log')
+s3timelim=float(s3_lifetime)*24*60*60
+cmd='aws s3 ls rln-aws-tmp-%s/ >  s3.log' %(teamname)
+subprocess.Popen(cmd,shell=True).wait()
 s3delete=[]
-for line in open('s3.log','r'): 
-	if len(line.split()[-1].split('rln-aws-tmp-%s' %(teamname))) > 1: 
-		dates3=line.split()[0]
-		year=int(dates3.split('-')[0])
-		month=int(dates3.split('-')[1])
-		day=int(dates3.split('-')[2])
-		d0=date(year,month,day)
-		d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
-                delta = d1 - d0
-                timeDiff=delta.days
-		if int(timeDiff) > s3_lifetime:
-	                s3delete.append('s3://%s' %(line.split()[-1]))
-
-for s3 in s3delete: 
-	print 'Removing bucket %s' %(s3)
-	cmd='aws s3 rb %s --force' %(s3)
-	subprocess.Popen(cmd,shell=True).wait()
-
+for line in open('s3.log','r'):
+        cmd='aws s3 ls rln-aws-tmp-%s/%s >  s3b.log' %(teamname,line.split()[-1].strip())
+        subprocess.Popen(cmd,shell=True).wait()
+        for t in open('s3b.log','r'):
+                query=float(t.split()[-1][:-1])
+                currtime=time.time()
+                diff=currtime-query
+                if diff > s3timelim:
+                        cmd='aws s3 rm s3://rln-aws-tmp-%s/%s/%s/ --recursive > s3tmpout.txt' %(teamname,line.split()[-1].strip(),query)
+                        print cmd
+                        #subprocess.Popen(cmd,shell=True).wait()
+os.remove('s3.log')
+os.remove('s3b.log')
 
