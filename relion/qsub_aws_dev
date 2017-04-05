@@ -2273,11 +2273,11 @@ def relion_run_motioncorr(project):
 	        	gpu=1
         		mpi=4
 		        cost=0.90
-	instance='p2.xlarge'
+	instance='p2.16xlarge'
 	numInstancesRequired=1
-	gpu=1
-	mpi=4
-	cost=0.9
+	gpu=16
+	mpi=64
+	cost=14.40
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
@@ -2313,7 +2313,11 @@ def relion_run_motioncorr(project):
                 #Create EBS volume
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-                cmd='%s/create_volume_IOPS.py %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),(int(sizeneeded)*50)-1,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+		iosize=50*sizeneeded
+		if iosize > 20000:
+			iosize=20000
+			
+                cmd='%s/create_volume_IOPS.py %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -2410,6 +2414,7 @@ def relion_run_motioncorr(project):
 		subprocess.Popen(cmd,shell=True).wait()
 
 		launchcmd='ssh  -o StrictHostKeyChecking=no -q -n -f -i %s ubuntu@%s "export PATH=/usr/local/bin:/home/EM_Packages/relion2.0/build/bin:/bin/:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+		sys.exit()
 		subprocess.Popen(launchcmd,shell=True)
 		instanceNum=instanceNum+1
 
