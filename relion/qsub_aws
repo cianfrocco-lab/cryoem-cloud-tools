@@ -1946,16 +1946,16 @@ def relion_run_ctffind(project):
                         exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
                         dirlocation=dirlocation+'/'+entry
                         counter=counter+1
-
+		print 'one'
                 cmd='rsync -avzur -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/*  ubuntu@%s:/%s/ > %s/rsync.log' %(keypair,outdir,IPlist[instanceNum],dirlocation,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
-
+		print cmd
                 cmd='scp -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/rclone ubuntu@%s:~/'%(keypair,awsdir,IPlist[instanceNum])
                 subprocess.Popen(cmd,shell=True).wait()
 
                 cmd='scp -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ~/.rclone.conf ubuntu@%s:~/'%(keypair,IPlist[instanceNum])
                 subprocess.Popen(cmd,shell=True).wait()
-
+		print 'two'
 		micdirlocation=indirlocation
 		cloudpath='/data/'+outdir
 		#Create exclude list: any mrc/mrcs in 'main' directory, and then any _movie.* in Micrographs
@@ -1978,7 +1978,8 @@ def relion_run_ctffind(project):
 	        os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
         	cmd='rsync -avzu -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(keypair,IPlist[instanceNum],outdir)
 	        subprocess.Popen(cmd,shell=True).wait()
-
+		print cmd
+		print 'three'
         	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(cmd,shell=True)
 
@@ -1986,12 +1987,15 @@ def relion_run_ctffind(project):
 
 	cmd='rsync --ignore-errors  -avzuq -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/run.out ubuntu@%s:%s/ > %s/rsync.log' %(keypair,outdir,IPlist[0],outdir,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
-
+	print cmd
+	print 'four'
         isdone=0
         while isdone == 0:
                 cmd='rsync -avzuq -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/run.* %s/ > %s/rsync.log' %(keypair,IPlist[0],outdir,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
-                #Check if job was specified to be killed
+                print 'five'
+		print cmd
+		#Check if job was specified to be killed
                 isdone=check_and_kill_job('%s/note.txt' %(outdir),IPlist[0],keypair)
 		testDone=subprocess.Popen('cat %s/run.out  | grep Done!' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 		if len(testDone) > 0:
@@ -2010,9 +2014,16 @@ def relion_run_ctffind(project):
 
 	for instanceID in instanceIDlist:
                 #Kill all instances
-		cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
+		cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
                 subprocess.Popen(cmd,shell=True).wait()
-		
+	for instanceID in instanceIDlist:
+                isdone=0
+                while isdone == 0:
+                        status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                        if status == 'terminated':
+                                isdone=1
+                        time.sleep(10)
+        time.sleep(30)
         for volID in ebsVolList:
                 cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
