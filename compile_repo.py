@@ -32,7 +32,15 @@ subprocess.Popen(cmd,shell=True).wait()
 
 cmd='mv dist/qsub_aws aws_build_osx/'
 subprocess.Popen(cmd,shell=True).wait()
-
 os.remove('qsub_aws.spec')
+
+os.remove('install_cloud_tools')
+cmd='pyinstaller install_cloud_tools.py --onefile'
+subprocess.Popen(cmd,shell=True).wait()
+os.remove('install_cloud_tools.spec')
+
+cmd='mv dist/install_cloud_tools install_cloud_tools_macOSX'
+subprocess.Popen(cmd,shell=True).wait()
+
 shutil.rmtree('dist')
 shutil.rmtree('build')

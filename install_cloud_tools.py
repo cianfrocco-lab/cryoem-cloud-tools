@@ -210,7 +210,7 @@ if cloudtoolsonly is False:
 		cmd='pip install --install-option="--prefix=%s/fabric" fabric' %(install_location)
 		subprocess.Popen(cmd,shell=True).wait()
 '''
-cmd='git clone https://github.com/leschzinerlab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
+cmd='git clone https://github.com/cianfrocco-lab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
 subprocess.Popen(cmd,shell=True).wait()
 '''
 if cloudtoolsonly is False:
