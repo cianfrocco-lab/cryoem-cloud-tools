@@ -2414,7 +2414,6 @@ def relion_run_motioncorr(project):
 		subprocess.Popen(cmd,shell=True).wait()
 
 		launchcmd='ssh  -o StrictHostKeyChecking=no -q -n -f -i %s ubuntu@%s "export PATH=/usr/local/bin:/home/EM_Packages/relion2.0/build/bin:/bin/:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
-		sys.exit()
 		subprocess.Popen(launchcmd,shell=True)
 		instanceNum=instanceNum+1
 
@@ -2502,6 +2501,7 @@ def relion_run_motioncorr(project):
                         	        	kill=1
 			if kill ==1: 
 				miccount=999999999
+				isdone=1
 			o9.close()
 			time.sleep(5)
 		miccount=miccount+1
@@ -2582,7 +2582,9 @@ def relion_run_motioncorr(project):
         subprocess.Popen(cmd,shell=True).wait()
 	cmd='echo "%scorrected_micrographs.star     %s      ---" >> .aws_relion' %(outdir,bucketname)
         subprocess.Popen(cmd,shell=True).wait()
-
+	if len(dosemics)>0:
+		cmd='echo "%scorrected_micrographs_doseWeighted.star     %s      ---" >> .aws_relion' %(outdir,bucketname)
+		subprocess.Popen(cmd,shell=True).wait()
 	if len(project) > 0:
 		projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
 		cmd='aws s3 cp .aws_relion s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)

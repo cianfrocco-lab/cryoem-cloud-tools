@@ -1003,7 +1003,7 @@ def relion_refine_mpi(project):
         	#Create EBS volume
         	if os.path.exists('%s/awsebs.log' %(outdir)) :
                 	os.remove('%s/awsebs.log' %(outdir))
-        	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,particledir)+'> %s/awsebs.log' %(outdir)
+        	cmd='%s/create_volume %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,particledir)+'> %s/awsebs.log' %(outdir)
         	subprocess.Popen(cmd,shell=True).wait()
 
         	#Get volID from logfile
@@ -1019,7 +1019,7 @@ def relion_refine_mpi(project):
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -1521,7 +1521,7 @@ def relion_preprocess_mpi(project):
         	#Create EBS volume
         	if os.path.exists('%s/awsebs.log' %(outdir)) :
                		os.remove('%s/awsebs.log'%(outdir))
-        	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,boxdir)+'> %s/awsebs.log'%(outdir)
+        	cmd='%s/create_volume %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,boxdir)+'> %s/awsebs.log'%(outdir)
         	subprocess.Popen(cmd,shell=True).wait()
 
         	#Get volID from logfile
@@ -1532,7 +1532,7 @@ def relion_preprocess_mpi(project):
 	#Launch instance
 	if os.path.exists('%s/awslog.log'%(outdir)):
 		os.remove('%s/awslog.log'%(outdir))
-	cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	now=datetime.datetime.now()
@@ -1838,7 +1838,7 @@ def relion_run_ctffind(project):
                 #Create EBS volume
                	if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-               	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+               	cmd='%s/create_volume %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                	#Get volID from logfile
                	volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -1853,7 +1853,7 @@ def relion_run_ctffind(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
+                cmd='%s/launch_AWS_instance --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -2014,7 +2014,7 @@ def relion_run_ctffind(project):
                 subprocess.Popen(cmd,shell=True).wait()
 		
         for volID in ebsVolList:
-                cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)
+                cmd='%s/kill_volume %s > %s/awslog.log' %(awsdir,volID,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 
         now=datetime.datetime.now()
@@ -2317,7 +2317,7 @@ def relion_run_motioncorr(project):
 		if iosize > 20000:
 			iosize=20000
 			
-                cmd='%s/create_volume_IOPS.py %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+                cmd='%s/create_volume_IOPS %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -2331,7 +2331,7 @@ def relion_run_motioncorr(project):
        	 	#Launch instance
         	if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                 	os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-		cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
+		cmd='%s/launch_AWS_instance --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True)
 		instanceNum=instanceNum+1
        		time.sleep(10)
@@ -2544,7 +2544,7 @@ def relion_run_motioncorr(project):
                         time.sleep(10)
 	time.sleep(30)
 	for volID in ebsVolList:
-		cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)
+		cmd='%s/kill_volume %s > %s/awslog.log' %(awsdir,volID,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 
         now=datetime.datetime.now()
@@ -2750,7 +2750,7 @@ def relion_autopick_mpi(project):
                 #Create EBS volume
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-                cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+                cmd='%s/create_volume %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -2765,7 +2765,7 @@ def relion_autopick_mpi(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
+                cmd='%s/launch_AWS_instance --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -2977,7 +2977,7 @@ def relion_autopick_mpi(project):
                         time.sleep(10)
 
         for volID in ebsVolList:
-                cmd='%s/kill_volume.py %s > %s/awslog.log' %(awsdir,volID,outdir)
+                cmd='%s/kill_volume %s > %s/awslog.log' %(awsdir,volID,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 
         now=datetime.datetime.now()
