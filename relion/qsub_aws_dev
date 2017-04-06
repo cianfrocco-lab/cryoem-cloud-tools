@@ -100,19 +100,10 @@ def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketna
 					flag=1
 	o1.close()
         
-	#Create bucket on aws:
-        cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
-        subprocess.Popen(cmd,shell=True).wait()
-        os.remove('s3.log')
-
 	cmd='%s copy %s rclone:%s --quiet   --transfers %i > rclone.log' %(rclonepath,directoryToTransfer,bucketname,math.ceil(numfiles))
 	subprocess.Popen(cmd,shell=True).wait()
 	otherbucket=''
 	if path != directoryToTransfer:
-
-		cmd='aws s3 mb s3://%s-mic --region %s > s3.log' %(bucketname,region)
-        	subprocess.Popen(cmd,shell=True).wait()
-       	 	os.remove('s3.log')
 
 		#Get uploadlist
 		o13=open('uploadlist.txt','w')
@@ -1785,7 +1776,6 @@ def relion_run_ctffind(project):
                 mpi=4
                 gpu=1
                 cost=0.9
-
 	writeToLog('Booting up %i x %s virtual machines on AWS to estimate CTF with Gctf in availability zone %sa' %(numInstancesRequired,instance,awsregion), '%s/run.out' %(outdir))
 
         instanceNum=0
@@ -1816,10 +1806,21 @@ def relion_run_ctffind(project):
 						micname=line.split()[colnum-1]
 						flag=1
 		counter=counter+1
-	
-	sizeneeded=math.ceil((int(subprocess.Popen('du %s' %(micname),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[0])/1000000)*10)
+	sizeneeded=math.ceil((float(subprocess.Popen('du %s' %(micname),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[0])/1000000)*movieCounter*4)	
 	if sizeneeded < 3: 
 		sizeneeded=5
+
+	newmicname=[]
+	namelist=micname.split('/')
+	for name in namelist: 
+		if len(name)==0: 
+			continue
+		newmicname.append(name)
+
+	if len(newmicname) == 4: 
+		extraDir=newmicname[2]
+	else:
+		extraDir=''
 	'''	
 	#Get individual file size, multiply by all for downloading all movies
 	if len(otherbucketDirName) == 0:
@@ -1934,7 +1935,9 @@ def relion_run_ctffind(project):
                         exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
                         dirlocation=dirlocation+'/'+entry
                         counter=counter+1
-                indirlocation=dirlocation
+                if len(extraDir)>0:
+			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,extraDir))
+		indirlocation=dirlocation
                 cmd='scp -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:/%s/ > %s/rsync.log' %(keypair,micstar,IPlist[instanceNum],dirlocation,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 
@@ -1955,15 +1958,17 @@ def relion_run_ctffind(project):
 
                 cmd='scp -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ~/.rclone.conf ubuntu@%s:~/'%(keypair,IPlist[instanceNum])
                 subprocess.Popen(cmd,shell=True).wait()
-		print 'two'
+		#print 'two'
 		micdirlocation=indirlocation
 		cloudpath='/data/'+outdir
 		#Create exclude list: any mrc/mrcs in 'main' directory, and then any _movie.* in Micrographs
 		if os.path.exists('excludelist233.txt'): 
 			os.remove('excludelist233.txt')
-		exec_remote_cmd('~/rclone sync gctfdownload:%s %s --max-size 1G --quiet --transfers %i' %(bucketname.split('s3://')[-1],micdirlocation,mpi*3))
+		if len(extraDir)>0:
+			micdirlocation=micdirlocation+'/'+extraDir
+		exec_remote_cmd('~/rclone sync gctfdownload:%s %s --max-size 1G --quiet --transfers %i' %(bucketname.split('s3://')[-1],micdirlocation,mpi))
 		if len(otherbucketDirName) > 0:
-			exec_remote_cmd('~/rclone sync gctfdownload:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi*3))
+			exec_remote_cmd('~/rclone sync gctfdownload:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi))
 
 		if gpu  == 1:
 			relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_run_ctffind %s --gpu --gctf_exe /home/EM_Packages/Gctf_v0.50/bin/Gctf-v0.50_sm_30_cu7.5_x86_64' %(relioncmd)
@@ -1976,10 +1981,11 @@ def relion_run_ctffind(project):
 	        o2.close()
         	st = os.stat('run_aws.job')
 	        os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
-        	cmd='rsync -avzu -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(keypair,IPlist[instanceNum],outdir)
+        	print 'two'
+		cmd='rsync -avzu -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(keypair,IPlist[instanceNum],outdir)
 	        subprocess.Popen(cmd,shell=True).wait()
 		print cmd
-		print 'three'
+		#print 'three'
         	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
 		subprocess.Popen(cmd,shell=True)
 
@@ -1993,8 +1999,8 @@ def relion_run_ctffind(project):
         while isdone == 0:
                 cmd='rsync -avzuq -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/run.* %s/ > %s/rsync.log' %(keypair,IPlist[0],outdir,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
-                print 'five'
-		print cmd
+                #print 'five'
+		#print cmd
 		#Check if job was specified to be killed
                 isdone=check_and_kill_job('%s/note.txt' %(outdir),IPlist[0],keypair)
 		testDone=subprocess.Popen('cat %s/run.out  | grep Done!' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -2284,11 +2290,6 @@ def relion_run_motioncorr(project):
 	        	gpu=1
         		mpi=4
 		        cost=0.90
-	instance='p2.16xlarge'
-	numInstancesRequired=1
-	gpu=16
-	mpi=64
-	cost=14.40
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
@@ -2325,8 +2326,8 @@ def relion_run_motioncorr(project):
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
 		iosize=50*sizeneeded
-		if iosize > 20000:
-			iosize=20000
+		if iosize > 5000:
+			iosize=5000
 			
                 cmd='%s/create_volume_IOPS.py %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
@@ -2591,7 +2592,7 @@ def relion_run_motioncorr(project):
 		os.remove('.aws_relion_tmp')
         cmd='echo "%s     %s      ---" >> .aws_relion' %(micstar,bucketname)
         subprocess.Popen(cmd,shell=True).wait()
-	cmd='echo "%scorrected_micrographs.star     %s      ---" >> .aws_relion' %(outdir,bucketname)
+	cmd='echo "%scorrected_micrographs.star     %s/Micrographs      ---" >> .aws_relion' %(outdir,bucketname)
         subprocess.Popen(cmd,shell=True).wait()
 	if len(dosemics)>0:
 		cmd='echo "%scorrected_micrographs_doseWeighted.star     %s      ---" >> .aws_relion' %(outdir,bucketname)
