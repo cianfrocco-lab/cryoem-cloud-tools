@@ -106,9 +106,9 @@ def checkLog(newcheck,aligntype):
 
 	if aligntype == 'motioncorr':
 		print 'checking'
-		print '%s.log' %(newcheck[:-4])
-		if os.path.exists('%s.log' %(newcheck[:-4])): 
-			o44=open('%s.log' %(newcheck[:-4]),'r')
+		print '%s.log' %(newcheck.split('.%s' %(newcheck.split('.')[-1]))[0]) #newcheck[:-4])
+		if os.path.exists('%s.log' %(newcheck.split('.%s' %(newcheck.split('.')[-1]))[0])): 
+			o44=open('%s.log' %(newcheck.split('.%s' %(newcheck.split('.')[-1]))[0]),'r')
 			for line in o44: 
 				if len(line.split()) > 0: 
 					if line.split()[0] == 'Done.': 
@@ -119,7 +119,7 @@ def checkLog(newcheck,aligntype):
 			o44.close()
 	if aligntype == 'motioncor2':
 	  	print 'checking'
-		status=subprocess.Popen('cat %s.out | grep Computational' %(newcheck[:-4]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		status=subprocess.Popen('cat %s.out | grep Computational' %(newcheck.split('.%s' %(newcheck.split('.')[-1]))[0]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 		if len(status) > 0: 
 			finished='done'
 	return finished,restart
@@ -238,18 +238,30 @@ destdir=''
 micflag=0
 movielist=[]
 o1=open(micstar,'r')
-for line in o1: 
-	if len(line.split('.mrc')) == 1: 
+for line in o1:	
+	#newcheck.split('.%s' %(newcheck.split('.')[-1]))[0] 
+	print line.split('.%s' %(line.split('.')[-1]))[0]
+	print len(line.split('.%s' %(line.split('.')[-1]))[0])
+	if len(line.split('.%s' %(line.split('.')[-1]))[0].split('/')) == 1: 
+		print numheader
 		numheader=1+numheader
-	if len(line.split('.mrc')) > 1:
+	if len(line.split('.%s' %(line.split('.')[-1]))[0].split('/')) > 1:
 		if micflag == 0:
 			if len(line.split('/')) > 1: 
-				for folder in line.split('/'): 
-					if len(folder.split('.mrc')) == 1: 
+				print line.split('/')
+				for folder in line.split('/'):
+					if folder != line.split('/')[-1]:
+						if len(destdir) > 0:
+                                                        destdir=destdir+'/'+folder
+                                                if len(destdir) == 0: 
+                                                        destdir=folder+'/'
+					''' 
+					if len(folder.split(line.split('.%s' %(line.split('.')[-1]))[0])) == 1: 
 						if len(destdir) > 0:
                                                         destdir=destdir+'/'+folder
 						if len(destdir) == 0: 
 							destdir=folder+'/'
+					'''
 			micflag=1
 		movielist.append(line)
 o1.close()
@@ -287,7 +299,7 @@ subprocess.Popen(cmd,shell=True).wait()
 
 #Rclone movies to destindation directory 
 cmd='~/rclone sync rclonename:%s %s/ --include-from rcloneMicList.txt --transfers %i' %(movieBucket,destdir,int(numFilesAtATime))
-print cmd 
+print cmd
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('rcloneMicList.txt')
 movieCounter=0
@@ -331,8 +343,8 @@ while movieCounter < len(movielist):
 				if savemovies == 'False':
 					savecmd=''
 				if savemovies == 'True':
-					savecmd=' -ssc 1 -fct %s/%s_movie.mrcs ' %(outdir,micname[:-4]) 
-				cmd='taskset -c %i %s %s -fcs %s/%s -flg %s/%s.log -nss %s -nes %s -bft %s -gpu %i %s >> %s/%s.out 2>> %s/%s.err & ' %(threadnum,motioncorrpath,micname,outdir,micname,outdir,micname[:-4],firstframe,lastframe,bfactor,threadnum,savecmd,outdir,micname[:-4],outdir,micname[:-4])
+					savecmd=' -ssc 1 -fct %s/%s_movie.mrcs ' %(outdir,micname.split('.%s' %(micname.split('.')[-1]))[0]) 
+				cmd='taskset -c %i %s %s -fcs %s/%s.mrc -flg %s/%s.log -nss %s -nes %s -bft %s -gpu %i %s >> %s/%s.out 2>> %s/%s.err & ' %(threadnum,motioncorrpath,micname,outdir,micname.split('.%s' %(micname.split('.')[-1]))[0],outdir,micname.split('.%s' %(micname.split('.')[-1]))[0],firstframe,lastframe,bfactor,threadnum,savecmd,outdir,micname.split('.%s' %(micname.split('.')[-1]))[0],outdir,micname.split('.%s' %(micname.split('.')[-1]))[0])
 				print cmd 
 				subprocess.Popen(cmd,shell=True)
 			if aligntype == 'motioncor2': 
@@ -343,7 +355,7 @@ while movieCounter < len(movielist):
 				doseline='  '
 				if len(dose) > 0: 
 					doseline=' -FmDose %s -PixSize %s -InitDose %s -kV %s' %(dose,apix,preexp,kev)
-				cmd='taskset -c %i %s -InMrc %s -OutMrc %s/%s -Throw %i -Trunc %i -Bft %s -Iter 10 -Patch %s %s -Gpu %i -FtBin %s %s >> %s/%s.out 2>> %s/%s.err &' %(threadnum,motioncor2path,micname,outdir,micname,int(firstframe)-1,lastframe,bfactor,patchx,patchy,threadnum,binfactor,doseline,outdir,micname[:-4],outdir,micname[:-4])
+				cmd='taskset -c %i %s -InMrc %s -OutMrc %s/%s.mrc -Throw %i -Trunc %i -Bft %s -Iter 10 -Patch %s %s -Gpu %i -FtBin %s %s >> %s/%s.out 2>> %s/%s.err &' %(threadnum,motioncor2path,micname,outdir,micname.split('.%s' %(micname.split('.')[-1]))[0],int(firstframe)-1,lastframe,bfactor,patchx,patchy,threadnum,binfactor,doseline,outdir,micname.split('.%s' %(micname.split('.')[-1]))[0],outdir,micname.split('.%s' %(micname.split('.')[-1]))[0])
 				#cmd = '%s -InMrc %s -OutMrc %s -Throw %i -Bft %i -Iter 10 -Patch %i %i -FtBin %i -FmDose %f %s %s' %(motionCor2Path,inmovie,outmicro,params['throw'],params['bfactor'],params['patch'],params['patch'],params['binning'],params['doserate'],doseinfo,gainref)
 				print cmd
 				subprocess.Popen(cmd,shell=True)
@@ -393,7 +405,7 @@ while movieCounter < len(movielist):
                         	newnamesplit='_'.join(newnamesplit)
                        		newmicname=newnamesplit+'.'+micname.split('.')[-1]
                 	if len(newnamesplit) == 2:
-                        	newmicname=check
+                        	newmicname='%s.mrc' %(check.split('.%s' %(check.split('.')[-1]))[0])
                 	newcheck=outdir+'/'+newmicname
 			newcheck=newcheck.strip()
 		if aligntype == 'unblur': 
