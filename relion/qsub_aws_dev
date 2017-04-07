@@ -70,7 +70,7 @@ def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketna
                 os.remove('%s/.rclone.conf' %(homedir))
 
         r1=open('%s/.rclone.conf' %(homedir),'w')
-        r1.write('[rclone]\n')
+        r1.write('[rclonename]\n')
         r1.write('type = s3\n')
         r1.write('env_auth = false\n')
         r1.write('access_key_id = %s\n' %(keyid))
@@ -1897,7 +1897,7 @@ def relion_run_ctffind(project):
                 os.remove('%s/.rclone.conf' %(homedir))
 
         r1=open('%s/.rclone.conf' %(homedir),'w')
-        r1.write('[gctfdownload]\n')
+        r1.write('[rclonename]\n')
         r1.write('type = s3\n')
         r1.write('env_auth = false\n')
         r1.write('access_key_id = %s\n' %(key_ID))
@@ -1966,9 +1966,9 @@ def relion_run_ctffind(project):
 			os.remove('excludelist233.txt')
 		if len(extraDir)>0:
 			micdirlocation=micdirlocation+'/'+extraDir
-		exec_remote_cmd('~/rclone sync gctfdownload:%s %s --max-size 1G --quiet --transfers %i' %(bucketname.split('s3://')[-1],micdirlocation,mpi))
+		exec_remote_cmd('~/rclone sync rclonename:%s %s --max-size 1G --quiet --transfers %i' %(bucketname.split('s3://')[-1],micdirlocation,mpi))
 		if len(otherbucketDirName) > 0:
-			exec_remote_cmd('~/rclone sync gctfdownload:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi))
+			exec_remote_cmd('~/rclone sync rclonename:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi))
 
 		if gpu  == 1:
 			relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_run_ctffind %s --gpu --gctf_exe /home/EM_Packages/Gctf_v0.50/bin/Gctf-v0.50_sm_30_cu7.5_x86_64' %(relioncmd)
@@ -2209,6 +2209,7 @@ def relion_run_motioncorr(project):
 		bucketname,micdir,origdir=rclone_to_s3_movie(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project)
                 writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
         	inputfilesize=subprocess.Popen('du %s' %(micdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
+		outputbucketname=bucketname
 	if len(micstar.split('s3-')) > 1:
 		micstarinput=micstar.split('s3-')[-1]
 		if micstarinput[-1] == '/': 
@@ -2254,13 +2255,15 @@ def relion_run_motioncorr(project):
 		s3open.close()
 		micout.close()
 		micstar='movies.star'
+		if len(project)>0: 
+			outputbucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
 	#Get number of movies
         m1=open(micstar,'r')
         movieCounter=0
 	for line in m1:
                 movieCounter=movieCounter+1
         m1.close()
-        movieCounter=movieCounter-3
+        movieCounter=movieCounter-3	
         #Choose instance type
         if movieAlignType == 'unblur':
                 numInstancesRequired=math.ceil(movieCounter/32)
@@ -2274,15 +2277,21 @@ def relion_run_motioncorr(project):
                         numInstancesRequired=5
 
         if movieAlignType == 'motioncorr':
-                numInstancesRequired=int(math.ceil(movieCounter/8))
-                if numInstancesRequired > maxp28:
+                numInstancesRequired=int(math.ceil(movieCounter/16))
+		if numInstancesRequired > maxp28:
                         numInstancesRequired=maxp28
 		if numInstancesRequired >=1:
                 	instance='p2.8xlarge'
                 	mpi=32
                 	gpu=8
                 	cost=7.2
-                if ifMotionCor2 is True:
+                if numInstancesRequired==0:
+			instance='p2.xlarge'
+                        mpi=4
+                        gpu=1
+                        cost=0.9
+			numInstancesRequired=1
+		if ifMotionCor2 is True:
                         movieAlignType = 'motioncor2'
 		if movieCounter < 8:
 			instance='p2.xlarge'
@@ -2418,7 +2427,7 @@ def relion_run_motioncorr(project):
         	o2=open('run_aws.job','w')
 		o2.write('cd /data\n')
 		o2.write('/bin/chmod +x relion_movie_align.py\n')
-		o2.write('./relion_movie_align.py %s_%i.star %i rclonename:%s/Micrographs %s %i %s "%s" "%s" %s %f %s' %(micstar[:-5],instanceNum,ntasks,bucketname.split('s3://')[-1],bucketname.split('s3://')[-1],ntasks*2,movieAlignType,relioncmd,gainref,outdir,angpix,savemovies))
+		o2.write('./relion_movie_align.py %s_%i.star %i rclonename:%s/Micrographs %s %i %s "%s" "%s" %s %f %s' %(micstar[:-5],instanceNum,ntasks,outputbucketname.split('s3://')[-1],bucketname.split('s3://')[-1],ntasks*2,movieAlignType,relioncmd,gainref,outdir,angpix,savemovies))
         	o2.close()
         	st = os.stat('run_aws.job')
         	os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
@@ -2431,95 +2440,59 @@ def relion_run_motioncorr(project):
 
 	os.makedirs('%s/Micrographs' %(outdir))
 	#Start waiting script for when data are finished aligning
-	miccount=0
-	while miccount < movieCounter:
-		micname=linecache.getline(micstar,1+miccount+3).strip()
-		if len(micname.split('/')) > 1:
-			micname=micname.split('/')[-1]
-		
-		#Check that all instances are running, reboot if something happens
-		#if miccount % 10 == 0: 
-		#	instanceCounter=0
-		#	while instanceCounter <= numInstancesRequired: 
-		#		instanceID=[]
-		#		checkStatusInstances(instanceID,keypair,IPlist[instanceCounter],outdir)
-		#		instanceCounter=instanceCounter+1	
+	miccount=0	
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
+        	rclonepath='%s/rclone' %(awsdir)
+        if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+                rclonepath='%s/rclone_mac'%(awsdir)
 
-		isdone=0
-		if movieAlignType != 'unblur': 
-			newnamesplit=micname.split('.')
-	                if len(newnamesplit) > 2:
- 		               del newnamesplit[-1]
-                	       newnamesplit='_'.join(newnamesplit)
-                       	       newmicname=newnamesplit+'.'+micname.split('.')[-1]
-			       micname=newmicname
-		while isdone == 0:
-			if os.path.exists('%s/s3testlog.log'%(outdir)):
-				os.remove('%s/s3testlog.log'%(outdir))
-			cmd='aws s3 ls %s/Micrographs/ > %s/s3testlog.log' %(bucketname,outdir)
-			subprocess.Popen(cmd,shell=True).wait()
-			if not os.path.exists('%s/s3testlog.log'%(outdir)): 
-				cmd='touch %s/s3testlog.log' %(outdir)
-				subprocess.Popen(cmd,shell=True).wait()
-			sopen=open('%s/s3testlog.log'%(outdir),'r')
-			for qline in sopen:
-				if len(qline.split()) > 0:
-					if savemovies is True: 
-						if movieAlignType != 'unblur': 
-							movname='%s_movie.mrcs' %(micname[:-4])
-						if movieAlignType == 'unblur': 
-							movname='%s_movie.mrc' %(micname[:-4])
-						if qline.split()[-1].strip() == movname:
-							basename=micname.split('.')
-							del basename[-1]
-							basename=''.join(basename)
-							writeToLog('Finished %i out of %i total movies at %s...\n' %(miccount+1,movieCounter,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-							if downloadBinnedOnly is False:
-								cmd='aws s3 cp %s/Micrographs/%s %s/Micrographs/ > %s/s3testlog.log' %(bucketname,micname,outdir,outdir)
-								subprocess.Popen(cmd,shell=True).wait()
-							if downloadBinnedOnly is True:
-								cmd='aws s3 cp %s/Micrographs/%s_bin.mrc %s/Micrographs/%s > %s/s3testlog.log' %(bucketname,basename,outdir,micname,outdir)
-                                                		subprocess.Popen(cmd,shell=True).wait()
-							cmd='aws s3 cp %s/Micrographs/%s.out %s/Micrographs/ > %s/s3testlog.log' %(bucketname,basename,outdir,outdir)
-                                                	subprocess.Popen(cmd,shell=True).wait()
-							isdone=1
-					if savemovies is False:
-                                                if qline.split()[-1].strip() == micname:
-                                                        basename=micname.split('.')
-                                                        del basename[-1]
-                                                        basename=''.join(basename)
-                                                        writeToLog('Finished %i out of %i total movies at %s...\n' %(miccount+1,movieCounter,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-                                                        if downloadBinnedOnly is False:
-                                                                cmd='aws s3 cp %s/Micrographs/%s %s/Micrographs/ > %s/s3testlog.log' %(bucketname,micname,outdir,outdir)
-                                                                subprocess.Popen(cmd,shell=True).wait()
-                                                        if downloadBinnedOnly is True:
-                                                                cmd='aws s3 cp %s/Micrographs/%s_bin.mrc %s/Micrographs/%s > %s/s3testlog.log' %(bucketname,basename,outdir,micname,outdir)
-                                                                subprocess.Popen(cmd,shell=True).wait()
-                                                        cmd='aws s3 cp %s/Micrographs/%s.out %s/Micrographs/ > %s/s3testlog.log' %(bucketname,basename,outdir,outdir)
-                                                        subprocess.Popen(cmd,shell=True).wait()
-                                                        if doseWeight is True:
-								cmd='aws s3 cp %s/Micrographs/%s_DW.mrc %s/Micrographs/ > %s/s3testlog.log' %(bucketname,basename,outdir,outdir)
-							isdone=1
-			sopen.close()
-			if os.path.exists('%s/s3testlog.log' %(outdir)):
-				os.remove('%s/s3testlog.log' %(outdir))
-			o9=open('%s/note.txt' %(outdir),'r')
-		        kill=0
-		        for line in o9:
-                		if len(line.split()) > 0:
-		                        if line.split()[0] == 'Kill':
-		                                kill=1
-                	        	if line.split()[0] == 'kill':
-                        	        	kill=1
-			if kill ==1: 
-				miccount=999999999
-				isdone=1
-			o9.close()
-			time.sleep(5)
-		miccount=miccount+1
+        #Write .rclone.conf
+        homedir=subprocess.Popen('echo $HOME', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+        if not os.path.exists('%s/.rclone.conf' %(homedir)):
+        	r1=open('%s/.rclone.conf' %(homedir),'w')
+	        r1.write('[rclonename]\n')
+        	r1.write('type = s3\n')
+	        r1.write('env_auth = false\n')
+        	r1.write('access_key_id = %s\n' %(keyid))
+	        r1.write('secret_access_key = %s\n' %(secretid))
+        	r1.write('region = %s\n' %(region))
+	        r1.write('endpoint = \n')
+        	r1.write('location_constraint = %s\n' %(region))
+	        r1.write('acl = authenticated-read\n')
+        	r1.write('server_side_encryption = \n')
+	        r1.write('storage_class = STANDARD\n')
+        	r1.close()
+	micdone=0
+	lastonedone=0
+	while micdone == 0:
+		cmd='%s sync rclonename:%s/Micrographs/ %s/Micrographs/ --quiet --transfers %i --max-size 400M > rclone.log' %(rclonepath,outputbucketname.split('s3://')[-1],outdir,math.ceil(numCPUs*2.4))
+                subprocess.Popen(cmd,shell=True).wait()
+                os.remove('rclone.log')
+		testmiclist='%s/Micrographs/*.mrc' %(outdir)
+		numdone=0
+		for testmic in glob.glob(testmiclist): 
+			numdone=numdone+1				
+		if numdone > lastonedone: 
+			writeToLog('Finished %i out of %i total movies at %s...\n' %(numdone,movieCounter,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+			lastonedone=numdone
+		if numdone==movieCounter: 
+			micdone=1
+			writeToLog('Finished movie alignment!','%s/run.out' %(outdir))
 
-	if miccount != 999999999: 
-		writeToLog('Finished!','%s/run.out' %(outdir))
+		o9=open('%s/note.txt' %(outdir),'r')
+                kill=0
+                for line in o9:
+	                if len(line.split()) > 0:
+        	                if line.split()[0] == 'Kill':
+                	                kill=1
+                                if line.split()[0] == 'kill':
+                                        kill=1
+                if kill ==1:
+                        micdone=1
+			writeToLog('Abort signal specified.','%s/run.out' %(outdir))
+                o9.close()
+
+		time.sleep(5)
 
 	writeToLog('Shutting down virtual machines...', '%s/run.out' %(outdir))
 	#Write new output star file
@@ -2821,7 +2794,7 @@ def relion_autopick_mpi(project):
                 os.remove('%s/.rclone.conf' %(homedir))
 
         r1=open('%s/.rclone.conf' %(homedir),'w')
-        r1.write('[gctfdownload]\n')
+        r1.write('[rclonename]\n')
         r1.write('type = s3\n')
         r1.write('env_auth = false\n')
         r1.write('access_key_id = %s\n' %(key_ID))
@@ -2928,9 +2901,9 @@ def relion_autopick_mpi(project):
 
                 micdirlocation=indirlocation
                 cloudpath='/data/'+outdir
-                exec_remote_cmd('~/rclone sync gctfdownload:%s /data/%s --quiet --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
+                exec_remote_cmd('~/rclone sync rclonename:%s /data/%s --quiet --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
                 if len(otherbucketDirName) > 0:
-                        exec_remote_cmd('~/rclone sync gctfdownload:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi*3))
+                        exec_remote_cmd('~/rclone sync rclonename:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi*3))
 
                 if gpu  == 1:
                         relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_autopick %s --gpu ' %(relioncmd)
