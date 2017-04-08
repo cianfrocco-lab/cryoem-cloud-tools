@@ -25,6 +25,8 @@ def setupParserOptions():
             help="Optional: Specifiy AMI to use when booting instance (Must be in same region, overrides any other AMI)")
     parser.add_option("--noEBS",action="store_true",dest="force",default=False,
             help="Optional: Force boot up without attached EBS volume")
+    parser.add_option("--alwaysOn",action="store_true",dest="cloudskip",default=False,
+	    help="Optional: Force instance to remain on always (when this option is not specified, instance will be terminated after 30 minutes of idle time)")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -123,10 +125,10 @@ def checkConflicts(params,availInstances):
         print availInstances
         sys.exit()
 
-    return keyPath.split('/')[-1].split('.')[0],keyPath,AMI
+    return keyPath.split('/')[-1].split('.')[0],keyPath,AMI,AWS_ACCOUNT_ID
 
 #==========================
-def launchInstance(params,keyName,keyPath,AMI):
+def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 
     print '\nLaunching AWS instance %s for user %s\n' %(params['instance'],keyName)
 
@@ -266,6 +268,14 @@ def launchInstance(params,keyName,keyPath,AMI):
     	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
     	    subprocess.Popen(cmd,shell=True).wait()
 
+	    if params['cloudskip'] is False: 
+		if params['debug'] is True:
+                	print '\nAttaching cloud watch to instance...\n'
+		cmd='aws cloudwatch put-metric-alarm --alarm-name %s --alarm-description "Alarm when 0 per usage" --metric-name CPUUtilization --namespace AWS/EC2 --statistic Average --period 60 --threshold 10 --comparison-operator LessThanOrEqualToThreshold --dimensions "Name=InstanceId,Value=%s" --evaluation-periods 60 --alarm-actions arn:aws:swf:%s:%s:action/actions/AWS_EC2.InstanceId.Terminate/1.0 --actions-enabled' %(InstanceID,InstanceID,params['zone'][:-1],AWS_ACCOUNT_ID)
+	    	if params['debug'] is True:
+			print cmd
+	    	subprocess.Popen(cmd,shell=True).wait()
+
     	    #Once ready, print command to terminal for user to log in:
     	    print '\nInstance is ready! To log in:\n'
     	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
@@ -403,8 +413,9 @@ if __name__ == "__main__":
 			sys.exit() 
 
     #Need to create directory for AMIs across regions. Right now, just US-East-1 
-    keyName,keyPath,AMI=checkConflicts(params,availInstances)
-    instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI)
+    print params['cloudskip']
+    keyName,keyPath,AMI,AWS_ACCOUNT_ID=checkConflicts(params,availInstances)
+    instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
 	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath)
 
