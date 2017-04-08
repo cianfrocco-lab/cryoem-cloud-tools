@@ -413,7 +413,6 @@ if __name__ == "__main__":
 			sys.exit() 
 
     #Need to create directory for AMIs across regions. Right now, just US-East-1 
-    print params['cloudskip']
     keyName,keyPath,AMI,AWS_ACCOUNT_ID=checkConflicts(params,availInstances)
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
