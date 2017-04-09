@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time 
 import sys 
 import os
 import subprocess
@@ -58,13 +59,14 @@ for line in open('s3.log','r'):
         cmd='aws s3 ls rln-aws-tmp-%s/%s >  s3b.log' %(teamname,line.split()[-1].strip())
         subprocess.Popen(cmd,shell=True).wait()
         for t in open('s3b.log','r'):
-                query=float(t.split()[-1][:-1])
-                currtime=time.time()
+                if '-mic' in t: 
+			t=t[:-5]
+		query=float(t.split()[-1][:-1])
+		currtime=time.time()
                 diff=currtime-query
                 if diff > s3timelim:
-                        cmd='aws s3 rm s3://rln-aws-tmp-%s/%s/%s/ --recursive > s3tmpout.txt' %(teamname,line.split()[-1].strip(),query)
-                        print cmd
-                        #subprocess.Popen(cmd,shell=True).wait()
+                        cmd='aws s3 rm s3://rln-aws-tmp-%s/%s%.0f/ --recursive > s3tmpout.txt' %(teamname,line.split()[-1].strip(),query)
+                        subprocess.Popen(cmd,shell=True).wait()
 os.remove('s3.log')
 os.remove('s3b.log')
 
