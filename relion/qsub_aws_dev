@@ -85,19 +85,25 @@ def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketna
 	directoryToTransfer='/'.join(directoryToTransfer)
 
 	#Check first micro to see if it is in directoryToTransfer
+	#Get column number first
+	o1=open(micstar,'r')
+	for line in o1: 
+		if len(line.split())> 0: 
+			if line.split()[0]=='_rlnMicrographName': 
+				micolnum=line.split()[1].split('#')[-1]
+	o1.close()
 	o1=open(micstar,'r')
 	flag=0
 	for line in o1:
-		if len(line)> 0:
-        		if os.path.exists(line.split()[0]):
+		if len(line.split())> 0:
+        		if os.path.exists(line.split()[int(micolnum)-1]):
 				if flag == 0:
-					path=line.split()[0].split('/')
+					path=line.split()[int(micolnum)-1].split('/')
 					del path[-1]
 					path='/'.join(path)
 					flag=1
 	o1.close()
-        
-	cmd='%s copy %s rclone:%s --quiet   --transfers %i > rclone.log' %(rclonepath,directoryToTransfer,bucketname,math.ceil(numfiles))
+	cmd='%s copy %s rclonename:%s --quiet   --transfers %i > rclone.log' %(rclonepath,directoryToTransfer,bucketname,math.ceil(numfiles))
 	subprocess.Popen(cmd,shell=True).wait()
 	otherbucket=''
 	if path != directoryToTransfer:
@@ -105,11 +111,11 @@ def rclone_to_s3_mics(micstar,numfiles,region,keyid,secretid,rclonename,bucketna
 		#Get uploadlist
 		o13=open('uploadlist.txt','w')
 		for line in open(micstar,'r'):
-			if len(line) > 0:
-				if os.path.exists(line.split()[0]):
-					o13.write('%s\n' %(line.split()[0].split('/')[-1]))
+			if len(line.split()) > 0:
+				if os.path.exists(line.split()[int(micolnum)-1]):
+					o13.write('%s\n' %(line.split()[int(micolnum)-1].split('/')[-1]))
 		o13.close()
-		cmd='%s copy %s/ %s:%s-mic --include-from uploadlist.txt --quiet --transfers %i > rclone.log' %(rclonepath,path,bucketname,bucketname,math.ceil(numfiles))
+		cmd='%s copy %s/ rclonename:%s-mic --include-from uploadlist.txt --quiet --transfers %i > rclone.log' %(rclonepath,path,bucketname,math.ceil(numfiles))
 		subprocess.Popen(cmd,shell=True).wait()
 
 		otherbucket='%s-mic' %(bucketname)
@@ -1939,7 +1945,7 @@ def relion_run_ctffind(project):
 				otherfactor=0
 			if otherfactor > 1:
 				otherfactor=1
-			while counter < len(otherbucketDirName.split('/'))-otherfactor:
+			while counter <= len(otherbucketDirName.split('/'))-otherfactor:
                         	entry=otherbucketDirName.split('/')[counter]
 				exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
         	                dirlocation=dirlocation+'/'+entry
@@ -2703,7 +2709,7 @@ def relion_autopick_mpi(project):
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
                         numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
                         numCPUs=1
-                bucketname,micdir,otherbucket,otherbucketDirName=rclone_to_s3_mics(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir)
+                bucketname,micdir,otherbucket,otherbucketDirName=rclone_to_s3_mics(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project)
                 writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 
         #Get number of movies
@@ -2735,17 +2741,21 @@ def relion_autopick_mpi(project):
         writeToLog('Creating data storage drive(s) ...','%s/run.out' %(outdir))
 
 	#Get individual file size, multiply by all for downloading all movies
-        if len(otherbucketDirName) == 0:
-                s3out=subprocess.Popen('aws s3api list-objects --bucket %s --output json --query "[sum(Contents[].Size), length(Contents[])]"' %(bucketname.split('s3://')[-1]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-                sizeneeded=math.ceil(float(s3out.split()[1].strip(','))//1000000000)*5
+	if len(otherbucketDirName) == 0:
+                tmp=subprocess.Popen('aws s3 ls %s/ > tmp.log' %(bucketname.split('s3://')[-1]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		numfiles=len(open('tmp.log','r').readlines())
+		sizeFile=float(linecache.getline('tmp.log',3).split()[-2])
+		sizeneeded=math.ceil(sizeFile//1000000000)*5*numfiles
                 if sizeneeded <3:
                         sizeneeded=5
         if len(otherbucketDirName) > 0:
-                s3out=subprocess.Popen('aws s3api list-objects --bucket %s-mic --output json --query "[sum(Contents[].Size), length(Contents[])]"' %(bucketname.split('s3://')[-1]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-                sizeneeded=math.ceil(float(s3out.split()[1].strip(','))//1000000000)*5
+		tmp=subprocess.Popen('aws s3 ls %s-mic/ > tmp.log' %(bucketname.split('s3://')[-1]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+                numfiles=len(open('tmp.log','r').readlines())
+                sizeFile=float(linecache.getline('tmp.log',3).split()[-2])
+                sizeneeded=math.ceil(sizeFile//1000000000)*5*numfiles
                 if sizeneeded <3:
                         sizeneeded=5
-
+	os.remove('tmp.log')
         while instanceNum < numInstancesRequired:
                 #Create EBS volume
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
@@ -2790,7 +2800,7 @@ def relion_autopick_mpi(project):
 
                 os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
                 IPlist.append(userIP)
-                instanceIDlist.append(instanceID)
+                instanceIDlist.append(instanceID.strip())
                 instanceNum=instanceNum+1
 
         now=datetime.datetime.now()
@@ -2825,7 +2835,6 @@ def relion_autopick_mpi(project):
         while instanceNum < numInstancesRequired:
                 env.host_string='ubuntu@%s' %(IPlist[instanceNum])
                 othername=''
-                print otherbucketDirName
                 if len(otherbucketDirName) > 0:
                         counter=0
                         dirlocation='/data'
@@ -2864,7 +2873,6 @@ def relion_autopick_mpi(project):
                 counter=0
                 while counter < len(micpath.split('/'))-1:
                         entry=micpath.split('/')[counter]
-                        print 'mkdir /%s/%s' %(dirlocation,entry)
 			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
                         dirlocation=dirlocation+'/'+entry
                         counter=counter+1
@@ -2894,7 +2902,7 @@ def relion_autopick_mpi(project):
 			del localref[-1]
 			localref='/'.join(localref)
 			cmd='rsync -avzur -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/*  ubuntu@%s:/%s/ > %s/rsync.log' %(keypair,localref,IPlist[instanceNum],reflocation,outdir)
-	                subprocess.Popen(cmd,shell=True).wait()
+			subprocess.Popen(cmd,shell=True).wait()
 
                 #Make output directories
 		dirlocation='/data'
@@ -2916,10 +2924,10 @@ def relion_autopick_mpi(project):
 
                 micdirlocation=indirlocation
                 cloudpath='/data/'+outdir
-                exec_remote_cmd('~/rclone sync rclonename:%s /data/%s --quiet --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
+		exec_remote_cmd('~/rclone sync rclonename:%s-mic /data/%s --quiet --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
                 if len(otherbucketDirName) > 0:
-                        exec_remote_cmd('~/rclone sync rclonename:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],othername,mpi*3))
-
+			exec_remote_cmd('~/rclone sync rclonename:%s-mic %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
+			
                 if gpu  == 1:
                         relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_autopick %s --gpu ' %(relioncmd)
                 if gpu > 1:
@@ -2935,27 +2943,30 @@ def relion_autopick_mpi(project):
                 subprocess.Popen(cmd,shell=True).wait()
 
                 cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib::/usr/local/cuda/lib64:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
-                subprocess.Popen(cmd,shell=True)
-
+		subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
 
         cmd='rsync --ignore-errors  -avzuq -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/run.out ubuntu@%s:/data/%s/ > %s/rsync.log' %(keypair,outdir,IPlist[0],outdir,outdir)
         subprocess.Popen(cmd,shell=True).wait()
+	isdone=0
+	while isdone ==0: 
+        	#Check if job was specified to be killed
+                isdone=check_and_kill_job('%s/note.txt' %(outdir),IPlist[0],keypair)
 
-        for testmic in open(micstar,'r'):
-		time.sleep(1)
-		if len(testmic.split()) > 1:
-			testmic=testmic.split()[miccol-1]
-			if testmic[0] != '_':
-				isdone=0
-				while isdone == 0:
-        				#Check if job was specified to be killed
-                                        isdone=check_and_kill_job('%s/note.txt' %(outdir),IPlist[0],keypair)
+		cmd='rsync -avzuq -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(keypair,IPlist[0],outdir,outdir,outdir)
+               	subprocess.Popen(cmd,shell=True).wait()
 
-					cmd='rsync -avzuq -e "ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(keypair,IPlist[0],outdir,outdir,outdir)
-               				subprocess.Popen(cmd,shell=True).wait()
-					if os.path.exists('%s/%s_autopick.star' %(outdir,testmic[:-4])):
-						isdone=1
+		if os.path.exists('%s/Micrographs/' %(outdir)): 
+			numdone=float(subprocess.Popen('ls %s/Micrographs/* | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+			if numdone == float(numfiles):
+				isdone=1
+		
+		#Check if there are any errors
+                if isdone == 0:
+                	if os.path.exists('%s/run.err' %(outdir)):
+                        	if float(subprocess.Popen('cat %s/run.err | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0:
+                                	writeToLog('\nError detected in run.err. Shutting down instance.','%s/run.out' %(outdir))
+                                        isdone=1
         time.sleep(15)
 
         writeToLog('Job finished!','%s/run.out' %(outdir))
