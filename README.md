@@ -7,7 +7,7 @@ To learn more: [cryoem-tools.cloud](http://cryoem-tools.cloud)
 * [Typical Workflow](https://github.com/cianfrocco-lab/cryoem-cloud-tools#typical-workflow)
 * [Getting started](https://github.com/cianfrocco-lab/cryoem-cloud-tools#getting-started)
 	* [Software dependences](https://github.com/cianfrocco-lab/cryoem-cloud-tools#software-dependencies)
-	* [Environment setup](https://github.com/cianfrocco-lab/cryoem-cloud-tools#environment-setup)
+	* [Installation](https://github.com/cianfrocco-lab/cryoem-cloud-tools#installation)
 * [Usage](https://github.com/cianfrocco-lab/cryoem-cloud-tools#usage)
 * [Removing temporary data storage on AWS](https://github.com/cianfrocco-lab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
 
@@ -123,7 +123,7 @@ You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *
 	* http://www.fabfile.org/installing.html
 	* <pre>$ sudo pip install fabric</pre>
 
-###Installation
+### Installation
 
 Clone git repository:
 <pre>https://github.com/cianfrocco-lab/cryoem-cloud-tools</pre>
@@ -144,7 +144,7 @@ We compiled all python code into the directory aws_build_osx so that users do no
 * If you use this library on your Mac, use file aws_aliases_osx.sh instead of aws_aliases.sh in your aws_inith.sh script
 * This repo also comes with Relion-2.0 pre-compiled for Mac (see below)
 
-###External software included in repo:
+### External software included in repo:
 
 * **AWS CLI:**
 We have included AWS CLI into the git repo that you can use by including cryoem-cloud-tools/external_software/aws in your $PATH and  cryoem-cloud-tools/external_software/aws/lib/python2.7/site-packages/ into your $PYTHONPATH
