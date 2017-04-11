@@ -4,12 +4,12 @@ Software to interface with AWS through convenient command line inputs, ultimatel
 To learn more: [cryoem-tools.cloud](http://cryoem-tools.cloud)
 
 *Contents:*
-* [Typical Workflow](https://github.com/leschzinerlab/AWS#typical-workflow)
-* [Getting started](https://github.com/leschzinerlab/AWS#getting-started)
-	* [Software dependences](https://github.com/leschzinerlab/AWS#software-dependencies)
-	* [Environment setup](https://github.com/leschzinerlab/AWS#environment-setup)
-* [Usage](https://github.com/leschzinerlab/AWS#usage)
-* [Removing temporary data storage on AWS](https://github.com/leschzinerlab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
+* [Typical Workflow](https://github.com/cianfrocco-lab/cryoem-cloud-tools#typical-workflow)
+* [Getting started](https://github.com/cianfrocco-lab/cryoem-cloud-tools#getting-started)
+	* [Software dependences](https://github.com/cianfrocco-lab/cryoem-cloud-tools#software-dependencies)
+	* [Environment setup](https://github.com/cianfrocco-lab/cryoem-cloud-tools#environment-setup)
+* [Usage](https://github.com/cianfrocco-lab/cryoem-cloud-tools#usage)
+* [Removing temporary data storage on AWS](https://github.com/cianfrocco-lab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
 
 *Overview:*
 
@@ -119,31 +119,37 @@ You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *
 * **aws cli**:
 	* http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-with-pip
 	* <pre>$ sudo pip install awscli</pre>
-* **starcluster**: 
-	* http://star.mit.edu/cluster/docs/latest/index.html
-	* <pre>$ sudo pip install starcluster </pre>
-	* Only required if you want to boot up clusters of CPU instances
 * **fabric**: 
 	* http://www.fabfile.org/installing.html
 	* <pre>$ sudo pip install fabric</pre>
-* **rclone**: 
-	* http://rclone.org/
-	* <pre>$ wget http://downloads.rclone.org/rclone-v1.35-linux-amd64.zip</pre>
-	* <pre>$ unzip rclone-v1.35-linux-amd64.zip</pre>
 
-### Environment setup
-For each user, you will create a hidden directory in their home directory into which you will add the aws/aws_init.sh file and their keypair.  
+###Installation
 
-* Create hidden folder: 
-<pre>$ mkdir /home/[user]/.aws</pre>
+Clone git repository:
+<pre>https://github.com/cianfrocco-lab/cryoem-cloud-tools</pre>
 
-* Copy aws/aws_init.sh into this new directory & edit to include credentials and path to the cryoem-cloud-tools github repository on your local machine.
+Edit file cryoem-cloud-tools/aws/aws_init.sh to include AWS credentials. Consider moving out of cryoem-cloud-tools folder so that it does not get over written when you update the git repo.
 
-* Add the following line to your .bashrc (or .cshrc, .bash_profile): 
-<pre>source /home/[user]/.aws/aws_init.sh</pre>
+With this file location, add the following line to your .cshrc / .bashrc / .bash_profile: 
 
-* Copy keypair into this new directory, double checking that this path is in the /home/[user]/.aws/aws_init.sh correctly. Also, make sure to modify permissions of file using: 
-<pre>$ chmod 600 path/to/keypair.pem </pre>
+<pre>source /path/to/aws_init.sh</pre>
+
+You will also need to include your AWS keypair path in aws_init.sh. Copy keypair into this new directory, double checking that this path is in the /home/[user]/.aws/aws_init.sh correctly. Also, make sure to modify permissions of file using:
+<pre>$ chmod 600 /path/to/keypair.pem </pre>
+
+**For MacOSX users:**
+
+We compiled all python code into the directory aws_build_osx so that users do not need to install fabric (which sometimes can be a hassle).
+
+* If you use this library on your Mac, use file aws_aliases_osx.sh instead of aws_aliases.sh in your aws_inith.sh script
+* This repo also comes with Relion-2.0 pre-compiled for Mac (see below)
+
+###External software included in repo:
+
+* **AWS CLI:**
+We have included AWS CLI into the git repo that you can use by including cryoem-cloud-tools/external_software/aws in your $PATH and  cryoem-cloud-tools/external_software/aws/lib/python2.7/site-packages/ into your $PYTHONPATH
+* **Relion-2.0:**
+We also included a compiled Relion-2.0 version compatible for Mac OSX that can be found in cryoem-cloud-tools/external_software/relion-2.0-mac
 
 ## Usage
 The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
