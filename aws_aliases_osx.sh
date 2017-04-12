@@ -1,6 +1,6 @@
 #Set paths
 export AWS_CLI_DIR=$AWS_DIR/aws_build_osx/
-#export AWS_RELION=$AWS_DIR/relion/
+export AWS_RELION=$AWS_DIR/aws_build_osx/
 export AWS_ROSETTA=$AWS_DIR/rosetta/
 export PATH=$AWS_CLI_DIR/:$PATH
 #export PATH=$AWS_RELION/:$PATH
