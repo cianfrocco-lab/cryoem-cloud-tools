@@ -382,7 +382,7 @@ def parallel_rsync(indir,threads,keypair,IP,destdir):
 def exec_remote_cmd(cmd):
     from fabric.operations import run, put
     from fabric.api import hide,settings
-    with hide('output','running','warnings'), settings(warn_only=True):
+    with hide('output','running','warnings') and settings(warn_only=True):
     	return run(cmd)
 
 #==============================
@@ -398,6 +398,7 @@ def getJobType(f1):
 	jobtype='None'
 	o1=open(f1,'r')
         flag=0
+	'''
 	for line in o1:
                 if flag == 0:
 			if len(line.split('=')) > 0:
@@ -406,7 +407,16 @@ def getJobType(f1):
 					flag=1
         o1.close()
 	return rlncmd.split('`')[1].split('which')[-1].strip()
-
+	'''
+	rlncmdlist=[]
+	for line in o1:
+                if len(line)>0:
+			if len(line.split('=')) > 0:
+                                if line.split('=')[0] == 'relioncmd':
+					rlncmd=line.split('=')[1]
+                                        rlncmdlist.append(rlncmd.split('`')[1].split('which')[-1].strip())
+	return rlncmdlist[0],len(rlncmdlist)
+	
 #==============================
 def getCMDrefine(f1):
 	o1=open(f1,'r')
@@ -497,7 +507,6 @@ def checkPartLocation(instarfile,indir):
 
 	if microcolnum == 0: 
 		error='Could not find _rlnImageName in starfile %s' %(instarfile)
-
 	if microcolnum != 0: 
 		o44=open(instarfile,'r')
 		for line in o44:	
@@ -511,9 +520,17 @@ def checkPartLocation(instarfile,indir):
 								error='Error: particle stack %s does not exist.' %(part)
 							if os.path.exists('%s_extract.star' %(part[:-5])): 
 								starfile='%s_extract.star' %(part[:-5])
-							micro=line.split()[microcolnum-1]
-							if not os.path.exists(micro): 
-								error='Error: micrograph %s does not exist.' %(micro)
+							InIt=False
+							if indir in part: 
+								InIt=True
+							if InIt is False:
+								if len(part.split('/')) == 4: 
+									otherPartDir=part.split('/')[0]+'/'+part.split('/')[1]+'/'
+									otherPartRclone.append(part.split('/')[2]+'/'+part.split('/')[3])
+								if len(part.split('/')) == 3: 
+									otherPartDir=part.split('/')[0]+'/'+part.split('/')[1]+'/'
+                                                                        otherPartRclone.append(part.split('/')[2])
+							'''
 							checkdir=part.split(micro)[0]
 							if checkdir[-1] == '/': 
 								checkdir=checkdir[:-1]
@@ -529,6 +546,7 @@ def checkPartLocation(instarfile,indir):
 										instarfile='%s/%s_extract.star' %(micdironly,partfilename[:-5])
 										if instarfile not in otherPartRclone:
 											otherPartRclone.append(instarfile)
+							'''
 		o44.close()
 	return otherPartDir,otherPartRclone,error
 
@@ -802,7 +820,7 @@ def relion_refine_mpi(project):
 		if os.path.exists('%s/handler.txt' %(outdir)):
                         os.remove('%s/handler.txt' %(outdir))
                 cmd='relion_image_handler --i %s --stats > %s/handler.txt' %(examplePart,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
+		subprocess.Popen(cmd,shell=True).wait()
 		partxdim=int(linecache.getline('%s/handler.txt' %(outdir),1).split('=')[1].split('x')[0].strip())	
 
 		if apixin is False:
@@ -872,11 +890,9 @@ def relion_refine_mpi(project):
 	#Check where input particles are located
 	if stack is False: 
 		otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
-
 	if len(error) > 0: 
 		writeToLog(error,'%s/run.err' %(outdir))
                 sys.exit()
-
 	if len(otherPartRclone) > 0: 
 		if os.path.exists('rclonetmplist1298.txt'): 
 			os.remove('rclonetmplist1298.txt')
@@ -885,7 +901,6 @@ def relion_refine_mpi(project):
 			o89.write('%s\n' %(entry.strip()))
 		o89.close()
 		otherPartRclone='rclonetmplist1298.txt'
-	
 	#Choose instance type
 	if initmodel == 'None': #2D classification
 		if numParticles < 20000:
@@ -970,7 +985,6 @@ def relion_refine_mpi(project):
 		inputfilesize=subprocess.Popen('du %s' %(otherPartDir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
 	sizeneeded='%.0f' %(math.ceil((float(inputfilesize)*4)/1000000))
         actualsize='%.0f' %(math.ceil((float(inputfilesize)/1000000)))
-
 	#Upload data to S3
 	if s3_exist is False:
 		writeToLog('Started uploading %sGB to AWS on %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
@@ -1408,6 +1422,119 @@ def getCMDpreprocess(infile):
 	return rlncmd,micstar,boxdir,outdir
 
 #==============================
+def getCMDpreprocessMovie(infile):
+        o1=open(infile,'r')
+        for line in o1:
+                if len(line.split('=')) > 0:
+                        if line.split('=')[0] == 'relioncmd':
+                                rlncmd=line.split('=')[1]
+        			if 'preprocess' in rlncmd: 
+					counter=1
+					#Get particle input directory and if there is a reference model
+				        #relioncmd=`which relion_preprocess_mpi` --i MotionCorr/job002/corrected_micrograph_movies.star --reextract_data_star Refine3D/job019/run_it014_data.star --part_dir MovieRefine/job100/ --list_star MovieRefine/job100/micrographs_movie_list.star --join_nr_mics -1 --part_star MovieRefine/job100/particles_movie.star --extract --extract_movies --extract_size 100 --movie_name movie --first_movie_frame 1 --last_movie_frame 16 --avg_movie_frames 1 --norm --bg_radius 30 --white_dust -1 --black_dust -1 --invert_contrast
+					for l in rlncmd.split():
+				                if l == '--i':
+				                        micstar=counter
+			                	if l == '--part_dir':
+                        				outdir=counter
+				                if l == '--reextract_data_star':
+							rext=counter
+						counter=counter+1
+				        micstar=rlncmd.split()[micstar]
+				        outdir=rlncmd.split()[outdir].split('run')[0]
+					boxdir=rlncmd.split()[rext]
+
+					#Get first line to check where extracted particles are located
+					#Get header col val first
+					e1=open(boxdir,'r')
+					for eline in e1:
+						if len(eline)>0: 
+							if len(eline.split())>1:
+								if eline.split()[0] == '_rlnImageName': 
+									Ecolnum=int(eline.split()[1].split('#')[-1])
+								if eline.split()[0] == '_rlnMicrographName':
+									Emicnum=int(eline.split()[1].split('#')[-1])
+					e1.close()
+					flag=0
+					e1=open(boxdir,'r')
+                                        for eline in e1:
+                                                if len(eline)>0:
+                                                        if len(eline.split())>8:
+								if flag == 0: 
+									eStack=eline.split()[Ecolnum-1].split('@')[-1]
+									eMic=eline.split()[Emicnum-1]
+									if len(eStack.split('/')) == 4: 
+										extractDir=eStack.split('/')[0]+'/'+eStack.split('/')[1]	
+					boxdir=boxdir.split('/')
+					del boxdir[-1]
+					boxdir='/'.join(boxdir)	
+					rlncmdpre=rlncmd
+				if 'refine' in rlncmd: 
+					#Get particle input directory and if there is a reference model
+				        outbasenanme=''
+				        continuecounter=-1
+				        indircounter=-1
+				        refcounter=-1
+				        outcounter=-1
+				        autoref=-1
+				        counter=1
+				        itercounter=0
+				        numiters=0
+				        mask=''
+				        maskcounter=-1
+				        ref='None'
+				        stack=False
+				        partstarname=''
+				        partdir=''
+				        contLocation=''
+				        particlediameter=-999
+				        partdiamcounter=-1
+				        for l in rlncmd.split():
+				                if l == '--i':
+				                        indircounter=counter
+				                if l == '--ref':
+				                        refcounter=counter
+				                if l == '--o':
+				                        outcounter=counter
+				                if l == '--auto_refine':
+				                        autoref=counter
+				                if l == '--iter':
+				                        itercounter=counter
+					        if l == '--solvent_mask':
+				                        maskcounter=counter
+				                if l == '--continue':
+				                        continuecounter=counter
+					        if l == '--particle_diameter':
+				                        partdiamcounter=counter
+				                counter=counter+1
+
+				        if indircounter > 0:
+				                partstarname=rlncmd.split()[indircounter].split('/')[-1]
+				                if '.star' not in partstarname:
+				                        stack=True
+				                partdir=rlncmd.split()[indircounter].split('/')
+				                del partdir[-1]
+				                partdir='/'.join(partdir)
+				        if partdiamcounter > 0:
+				                particlediameter=float(rlncmd.split()[partdiamcounter])
+				        outbasename=rlncmd.split()[outcounter]
+				        outdir=rlncmd.split()[outcounter].split('/')
+				        del outdir[-1]
+				        outdir='/'.join(outdir)
+				        if itercounter > 0:
+				                numiters=int(rlncmd.split()[itercounter])
+				        if refcounter > 0:
+				                ref=rlncmd.split()[refcounter]
+				        if maskcounter > 0:
+				                mask=rlncmd.split()[maskcounter]
+				        if continuecounter > 0:
+				                contLocation=rlncmd.split()[continuecounter]
+					rlncmdrefine=rlncmd
+				#return rlncmd,partdir,ref,outdir,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter
+					
+        return rlncmdpre,micstar,boxdir,outdir,extractDir,rlncmdrefine,partdir,ref,outdir,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter
+
+#==============================
 def getMicStarFileSize(micstar):
 	miccounter=0
 	for line in open(micstar,'r'):
@@ -1419,6 +1546,376 @@ def getMicStarFileSize(micstar):
 			mic=line.split()[miccol-1]
 		miccounter=miccounter+1
 	return float(os.stat(mic).st_size)*miccounter
+
+#==============================
+def relion_movie_refine(project):
+
+	#Get relion command and input options
+	rlncmdpre,micstar,boxdir,outdir,extractDir,rlncmdrefine,partdir,ref,outdirRef,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter=getCMDpreprocessMovie(infile)
+
+	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
+	relioncmdpre=parseCMDpreprocess(rlncmdpre)
+	relioncmdrefine=parseCMDrefine(rlncmdrefine)
+	
+	#Get number of particles
+	numParticlesIn=float(subprocess.Popen('cat %s_data.star | grep mrc | wc -l' %(contLocation[:-15]), shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+
+	#Choose instance type
+	instance='m4.4xlarge'
+        mpi=16
+	cost=0.862
+	if numParticlesIn>10000:
+		instance='m4.10xlarge'
+	        mpi=40
+        	cost=2.155
+	if numParticlesIn>50000:
+                instance='m4.16xlarge'
+                mpi=64
+                cost=3.447
+		
+	#Get AWS region from aws_init.sh environment variable
+	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+	if len(awsregion) == 0:
+                writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
+                sys.exit()
+
+	writeToLog('Booting up virtual machine %s on AWS in availability zone %sa' %(instance,awsregion), '%s/run.out' %(outdir))
+
+	#Get AWS CLI directory location
+	awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+	if len(awsdir) == 0:
+		print 'Error: Could not find AWS scripts directory specified as $AWS_CLI_DIR. Please set this environmental variable and try again.'
+		sys.exit()
+
+	#Get AWS ID
+	AWS_ID=subprocess.Popen('echo $AWS_ACCOUNT_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	key_ID=subprocess.Popen('echo $AWS_ACCESS_KEY_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	secret_ID=subprocess.Popen('echo $AWS_SECRET_ACCESS_KEY',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	teamname=subprocess.Popen('echo $RESEARCH_GROUP_NAME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+	#Get AWS CLI directory location
+	awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+	if len(awsdir) == 0:
+		print 'Error: Could not find AWS scripts directory specified as $AWS_CLI_DIR. Please set this environmental variable and try again.'
+		sys.exit()
+
+	#.aws_relion will Have: [particledir] [s3 bucket name] [ebs volume]
+	ebs_exist=False
+	s3_exist=False
+	bucketname=''
+	if os.path.exists('.aws_relion'):
+                for line in open('.aws_relion','r'):
+                        if line.split()[0].strip() == micstar.strip():
+                                bucketname=line.split()[1]
+                                #Check if it exists:
+                                if os.path.exists('%s/s3out.log'%(outdir)):
+                                        os.remove('%s/s3out.log' %(outdir))
+                                cmd='aws s3 ls %s > %s/s3out.log' %(bucketname.split('s3://')[-1],outdir)
+				subprocess.Popen(cmd,shell=True).wait()
+                                if len(open('%s/s3out.log'%(outdir),'r').readlines()) > 0:
+                                        s3_exist=True
+	#Check extract directory extractDir
+	Eebs_exist=False
+        Es3_exist=False
+        Ebucketname=''
+        if os.path.exists('.aws_relion'):
+                for line in open('.aws_relion','r'):
+                        if line.split()[0].strip() == boxdir.strip():
+                                Ebucketname=line.split()[1]
+                                #Check if it exists:
+                                if os.path.exists('%s/s3out.log'%(outdir)):
+                                        os.remove('%s/s3out.log' %(outdir))
+                                cmd='aws s3 ls %s > %s/s3out.log' %(Ebucketname.split('s3://')[-1],outdir)
+                                subprocess.Popen(cmd,shell=True).wait()
+                                if len(open('%s/s3out.log'%(outdir),'r').readlines()) > 0:
+                                        Es3_exist=True
+
+	keyname=keypair.split('/')[-1].split('.pem')[0]
+        keyname=keyname.split('_')
+        keyname='-'.join(keyname)
+        outdirname=outdir.split('/')
+        if len(outdirname[-1]) == 0:
+                del outdirname[-1]
+        outdirname='-'.join(outdirname)
+        outdirname=outdirname.lower().strip()
+        keyname=keyname.lower().strip()
+        project=project.strip()
+	indirname=micstar.split('/')
+	del indirname[-1]
+	indirname='-'.join(indirname)
+	indirname=indirname.lower().strip()
+
+	#Upload data to S3
+	if s3_exist is False:
+		writeToLog('Started upload of movies to AWS on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+		if len(project) == 0:
+			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+                if len(project) > 0:
+                        bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,indirname)
+		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
+                	numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+	                numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+		bucketname,micdir,origdir=rclone_to_s3_preprocess(micstar,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project)
+		writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+	if Es3_exist is False:
+                writeToLog('Started upload of particle stacks to AWS on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+                if len(project) == 0:
+                        Ebucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+                if len(project) > 0:
+                        Ebucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,indirname)
+                if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
+                        numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+                if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+                        numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+                Ebucketname=rclone_to_s3(extractDir,numCPUs*2.4,awsregion,key_ID,secret_ID,Ebucketname,Ebucketname,awsdir,project,'')
+		#Ebucketname,micdir,origdir=rclone_to_s3(boxdir,numCPUs*2.4,awsregion,key_ID,secret_ID,Ebucketname,Ebucketname,awsdir,project)
+                writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+	if s3_exist is True:
+		microcol=1
+        	symflag=0
+	        samedir=0
+		for line in open(micstar,'r'):
+	                if len(line) < 40:
+        	                continue
+                	if len(line.split()[microcol-1].split('/')) == 0:
+	                        dirtransfer=''
+        	                origdir=''
+                	        samedir=1
+                        	mic=line.split()[microcol-1]
+	                        miconly=mic.split('/')[-1]
+                	if len(line.split()[microcol-1].split('/')) > 0:
+                        	mic=line.split()[microcol-1]
+	                        miconly=mic.split('/')[-1]
+        	                origdir=mic.split(miconly)[0]
+                	        if os.path.islink(mic) is True:
+                        	        symdir=os.path.realpath(mic).split(miconly)[0]
+                                	dirtransfer=symdir
+        	                        symflag=1
+                	        if os.path.islink(mic) is False:
+                        	        dirtransfer=line.split()[microcol-1].split(miconly)[0]	
+		micdir=dirtransfer
+	inputfilesize=subprocess.Popen('du %s' %(micdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
+	sizeneeded='%.0f' %(math.ceil((float(inputfilesize)*8)/1000000))
+       	actualsize='%.0f' %(math.ceil((float(inputfilesize)/1000000)))
+
+	if ebs_exist is False:
+		writeToLog('Creating data storage drive ...','%s/run.out' %(outdir))
+        	#Create EBS volume
+        	if os.path.exists('%s/awsebs.log' %(outdir)) :
+               		os.remove('%s/awsebs.log'%(outdir))
+        	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,boxdir)+'> %s/awsebs.log'%(outdir)
+        	subprocess.Popen(cmd,shell=True).wait()
+
+        	#Get volID from logfile
+        	volID=linecache.getline('%s/awsebs.log'%(outdir),5).split('ID: ')[-1].split()[0]
+
+	writeToLog('Launching virtual machine ...','%s/run.out' %(outdir))
+
+	#Launch instance
+	if os.path.exists('%s/awslog.log'%(outdir)):
+		os.remove('%s/awslog.log'%(outdir))
+	cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	subprocess.Popen(cmd,shell=True).wait()
+	#Get instance ID, keypair, and username:IP
+	now=datetime.datetime.now()
+        startday=now.day
+        starthr=now.hour
+        startmin=now.minute
+	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1].strip()
+        keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+        userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
+
+	#Create directories on AWS
+	env.host_string='ubuntu@%s' %(userIP)
+	env.key_filename = '%s' %(keypair)
+	dirlocation='/data'
+	for entry in boxdir.split('/'):
+		exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+		dirlocation=dirlocation+'/'+entry
+
+
+	writeToLog('Transferring data ...','%s/run.out' %(outdir))
+
+	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/*  ubuntu@%s:%s/ > %s/rsync.log' %(keypair,boxdir,userIP,dirlocation,outdir)
+	print cmd 
+	subprocess.Popen(cmd,shell=True).wait()
+
+	#Make output directories
+	dirlocation='/data'
+        for entry in outdir.split('/'):
+                if len(entry.split('.star')) == 1:
+			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+                        dirlocation=dirlocation+'/'+entry
+	dirlocation='/data'
+        for entry in micstar.split('/'):
+		if len(entry.split('.star')) == 1:
+			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+			dirlocation=dirlocation+'/'+entry
+	locallocation=micstar.split('/')
+	del locallocation[-1]
+	locallocation='/'.join(locallocation)
+	micInDir=dirlocation
+	dirlocation='/data'
+	for entry in extractDir.split('/'):
+		exec_remote_cmd('mkdir /%s/%s/' %(dirlocation,entry))
+		dirlocation=dirlocation+'/'+entry
+	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s/  ubuntu@%s:%s/ > %s/rsync.log' %(keypair,locallocation,userIP,micInDir,outdir)
+        print cmd 
+	subprocess.Popen(cmd,shell=True).wait()
+
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
+                numCPUs=int(subprocess.Popen('grep -c ^processor /proc/cpuinfo',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
+		numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+	if ebs_exist is False:
+		s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(origdir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,math.ceil(mpi*2.4))
+	if Eebs_exist is False: 
+		s3_to_ebs(userIP,keypair,Ebucketname,'/data/%s' %(extractDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,math.ceil(mpi*2.4))
+
+	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_preprocess_mpi %s' %(mpi,rlncmdpre)
+
+	o2=open('run_aws.job','w')
+	o2.write('#!/bin/bash\n')
+	o2.write('cd /data\n')
+	o2.write('%s\n' %(relion_remote_cmd))
+	o2.close()
+	st = os.stat('run_aws.job')
+	os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
+	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(keypair,userIP,outdir)
+	subprocess.Popen(cmd,shell=True).wait()
+	
+	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+	time.sleep(30)
+	subprocess.Popen(cmd,shell=True)
+
+	writeToLog('Movie extraction submitted to the cloud...','%s/run.out' %(outdir))
+
+	isdone=0
+	while isdone == 0:
+		cmd='rsync --max-size=0.1G -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(keypair,userIP,outdir,outdir,outdir)
+		subprocess.Popen(cmd,shell=True).wait()
+		if os.path.exists('%s/particles_movie.star' %(outdir)):
+			isdone=1
+		time.sleep(10)
+
+	time.sleep(30)
+
+	writeToLog('Movie extraction finished! Beginning alignment of extracted movie-frame particles with 3D volume...','%s/run.out' %(outdir))
+
+	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s' %(mpi,rlncmdrefine)
+
+        o2=open('run_awsRefine.job','w')
+        o2.write('#!/bin/bash\n')
+        o2.write('cd /data\n')
+        o2.write('%s\n' %(relion_remote_cmd))
+        o2.close()
+        st = os.stat('run_awsRefine.job')
+        os.chmod('run_awsRefine.job', st.st_mode | stat.S_IEXEC)
+        cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_awsRefine.job ubuntu@%s:~/ > %s/rsync.log' %(keypair,userIP,outdir)
+        subprocess.Popen(cmd,shell=True).wait()
+	
+	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_awsRefine.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+        time.sleep(5)
+	subprocess.Popen(cmd,shell=True)
+
+	isdone=0
+        while isdone == 0:
+                cmd='rsync --max-size=0.2G -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(keypair,userIP,outdir,outdir,outdir)
+                subprocess.Popen(cmd,shell=True).wait()
+                if os.path.exists('%s/%s_data.star' %(outdirRef)):
+                        isdone=1
+                time.sleep(10)
+        time.sleep(30)
+
+	writeToLog('Movie-frame particle alignment to 3D model finished. Shutting everything down...', '%s/run.out' %(outdir))
+
+	cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir)
+        subprocess.Popen(cmd,shell=True).wait()
+
+	isdone=0
+        while isdone == 0:
+  	      status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+              if status == 'terminated':
+          	    isdone=1
+              time.sleep(10)
+
+	now=datetime.datetime.now()
+        finday=now.day
+        finhr=now.hour
+        finmin=now.minute
+        if finday != startday:
+                finhr=finhr+24
+        deltaHr=finhr-starthr
+        if finmin > startmin:
+                deltaHr=deltaHr+1
+        if not os.path.exists('aws_relion_costs.txt'):
+                cmd="echo 'Input                   Output               Cost ($)' >> aws_relion_costs.txt"
+                subprocess.Popen(cmd,shell=True).wait()
+                cmd="echo '-----------------------------------------------------------' >> aws_relion_costs.txt"
+                subprocess.Popen(cmd,shell=True).wait()
+        cmd='echo "%s      %s      %.02f  " >> aws_relion_costs.txt' %(boxdir,outdir,float(deltaHr)*float(cost))
+        subprocess.Popen(cmd,shell=True).wait()
+
+	#Update .aws_relion
+        if os.path.exists('.aws_relion_tmp'):
+                os.remove('.aws_relion_tmp')
+        if os.path.exists('.aws_relion'):
+                shutil.move('.aws_relion','.aws_relion_tmp')
+                tmpout=open('.aws_relion','w')
+                for line in open('.aws_relion_tmp','r'):
+                        if line.split()[0] == micstar:
+                                continue
+			if line.split()[0] == outdir:
+				continue
+                        tmpout.write(line)
+		tmpout.close()
+                os.remove('.aws_relion_tmp')
+
+        cmd='echo "%s     %s      %s" >> .aws_relion' %(micstar,bucketname,volID)
+	subprocess.Popen(cmd,shell=True).wait()
+
+	cmd='echo "%s     %s      %s" >> .aws_relion' %(outdir,bucketname,volID)
+        subprocess.Popen(cmd,shell=True).wait()
+
+	if len(project) > 0:
+                projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
+
+                cmd='aws s3 cp .aws_relion s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                if os.path.exists('.aws_relion_project_info'):
+                        cmd='aws s3 cp .aws_relion_project_info s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
+                        subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
+                subprocess.Popen(cmd,shell=True).wait()
+
+		#Remove all micrographs in bucket already
+		cmd='aws s3 rm s3://%s/%s/ --recursive > %s/s3tmp.log' %(projectbucket,outdirname,outdir)
+		subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 sync %s/ s3://%s/%s > %s/s3tmp.log ' %(outdir,projectbucket,outdirname,outdir)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                cmd='aws s3 cp default_pipeline.star s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
+                subprocess.Popen(cmd,shell=True).wait()
+
+                guilist=glob.glob('.gui*')
+                for gui in guilist:
+                        cmd='aws s3 cp %s s3://%s/ > %s/s3tmp.log' %(gui,projectbucket,outdir)
+                        subprocess.Popen(cmd,shell=True).wait()
+                if os.path.exists('%s/s3tmp.log'%(outdir)):
+                        os.remove('%s/s3tmp.log'%(outdir))
+
+	#Cleanup
+	if os.path.exists('awslog.log'):
+		os.remove('awslog.log')
+	if os.path.exists('awsebs.log'):
+		os.remove('awsebs.log')
+	if os.path.exists('rsync.log'):
+		os.remove('rsync.log')
 
 #==============================
 def relion_preprocess_mpi(project):
@@ -1612,6 +2109,7 @@ def relion_preprocess_mpi(project):
 	subprocess.Popen(cmd,shell=True).wait()
 	
 	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+	time.sleep(5)
 	subprocess.Popen(cmd,shell=True)
 
 	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
@@ -3084,7 +3582,7 @@ if __name__ == "__main__":
 		print 'Error: No job information in %s. Exiting' %(infile)
 		sys.exit()
 	
-	jobtype=getJobType(infile)
+	jobtype,numjobsIn=getJobType(infile)
 	if jobtype == 'None':
 		print 'Error: unrecognized relion command'
 		sys.exit()
@@ -3102,8 +3600,9 @@ if __name__ == "__main__":
                 relion_run_ctffind(project)
 
 	#Extract particles
-	if jobtype == 'relion_preprocess' or jobtype == 'relion_preprocess_mpi':
-                relion_preprocess_mpi(project)
+	if numjobsIn == 1:
+		if jobtype == 'relion_preprocess' or jobtype == 'relion_preprocess_mpi':
+        	        relion_preprocess_mpi(project)
 
 	#Perform 2D or 3D classification / refinement
 	if jobtype == 'relion_refine' or jobtype == 'relion_refine_mpi':
@@ -3112,3 +3611,10 @@ if __name__ == "__main__":
 	#Submit auto picking job to GPUs
 	if jobtype == 'relion_autopick' or jobtype == 'relion_autopick_mpi':
 		relion_autopick_mpi(project)
+
+	#Movie refinemnt
+	if numjobsIn==2:
+		relion_movie_refine(project)
+
+	print 'Error: Job submission not recognized. Exiting'
+
