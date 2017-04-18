@@ -373,7 +373,7 @@ def module_exists(module_name):
 def exec_remote_cmd(cmd):
     from fabric.operations import run, put
     from fabric.api import hide,settings
-    with hide('output','running','warnings') and settings(warn_only=True):
+    with hide('output','running','warnings'), settings(warn_only=True):
         return run(cmd)
 
 #==============================
