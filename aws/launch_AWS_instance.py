@@ -136,7 +136,7 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     securityGroupName='sg_%i' %(int(time.time()))
     securityGroupDescript='Automated security group'
     #if uname == 'Linux': 
-    IPaddress=subprocess.Popen('curl ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     #if uname == 'Darwin': 
 	#IPaddress=subprocess.Popen('curl ipecho.net/plain ; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     if len(IPaddress) == 0:
