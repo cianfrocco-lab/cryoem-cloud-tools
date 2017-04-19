@@ -1,0 +1,27 @@
+<ROSETTASCRIPTS>
+    <TASKOPERATIONS>
+    </TASKOPERATIONS>
+    <SCOREFXNS>
+        <ScoreFunction name="dens" weights="talaris2014_cart" symmetric="0">
+            <Reweight scoretype="pro_close" weight="0.0"/>
+            <Reweight scoretype="elec_dens_fast" weight="35"/>
+			<Reweight scoretype="rama" weight="0.0"/>
+			<Reweight scoretype="rama_prepro" weight="0.25"/>
+            <Set scale_sc_dens_byres="E:0.76,D:0.76,R:0.76,K:0.76,M:0.76,C:0.81,Q:0.81,H:0.81,N:0.81,T:0.81,S:0.81,Y:0.88,W:0.88,A:0.88,F:0.88,P:0.88,I:0.88,L:0.88,V:0.88"/>
+        </ScoreFunction>
+    </SCOREFXNS>
+    <MOVERS>
+		<LoadDensityMap name="loaddens" mapfile="mapfile.mrc"/>
+        <SetupForDensityScoring name="setupdens"/>
+        <LocalRelax name="local_rlx" scorefxn="dens" max_iter="200" ncyc="1" ramp_cart="0" K="16" nexp="2"/>
+		<BfactorFitting name="fit_bs" max_iter="100" wt_adp="0.0005" init="1" exact="1"/>
+    </MOVERS>
+    <PROTOCOLS>
+        <Add mover="loaddens"/>
+        <Add mover="setupdens"/>
+        <Add mover="local_rlx"/>
+        <Add mover="local_rlx"/>
+        <Add mover="fit_bs"/>
+    </PROTOCOLS>
+    <OUTPUT scorefxn="dens"/>
+</ROSETTASCRIPTS>
