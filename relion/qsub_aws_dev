@@ -46,6 +46,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 	env.host_string='ubuntu@%s' %(IP)
         env.key_filename = '%s' %(keypair)
 	rcloneexe='rclone'
+	print '%s/%s copy rclonename:%s %s --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime)
 	exec_remote_cmd('%s/%s copy rclonename:%s %s --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime))
 
 	fileonly=dironebs.split('/')[-1]
@@ -524,6 +525,11 @@ def checkPartLocation(instarfile,indir):
 							if indir in part: 
 								InIt=True
 							if InIt is False:
+								if len(part.split('/')) == 5:
+									otherPartDir=part.split('/')[0]+'/'+part.split('/')[1]+'/'
+									tmpline=part.split('/')[2]+'/'+part.split('/')[3]+'/'+part.split('/')[4]
+									tmpline=tmpline.replace('//','/')
+									otherPartRclone.append(tmpline)
 								if len(part.split('/')) == 4: 
 									otherPartDir=part.split('/')[0]+'/'+part.split('/')[1]+'/'
 									otherPartRclone.append(part.split('/')[2]+'/'+part.split('/')[3])
@@ -963,7 +969,6 @@ def relion_refine_mpi(project):
                                 subprocess.Popen(cmd,shell=True).wait()
                                 if len(open('%s/s3out.log' %(outdir),'r').readlines()) > 0:
                                         s3_exist=True
-	
 	keyname=keypair.split('/')[-1].split('.pem')[0]
         keyname=keyname.split('_')
         keyname='-'.join(keyname)
@@ -1107,7 +1112,6 @@ def relion_refine_mpi(project):
 	subprocess.Popen(cmd,shell=True)
 
 	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
-
 	cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s/run.out ubuntu@%s:/data/%s/ > %s/rsync.log' %(keypair,outdir,userIP,outdir,outdir)
 	subprocess.Popen(cmd,shell=True)
 	isdone=0
