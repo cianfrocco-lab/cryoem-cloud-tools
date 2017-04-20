@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import pickle
 import datetime 
 import shutil
 import optparse
@@ -123,6 +123,8 @@ def checkConflicts(params,outdir):
 #================================================
 if __name__ == "__main__":
 
+	print '\nStarting Rosetta model refinement in the cloud ...\n'
+
 	##Hard coded values
 	sizeneeded=100
 	instance='m4.xlarge'
@@ -135,7 +137,6 @@ if __name__ == "__main__":
                 numToRequest=numthreads*((numToRequest % numthreads)+1)
 		
 	numInstances=(numToRequest/numthreads)
-	print numInstances
 	if len(params['outdir']) == 0:
 	        startTime=datetime.datetime.utcnow()
  		params['outdir']=startTime.strftime('%Y-%m-%d-%H%M%S')
@@ -183,7 +184,6 @@ if __name__ == "__main__":
 	        subprocess.Popen(cmd,shell=True).wait()
         	###Get volID from logfile
 	        volID=linecache.getline('%s/awsebs_%i.log'%(params['outdir'],counter),5).split('ID: ')[-1].split()[0]
-	        print volID
 		volIDlist.append(volID)
 		time.sleep(10)
 		counter=counter+1
@@ -253,62 +253,25 @@ if __name__ == "__main__":
 				subprocess.Popen(cmd,shell=True).wait()
 
 		#Run job
-        	cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/bin/$PATH && export PATH=/home/Rosetta/2017_08/main/source/:$PATH && ./run_final.sh > /home/ubuntu/rosetta.out 2> /home/ubuntu/rosetta.err < /dev/null &"' %(keypair,instanceIPlist[counter])
+        	cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/bin/$PATH && export PATH=/home/Rosetta/2017_08/main/source/:$PATH && /usr/local/bin/parallel -j%i ./run_final.sh {} ::: {1..%i}> /home/ubuntu/rosetta.out 2> /home/ubuntu/rosetta.err < /dev/null &"' %(keypair,instanceIPlist[counter],numthreads,numthreads)
 		subprocess.Popen(cmd,shell=True)
+	
+		counter=counter+1
 
 	#Start waiting script: Should be in teh background so users can log out
-	print 'Rosetta job submitted on AWS! Monitor output file: %s/rosetta_output.out to check status of job\n' %(params['outdir'])
+	print 'Rosetta job submitted on AWS! Monitor output file: %s/rosetta.out to check status of job\n' %(params['outdir'])
 
-	sys.exit()
-	#Start monitoring status
-	startTime=datetime.datetime.utcnow()
-	time.sleep(60)
+	cmd='touch %s/rosetta.out' %(params['outdir'])
+	subprocess.Popen(cmd,shell=True).wait()
 
-	isdone=0
-	while isdone == 0:
-		#If cloudwatch has load < 5% BUT there aren't finished PDBs yet, job crashed. Terminate.
-		currentTime=datetime.datetime.utcnow()
-		if os.path.exists('%s/cloudwatchtmp.log'%(params['outdir'])): 
-			os.remove('%s/cloudwatchtmp.log'%(params['outdir']))
-		cmd='aws cloudwatch get-metric-statistics --metric-name CPUUtilization --start-time %s  --period 300 --namespace AWS/EC2 --statistics Average --dimensions Name=InstanceId,Value=%s --end-time %s > %s/cloudwatchtmp.log' %(startTime.strftime('%Y-%m-%dT%H:%M:00'),instanceID,currentTime.strftime('%Y-%m-%dT%H:%M:00'),params['outdir'])
-		subprocess.Popen(cmd,shell=True).wait()
-		o1=open('%s/cloudwatchtmp.log'%(params['outdir']),'r')
-		for line in o1: 
-			if len(line.split())>0:
-				if line.split()[0] == '"Average":': 
-					load=float(line.split()[1][:-1])
-					if load < loadMin: 
-						print 'finished'
-						#Download all pdb files, take note if you didn't download enough files consdiering number of models requested
-
-
-						isdone=1
-		o1.close()
-		os.remove('%s/cloudwatchtmp.log'%(params['outdir']))
-		time.sleep(60)
-
-	print 'Rosetta refinement finished. Shutting down instance.'
-
-	cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,params['outdir'])
-        subprocess.Popen(cmd,shell=True).wait()
-
-        isdone=0
-        while isdone == 0:
-              status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-              if status == 'terminated':
-                    isdone=1
-              time.sleep(10)
-
-	cmd='aws ec2 delete-volume --volume-id %s > %s/tmp4949585940.txt' %(volID,params['outdir'])
-        subprocess.Popen(cmd,shell=True).wait()	
-
-	now=datetime.datetime.now()
-        finday=now.day
-        finhr=now.hour
-        finmin=now.minute
-        if finday != startday:
-                finhr=finhr+24
-        deltaHr=finhr-starthr
-        if finmin > startmin:
-                deltaHr=deltaHr+1
+	#Write instance, volume, and IP lists
+	with open('%s/instanceIPlist.txt' %(params['outdir']),'wb') as fp: 
+		pickle.dump(instanceIPlist,fp)
+	with open('%s/instanceIDlist.txt' %(params['outdir']),'wb') as fp:
+                pickle.dump(instanceIDlist,fp)
+	with open('%s/volIDlist.txt' %(params['outdir']),'wb') as fp:
+                pickle.dump(volIDlist,fp)
+	
+	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --volIDlist=%s/volIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s&' %(rosettadir,params['outdir'],params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'])
+	subprocess.Popen(cmd,shell=True)
 

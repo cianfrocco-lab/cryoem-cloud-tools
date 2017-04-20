@@ -23,7 +23,7 @@ def setupParserOptions():
                     help="EM map in .mrc format")
 	parser.add_option("--fasta",dest="fasta",type="string",metavar="FILE",
                     help=".fasta file for the structure")
-	parser.add_option("--num",dest="num",type="int",metavar="INTEGER",default=5,
+	parser.add_option("--num",dest="num",type="int",metavar="INTEGER",default=1,
                     help="number of structures per CPU (Default = 1)")
 	parser.add_option("-r", action="store_true",dest="relax",default=False,
                     help="run rosetta relax instead of CM")
