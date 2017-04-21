@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from operator import itemgetter
 import pickle
 import datetime
 import shutil
@@ -48,6 +49,7 @@ if __name__ == "__main__":
 
 	params=setupParserOptions()
         startTime=datetime.datetime.utcnow()
+	now=datetime.datetime.now()
 	startday=now.day
         starthr=now.hour
         startmin=now.minute
@@ -65,8 +67,23 @@ if __name__ == "__main__":
 
 	l='%s/rosetta.out' %(params['outdir'])
 
-	cmd="echo 'Starting to check status of Rosetta refinement at %sUTC' >> %s" %(startTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+	cmd="echo 'Rosetta model refinement started at %sUTC' >> %s" %(startTime.strftime('%Y-%m-%dT%H:%M:00'),l)
 	subprocess.Popen(cmd,shell=True).wait()
+
+	cmd="echo '' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+	cmd="echo 'Checking job completion status (updates every 5 minutes)' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+	cmd="echo '' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+	cmd="echo 'Rosetta refinements typically take 1 - 6 hours' >> %s" %(l)
+	subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo '' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
 
 	os.makedirs('%s/output' %(params['outdir']))
 
@@ -76,23 +93,34 @@ if __name__ == "__main__":
 	        isdone=0
         	while isdone == 0:
                 	#If cloudwatch has load < 5% BUT there aren't finished PDBs yet, job crashed. Terminate.
-	                currentTime=datetime.datetime.utcnow()
+	                time.sleep(300)
+			currentTime=datetime.datetime.utcnow()
         	        if os.path.exists('%s/cloudwatchtmp.log'%(params['outdir'])):
                 	        os.remove('%s/cloudwatchtmp.log'%(params['outdir']))
 	                cmd='aws cloudwatch get-metric-statistics --metric-name CPUUtilization --start-time %s  --period 300 --namespace AWS/EC2 --statistics Average --dimensions Name=InstanceId,Value=%s --end-time %s > %s/cloudwatchtmp.log' %(startTime.strftime('%Y-%m-%dT%H:%M:00'),instanceIDlist[counter],currentTime.strftime('%Y-%m-%dT%H:%M:00'),params['outdir'])
         	        subprocess.Popen(cmd,shell=True).wait()
                 	o1=open('%s/cloudwatchtmp.log'%(params['outdir']),'r')
+			testflag=0
 	                for line in o1:
         	                if len(line.split())>0:
                 	                if line.split()[0] == '"Average":':
                         	                load=float(line.split()[1][:-1])
-                                	        cmd="echo 'Current load on instance %i is %f at %sUTC' >> %s" %(counter+1,load,currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
-                                                subprocess.Popen(cmd,shell=True).wait()
+						if load >= loadMin: 
+							if testflag==0: 
+								cmd='echo "...running...   (%sUTC)" >> %s' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+								subprocess.Popen(cmd,shell=True).wait()
+								testflag=1
+								cmd='echo "" >> %s' %(l)
+                                                                subprocess.Popen(cmd,shell=True).wait()
+
 						if load < loadMin:
 							#Download all pdb files, take note if you didn't download enough files consdiering number of models requested
 	                                                isdone=1
-							cmd='echo "--------> Instance %i finished at %sUTC" >> %s' %(counter+1,currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+							testflag=1
+							cmd='echo "Job finished on #%i at %sUTC" >> %s' %(counter+1,currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
 							subprocess.Popen(cmd,shell=True).wait()
+							cmd='echo "Transferring PDB and score files into output directory" >> %s' %(l)
+                                                        subprocess.Popen(cmd,shell=True).wait()
         						currCounter=1				
 							while currCounter <= params['numPerInstance']:
 								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
@@ -108,10 +136,9 @@ if __name__ == "__main__":
 
 		        o1.close()
                 	os.remove('%s/cloudwatchtmp.log'%(params['outdir']))
-	                time.sleep(60)
 		counter=counter+1
 
-        cmd='echo "Rosetta refinement finished. Shutting down instances %s" >> %s' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+        cmd='echo "Rosetta refinement finished. Shutting down instances at %sUTC" >> %s' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	counter=0
@@ -127,14 +154,94 @@ if __name__ == "__main__":
         	subprocess.Popen(cmd,shell=True).wait()
 		counter=counter+1
 
-        #now=datetime.datetime.now()
-        #finday=now.day
-        #finhr=now.hour
-        #finmin=now.minute
-        #if finday != startday:
-        #        finhr=finhr+24
-        #deltaHr=finhr-starthr
-        #if finmin > startmin:
-        #        deltaHr=deltaHr+1
+        now=datetime.datetime.now()
+        finday=now.day
+        finhr=now.hour
+        finmin=now.minute
+        if finday != startday:
+                finhr=finhr+24
+        deltaHr=finhr-starthr
+        if finmin > startmin:
+                deltaHr=deltaHr+1
 
+	listname = '%s/output/*.sc' %(params['outdir'])	
+	f1 = glob.glob(listname)
+        
+	#Create output file
+	outputsc = '%s/model_scores.txt' %(params['outdir'])
+
+	#Open output box file for writing new lines
+        outputsc_write = open(outputsc,'w')
+
+	for sc in f1:
+
+		#Generate the score file name, file number etc.
+		splitSc = sc.split('/')
+		file_name_with_ext = '%s' %(splitSc[-1])
+                file_name = '%s' %(file_name_with_ext[:-3])
+                file_number = '%s' %(file_name[5:])
+
+		#Open score file for reading
+        	inputsc = open(sc,'r')
+		counter = 1
+		
+		#Loop over all lines in the input scorefile
+        	for line in inputsc:
+			#Split line into values that were separated by tabs
+                	splitLine = line.split()
+		
+                	if len(line.split()) > 2:
+				if not splitLine[1] == 'total_score':
+
+					#Write out the name of the pdb and the energr score
+                    			outputsc_write.write('%s/output/%s.pdb\t%s\n' %(params['outdir'],splitLine[-1],splitLine[1]))
+					counter = counter + 1
+
+	outputsc_write.close()
+
+
+	#Create sorted file
+	sorted_outputsc = '%s_ranked.txt' %(outputsc[:-4])
+
+
+	with open('%s' %(outputsc)) as fin:
+		data =[]
+		for line in fin:
+			line = line.split()
+			line[1] = float(line[1])
+			data.append(line)
+
+
+		data.sort(key=itemgetter(1))
+		
+		with open('%s' %(sorted_outputsc), 'w') as fout:
+			for e1 in data:
+				#e2 = str(e1)
+				#fout.write ('{0}\n'.format('\t'.join(str(e1))))
+				fout.write ('\t'.join('{}'.format(i) for i in e1))
+				fout.write('\n')
+
+	os.makedirs('%s/top_10_models' %(params['outdir']))
+
+	maxcounter=10
+	counter=1
+	filenumlines=len(open(sorted_outputsc,'r').readlines())
+	if filenumlines < maxcounter: 
+		maxcounter=filenumlines
+	while counter<=maxcounter: 
+		modfile=linecache.getline(sorted_outputsc,counter).split()[0].strip()
+		shutil.copyfile(modfile,'%s/top_10_models/%s' %(params['outdir'],modfile.split('/')[-1]))
+		counter=counter+1
+
+	badfiles=glob.glob('%s/aws*log' %(params['outdir']))
+	for badfile in badfiles: 
+		os.remove(badfile)
+	if os.path.exists('%s/instanceIPlist.txt'%(params['outdir'])): 
+		os.remove('%s/instanceIPlist.txt'%(params['outdir']))
+	if os.path.exists('%s/volIDlist.txt'%(params['outdir'])): 
+		os.remove('%s/volIDlist.txt'%(params['outdir']))
+	if os.path.exists('%s/instanceIDlist.txt' %(params['outdir'])): 
+		os.remove('%s/instanceIDlist.txt' %(params['outdir']))
+	if os.path.exists('%s/tmp4949585940.txt' %(params['outdir'])): 
+		os.remove('%s/tmp4949585940.txt' %(params['outdir']))
 

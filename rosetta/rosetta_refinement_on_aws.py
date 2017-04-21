@@ -123,11 +123,11 @@ def checkConflicts(params,outdir):
 #================================================
 if __name__ == "__main__":
 
-	print '\nStarting Rosetta model refinement in the cloud ...\n'
+	print '\n\nStarting Rosetta model refinement in the cloud ...\n'
 
 	##Hard coded values
 	sizeneeded=100
-	instance='m4.xlarge'
+	instance='c4.xlarge'
 	numthreads=4
 	loadMin=5
 	numToRequest=4
@@ -187,7 +187,7 @@ if __name__ == "__main__":
 		volIDlist.append(volID)
 		time.sleep(10)
 		counter=counter+1
-	print '\nLaunching %i virtual machine(s) %s on AWS in region %sa (initialization will take a few minutes)\n' %(numInstances,instance,awsregion)
+	print 'Launching %i virtual machine(s) %s on AWS in region %sa (initialization will take a few minutes)\n' %(numInstances,instance,awsregion)
 
 	counter=0	
 	while counter < numInstances:
@@ -225,7 +225,7 @@ if __name__ == "__main__":
 	cmd='chmod +x %s/run_final.sh' %(params['outdir'])
 	subprocess.Popen(cmd,shell=True).wait()
 
-	print '\nUploading files to AWS ...\n'
+	print 'Uploading files to AWS ...\n'
 
 	counter=0
 	while counter < numInstances: 
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 		counter=counter+1
 
 	#Start waiting script: Should be in teh background so users can log out
-	print 'Rosetta job submitted on AWS! Monitor output file: %s/rosetta.out to check status of job\n' %(params['outdir'])
+	print 'Rosetta job submitted on AWS! Monitor output file: %s/rosetta.out to check status of job\n\n' %(params['outdir'])
 
 	cmd='touch %s/rosetta.out' %(params['outdir'])
 	subprocess.Popen(cmd,shell=True).wait()
