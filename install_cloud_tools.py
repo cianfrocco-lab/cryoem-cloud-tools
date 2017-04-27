@@ -244,20 +244,14 @@ if cloudtoolsonly is False:
 '''
 #Write environmental variables into text file
 o1=open('%s/external_software.init' %(install_location),'w')
-#if cloudtoolsonly is False: 
-#	if needFabric is True: 
-#		o1.write('export PATH=%s/fabric/bin:$PATH\n' %(install_location))
-#		o1.write('export PYTHONPATH=%s/fabric/lib/python2.7/site-packages/:$PYTHONPATH\n' %(install_location))
-#if needAWSCLI is True:
-o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws/bin/:$PATH\n' %(install_location))
-o1.write('export PYTHONPATH=%s/cryoem-cloud-tools/external_software/aws/lib/python2.7/site-packages/\n' %(install_location))
-#if installRelion is True: 
-o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/bin/:$PATH\n' %(install_location))
-o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/lib:$LD_LIBRARY_PATH\n' %(install_location))
-#if cloudtoolsonly is False: 
-#	if installMPI is True: 
-#		o1.write('export PATH=%s/relion2.0/external_software/openmpi-2.0.2/bin:$PATH\n' %(install_location))
-#		o1.write('export LD_LIBRARY_PATH=%s/relion2.0/external_software/openmpi-2.0.2/lib:$LD_LIBRARY_PATH\n' %(install_location))
+if uname == 'Darwin':
+	o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws-mac/bin/:$PATH\n' %(install_location))
+	o1.write('export PYTHONPATH=%s/cryoem-cloud-tools/external_software/aws-mac/lib/python2.7/site-packages/\n' %(install_location))
+	o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/bin/:$PATH\n' %(install_location))
+	o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/lib:$LD_LIBRARY_PATH\n' %(install_location))
+if uname == 'Linux':
+        o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/bin/:$PATH\n' %(install_location))
+        o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/lib:$LD_LIBRARY_PATH\n' %(install_location))
 o1.close()
 
 #Copy aws_init.sh into install_location
@@ -293,4 +287,5 @@ if uname == 'Linux':
 print '\n2.) Download AWS keypair and put it in a secure location (e.g. %s/)' %(install_location)
 print '\n3.) Open and edit the file %s/aws_init.sh\n' %(install_location)
 print 'Place your information for AWS into the lines indicated: #INPUT REQUIRED\n'
-
+if uname == 'Linux':
+	print '\n4.) Install AWSCLI: $ pip install awscli'
