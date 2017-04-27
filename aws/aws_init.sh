@@ -12,6 +12,10 @@
 #$ source path/to/aws_init.sh 
 
 #AWS credentials 
+##Important - there cannot be any space between = and your information.
+##Example line: 
+###export AWS_ACCESS_KEY_ID=111111111
+
 export AWS_ACCESS_KEY_ID= #INPUT REQUIRED
 export AWS_SECRET_ACCESS_KEY= #INPUT REQUIRED
 export AWS_ACCOUNT_ID= #INPUT REQUIRED
