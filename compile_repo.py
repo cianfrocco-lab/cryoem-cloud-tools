@@ -4,8 +4,8 @@ import glob
 import os
 import subprocess
 
-notincluded=['aws_init.sh','rclone','rclone_mac','aws_init.sh']
-
+notincluded=['aws_init.sh','rclone','rclone_mac','aws_init.sh','s3tmpout.txt']
+outdirname='aws_build_linux' #Choices: aws_build_linux, aws_build_osx
 filelist=glob.glob('aws/*')
 
 for f in filelist: 
@@ -17,11 +17,11 @@ for f in filelist:
 	subprocess.Popen(cmd,shell=True).wait()
 	f1=f.split('/')[-1]
 	if f1[-2:] == 'py': 
-		cmd='mv dist/%s aws_build_osx/%s' %(f1[:-3],f1)
+		cmd='mv dist/%s %s/%s' %(f1[:-3],outdirname,f1)
 		print cmd
 		subprocess.Popen(cmd,shell=True).wait()
 	else:
-		cmd='mv dist/%s aws_build_osx/%s' %(f1,f1)
+		cmd='mv dist/%s %s/%s' %(f1,outdirname,f1)
 		print cmd
                 subprocess.Popen(cmd,shell=True).wait()
 
@@ -30,17 +30,19 @@ for f in filelist:
 cmd='pyinstaller relion/qsub_aws --onefile'
 subprocess.Popen(cmd,shell=True).wait()
 
-cmd='mv dist/qsub_aws aws_build_osx/'
+cmd='mv dist/qsub_aws %s/' %(outdirname)
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('qsub_aws.spec')
 
-os.remove('install_cloud_tools')
+if os.path.exists('install_cloud_tools'):
+	os.remove('install_cloud_tools')
 cmd='pyinstaller install_cloud_tools.py --onefile'
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('install_cloud_tools.spec')
 
-cmd='mv dist/install_cloud_tools install_cloud_tools_macOSX'
-subprocess.Popen(cmd,shell=True).wait()
+if outdirname == 'aws_build_linux':  
+	cmd='mv dist/install_cloud_tools install_cloud_tools_Linux'
+	subprocess.Popen(cmd,shell=True).wait()
 
 shutil.rmtree('dist')
 shutil.rmtree('build')
