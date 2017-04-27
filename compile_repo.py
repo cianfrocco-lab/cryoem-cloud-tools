@@ -39,9 +39,13 @@ subprocess.Popen(cmd,shell=True).wait()
 os.remove('install_cloud_tools.spec')
 
 if outdirname == 'aws_build_linux':  
+	if os.path.exists('install_cloud_tools/install_cloud_tools_Linux'):
+		os.remove('install_cloud_tools/install_cloud_tools_Linux')
 	cmd='mv dist/install_cloud_tools install_cloud_tools/install_cloud_tools_Linux'
 	subprocess.Popen(cmd,shell=True).wait()
 if outdirname == 'aws_build_osx':
+	if os.path.exists('install_cloud_tools/install_cloud_tools_macOSX'):
+		os.remove('install_cloud_tools/install_cloud_tools_macOSX')
 	cmd='mv dist/install_cloud_tools install_cloud_tools/install_cloud_tools_macOSX'
 	subprocess.Popen(cmd,shell=True).wait()
 shutil.rmtree('dist')
