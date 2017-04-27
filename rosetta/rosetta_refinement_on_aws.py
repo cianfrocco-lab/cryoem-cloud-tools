@@ -130,7 +130,7 @@ if __name__ == "__main__":
 	instance='c4.xlarge'
 	numthreads=4
 	loadMin=5
-	numToRequest=4
+	numToRequest=12
         params=setupParserOptions()
 
 	if numToRequest % numthreads != 0:
@@ -176,6 +176,7 @@ if __name__ == "__main__":
                         print 'Error: Rosetta file preparation failed, was unable to create %s/relax_final.xml. Exiting' %(params['outdir'])
                         sys.exit()
 
+	'''
 	#Create EBS volume
 	counter=0
 	volIDlist=[]
@@ -187,14 +188,15 @@ if __name__ == "__main__":
 		volIDlist.append(volID)
 		time.sleep(10)
 		counter=counter+1
+	'''
 	print 'Launching %i virtual machine(s) %s on AWS in region %sa (initialization will take a few minutes)\n' %(numInstances,instance,awsregion)
 
 	counter=0	
 	while counter < numInstances:
 		#Launch instance
-        	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s --AMI=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,volID,params['AMI'],params['outdir'],counter)
+        	cmd='%s/launch_AWS_instance.py --noEBS --instance=%s --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,params['AMI'],params['outdir'],counter)
 	        subprocess.Popen(cmd,shell=True)
-        	time.sleep(10)
+        	time.sleep(30)
 		counter=counter+1
 	
 	counter=0
@@ -269,9 +271,9 @@ if __name__ == "__main__":
 		pickle.dump(instanceIPlist,fp)
 	with open('%s/instanceIDlist.txt' %(params['outdir']),'wb') as fp:
                 pickle.dump(instanceIDlist,fp)
-	with open('%s/volIDlist.txt' %(params['outdir']),'wb') as fp:
-                pickle.dump(volIDlist,fp)
+	#with open('%s/volIDlist.txt' %(params['outdir']),'wb') as fp:
+        #        pickle.dump(volIDlist,fp)
 	
-	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --volIDlist=%s/volIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s&' %(rosettadir,params['outdir'],params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'])
+	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s&' %(rosettadir,params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'])
 	subprocess.Popen(cmd,shell=True)
 

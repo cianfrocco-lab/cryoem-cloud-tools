@@ -23,8 +23,8 @@ def setupParserOptions():
                     help="Instance ID list (pickle dump)")
         parser.add_option("--instanceIPlist",dest="instanceIP",type="string",metavar="FILE",
                     help="Instance IP list (pickle dump)")
-        parser.add_option("--volIDlist",dest="volID",type="string",metavar="FILE",
-                    help="Volume ID list (pickle dump)")
+        #parser.add_option("--volIDlist",dest="volID",type="string",metavar="FILE",
+        #            help="Volume ID list (pickle dump)")
         parser.add_option("--numModels",dest="numModels",type="int",metavar="INT",
                     help="Total number of models in rosetta run")
 	parser.add_option("--numPerInstance",dest="numPerInstance",type="int",metavar="Number",
@@ -60,8 +60,8 @@ if __name__ == "__main__":
 	#Read in pickle files
 	with open (params['instanceIP'], 'rb') as fp:
 		instanceIPlist = pickle.load(fp)
-	with open (params['volID'], 'rb') as fp:
-                volIDlist = pickle.load(fp)
+	#with open (params['volID'], 'rb') as fp:
+        #        volIDlist = pickle.load(fp)
 	with open (params['instanceID'], 'rb') as fp:
                 instanceIDlist = pickle.load(fp)
 
@@ -124,6 +124,7 @@ if __name__ == "__main__":
         						currCounter=1				
 							while currCounter <= params['numPerInstance']:
 								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
+								print cmd
 								subprocess.Popen(cmd,shell=True).wait()		
 
 								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/score_%i.sc %s/output/S_%i_0001_score.sc' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
@@ -150,8 +151,8 @@ if __name__ == "__main__":
                     		isdone=1
               	time.sleep(10)
 
-        	cmd='aws ec2 delete-volume --volume-id %s > %s/tmp4949585940.txt' %(volIDlist[counter],params['outdir'])
-        	subprocess.Popen(cmd,shell=True).wait()
+        	#cmd='aws ec2 delete-volume --volume-id %s > %s/tmp4949585940.txt' %(volIDlist[counter],params['outdir'])
+        	#subprocess.Popen(cmd,shell=True).wait()
 		counter=counter+1
 
         now=datetime.datetime.now()
@@ -238,10 +239,30 @@ if __name__ == "__main__":
 		os.remove(badfile)
 	if os.path.exists('%s/instanceIPlist.txt'%(params['outdir'])): 
 		os.remove('%s/instanceIPlist.txt'%(params['outdir']))
-	if os.path.exists('%s/volIDlist.txt'%(params['outdir'])): 
-		os.remove('%s/volIDlist.txt'%(params['outdir']))
+	#if os.path.exists('%s/volIDlist.txt'%(params['outdir'])): 
+	#	os.remove('%s/volIDlist.txt'%(params['outdir']))
 	if os.path.exists('%s/instanceIDlist.txt' %(params['outdir'])): 
 		os.remove('%s/instanceIDlist.txt' %(params['outdir']))
 	if os.path.exists('%s/tmp4949585940.txt' %(params['outdir'])): 
 		os.remove('%s/tmp4949585940.txt' %(params['outdir']))
 
+	cmd='echo "" >> %s' %(l)
+	subprocess.Popen(cmd,shell=True).wait()
+
+	cmd='echo "List of models and associated Rosetta score: %s/model_scores.txt" >> %s' %(params['outdir'],l)
+	subprocess.Popen(cmd,shell=True).wait()
+
+	cmd='echo "" >> %s' %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd='echo "List of models ranked by score, best (lowest energy) to worst score: %s/model_scores_ranked.txt" >> %s' %(params['outdir'],l)
+        subprocess.Popen(cmd,shell=True).wait()
+	
+	cmd='echo "" >> %s' %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd='echo "Top 10 models with lowest energy can be found: %s/top_10_models/" >> %s' %(params['outdir'],l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+	cmd='echo "" >> %s' %(l)
+        subprocess.Popen(cmd,shell=True).wait()
