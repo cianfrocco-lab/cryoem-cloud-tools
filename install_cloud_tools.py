@@ -265,7 +265,7 @@ for line in o1:
 		line='='.join(l)+'\n'
 	if 'aws_aliases.sh' in line: 
 		if uname == 'Linux': 
-			line='source $AWS_DIR/aws_aliases.sh\n'
+			line='source $AWS_DIR/aws_aliases_linux.sh\n'
 		if uname == 'Darwin': 
 			line='source $AWS_DIR/aws_aliases_osx.sh\n'
 	newout.write(line)
