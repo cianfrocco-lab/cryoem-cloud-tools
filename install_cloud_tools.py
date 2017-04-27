@@ -286,6 +286,19 @@ if uname == 'Linux':
         print 'source %s/aws_init.sh' %(install_location)
 print '\n2.) Download AWS keypair and put it in a secure location (e.g. %s/)' %(install_location)
 print '\n3.) Open and edit the file %s/aws_init.sh\n' %(install_location)
-print 'Place your information for AWS into the lines indicated: #INPUT REQUIRED\n'
+print 'Place your information for AWS into the lines indicated: #INPUT REQUIRED'
 if uname == 'Linux':
 	print '\n4.) Install AWSCLI: $ pip install awscli'
+	print '\n5.) Install Relion-2.0:'
+	print '\nFor Ubuntu:'
+	print '$ sudo apt-get update'
+	print '$ sudo apt-get install openmpi-bin build-essential libx11-dev libextutils-f77-perl libopenmpi-dev libcr-dev mpich mpich-doc build-essential git cmake libqt4-dev libphonon-dev python2.7-dev libxml2-dev libfltk-gl1.3 libfftw3-double3'
+	print '$ git clone https://github.com/3dem/relion.git'
+	print '$ cd relion/'
+	print '$ mkdir build'
+	print '$ cd build/'
+	print '$ cmake -DCMAKE_INSTALL_PREFIX=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/ ..' %(install_location)
+	print '$ make -j4'
+	print '$ make install'
+	print '\nNOTE: If you do not put Relion software into directory listed above, update the software environment paths in the file %s/external_software.sh'
+
