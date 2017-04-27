@@ -46,7 +46,6 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 	env.host_string='ubuntu@%s' %(IP)
         env.key_filename = '%s' %(keypair)
 	rcloneexe='rclone'
-	print '%s/%s copy rclonename:%s %s --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime)
 	exec_remote_cmd('%s/%s copy rclonename:%s %s --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,numfilesAtATime))
 
 	fileonly=dironebs.split('/')[-1]
