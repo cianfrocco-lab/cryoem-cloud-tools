@@ -34,14 +34,12 @@ cmd='mv dist/qsub_aws %s/' %(outdirname)
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('qsub_aws.spec')
 
-if os.path.exists('install_cloud_tools'):
-	os.remove('install_cloud_tools')
 cmd='pyinstaller install_cloud_tools.py --onefile'
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('install_cloud_tools.spec')
 
 if outdirname == 'aws_build_linux':  
-	cmd='mv dist/install_cloud_tools install_cloud_tools_Linux'
+	cmd='mv dist/install_cloud_tools install_cloud_tools/install_cloud_tools_Linux'
 	subprocess.Popen(cmd,shell=True).wait()
 
 shutil.rmtree('dist')
