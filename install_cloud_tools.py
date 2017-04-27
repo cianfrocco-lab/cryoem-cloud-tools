@@ -17,12 +17,7 @@ if len(sys.argv) == 2:
 		print '\nBy default, the program will install the software into %s/CloudSoftwareTools.' %(homepath)
 		print '\nTo specify an alternative installation path, specify --prefix {new install path}'
 		print '\nThis program will check if the following programs are installed and then install any missing packages:'
-		print '\t* relion2.0'
-		print '\t* openmpi'
 		print '\t* cryoem-cloud-tools'
-		print '\t* fabric'
-		print '\t* awscli' 
-		print '\nIf you only want to install cryoem-cloud-tools (not relion, openmpi, etc.), include the option --cloudToolsOnly\n'
 		sys.exit()
 
 	if sys.argv[1] != '-h':
@@ -32,12 +27,7 @@ if len(sys.argv) == 2:
 	                print '\nBy default, the program will install the software into %s/CloudSoftwareTools.' %(homepath)
         	        print '\nTo specify an alternative installation path, specify --prefix {new install path}'
                 	print '\nThis program will check if the following programs are installed and then install any missing packages:'
-	                print '\t* relion2.0'
-        	        print '\t* openmpi'
                 	print '\t* cryoem-cloud-tools'
-	                print '\t* fabric'
-        	        print '\t* awscli'
-                	print '\nIf you only want to install cryoem-cloud-tools (not relion, openmpi, etc.), include the option --cloudToolsOnly\n'
                 	sys.exit()
 
 		if sys.argv[1] == '--cloudToolsOnly': 
