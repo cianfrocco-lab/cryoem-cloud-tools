@@ -1537,7 +1537,7 @@ def getCMDpreprocessMovie(infile):
 					rlncmdrefine=rlncmd
 				#return rlncmd,partdir,ref,outdir,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter
 					
-        return rlncmdpre,micstar,boxdir,boxbase,outdir,extractDir,rlncmdrefine,partdir,ref,outdir,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter
+        return rlncmdpre,micstar,boxdir,boxbase,outdir,extractDir,rlncmdrefine,partdir,ref,outdir,outbasename,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter
 
 #==============================
 def getMicStarFileSize(micstar):
@@ -1556,7 +1556,7 @@ def getMicStarFileSize(micstar):
 def relion_movie_refine(project):
 
 	#Get relion command and input options
-	rlncmdpre,micstar,boxdir,boxbase,outdir,extractDir,rlncmdrefine,partdir,ref,outdirRef,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter=getCMDpreprocessMovie(infile)
+	rlncmdpre,micstar,boxdir,boxbase,outdir,extractDir,rlncmdrefine,partdir,ref,outdirRef,outdirRefFull,autoref,numiters,partstarname,mask,stack,contLocation,outbasename,particlediameter=getCMDpreprocessMovie(infile)
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
 	relioncmdpre=parseCMDpreprocess(rlncmdpre)
@@ -1566,9 +1566,12 @@ def relion_movie_refine(project):
 	numParticlesIn=float(subprocess.Popen('cat %s_data.star | grep mrc | wc -l' %(contLocation[:-15]), shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 
 	#Choose instance type
-	instance='d2.xlarge'
-        mpi=4
-	cost=1.38
+	instance='d2.8xlarge'
+        mpi=36
+	drives='/dev/xvdb /dev/xvdc /dev/xvdd /dev/xvde /dev/xvdf /dev/xvdg /dev/xvdh /dev/xvdi /dev/xvdj /dev/xvdk /dev/xvdl /dev/xvdm /dev/xvdn /dev/xvdo /dev/xvdp /dev/xvdq /dev/xvdr /dev/xvds /dev/xvdt /dev/xvdu /dev/xvdv /dev/xvdw /dev/xvdx /dev/xvdy'
+	#drives='/dev/xvdb /dev/xvdc /dev/xvdd'
+	numRaid=24
+	cost=5.52
 	#if numParticlesIn>10000:
 	#	instance='m4.10xlarge'
 	#        mpi=40
@@ -1768,6 +1771,7 @@ def relion_movie_refine(project):
                         	        dirtransfer=line.split()[microcol-1].split(miconly)[0]	
 		micdir=dirtransfer
 
+	'''
 	if ebs_exist is False:
 		writeToLog('Creating data storage drive ...','%s/run.out' %(outdir))
         	#Create EBS volume
@@ -1778,13 +1782,16 @@ def relion_movie_refine(project):
 
         	#Get volID from logfile
         	volID=linecache.getline('%s/awsebs.log'%(outdir),5).split('ID: ')[-1].split()[0]
-
+	'''
 	writeToLog('Launching virtual machine ...','%s/run.out' %(outdir))
 
 	#Launch instance
+	#Specify ami
+	AMI='ami-5d26b83d'
+
 	if os.path.exists('%s/awslog.log'%(outdir)):
 		os.remove('%s/awslog.log'%(outdir))
-	cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --AMI=%s --instance=%s --availZone=%sa --noEBS > %s/awslog.log' %(awsdir,AMI,instance,awsregion,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	now=datetime.datetime.now()
@@ -1798,18 +1805,18 @@ def relion_movie_refine(project):
 	#Create directories on AWS
 	env.host_string='ubuntu@%s' %(userIP)
 	env.key_filename = '%s' %(keypair)
-	dirlocation='/data'
-	for entry in boxdir.split('/'):
-		exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
-		dirlocation=dirlocation+'/'+entry
-
 
 	writeToLog('Transferring data ...','%s/run.out' %(outdir))
 
-	cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s*  ubuntu@%s:%s/ > %s/rsync.log' %(keypair,boxbase,userIP,dirlocation,outdir)
+	#Format Raid0 drive on d2 instance
+	exec_remote_cmd('sudo mdadm --create --verbose /dev/md0 --level=stripe --raid-devices=%i %s' %(numRaid,drives))
+	exec_remote_cmd('sudo mkfs.ext4 -L MY_RAID /dev/md0')
+	exec_remote_cmd('sudo mount LABEL=MY_RAID /data')
+	exec_remote_cmd('sudo chmod 777 /data/')
+
+	cmd='rsync -R -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" %s*  ubuntu@%s:/data/ > %s/rsync.log' %(keypair,boxbase,userIP,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 
-	#Make output directories
 	dirlocation='/data'
         for entry in outdir.split('/'):
                 if len(entry.split('.star')) == 1:
@@ -1836,7 +1843,7 @@ def relion_movie_refine(project):
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 		numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 	if ebs_exist is False:
-		s3_to_ebs(userIP,keypair,bucketname,'/data/Micrographs/' %(origdir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,math.ceil(mpi*2.4))
+		s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(origdir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,math.ceil(mpi*2.4))
 	if Eebs_exist is False: 
 		s3_to_ebs(userIP,keypair,Ebucketname,'/data/%s' %(extractDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,math.ceil(mpi*2.4))
 
@@ -1886,11 +1893,13 @@ def relion_movie_refine(project):
         time.sleep(5)
 	subprocess.Popen(cmd,shell=True)
 
+	nextIt=int(boxdir[-3:])
+
 	isdone=0
         while isdone == 0:
                 cmd='rsync --max-size=0.2G -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(keypair,userIP,outdir,outdir,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
-                if os.path.exists('%s/%s_data.star' %(outdirRef)):
+                if os.path.exists('%s_it%03i_data.star' %(outdirRefFull,nextIt)):
                         isdone=1
                 time.sleep(10)
         time.sleep(30)
@@ -1939,10 +1948,10 @@ def relion_movie_refine(project):
 		tmpout.close()
                 os.remove('.aws_relion_tmp')
 
-        cmd='echo "%s     %s      %s" >> .aws_relion' %(micstar,bucketname,volID)
+        cmd='echo "%s     %s      %s" >> .aws_relion' %(micstar,bucketname,'-')
 	subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='echo "%s     %s      %s" >> .aws_relion' %(outdir,bucketname,volID)
+	cmd='echo "%s     %s      %s" >> .aws_relion' %(outdir,bucketname,'-')
         subprocess.Popen(cmd,shell=True).wait()
 
 	if len(project) > 0:
