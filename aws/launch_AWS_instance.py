@@ -114,9 +114,10 @@ def checkConflicts(params,availInstances):
 		#AMI='ami-26139046'
 		AMI='ami-eacd558a'
 	if params['instance'].split('.')[0] != 'p2':
-		AMI='ami-bc08c3dc'
+		#AMI='ami-bc08c3dc'
+		AMI='ami-eacd558a'
 	if params['relion2'] is True:
-		AMI='ami-26139046'
+		AMI='ami-eacd558a'
     if params['AMI'] != 'None': 
         AMI=params['AMI']
 
