@@ -111,7 +111,8 @@ def checkConflicts(params,availInstances):
 		AMI='ami-69eba27e'
     if AWS_DEFAULT_REGION == 'us-west-2':
         if params['instance'].split('.')[0] == 'p2':
-		AMI='ami-26139046'
+		#AMI='ami-26139046'
+		AMI='ami-eacd558a'
 	if params['instance'].split('.')[0] != 'p2':
 		AMI='ami-bc08c3dc'
 	if params['relion2'] is True:
