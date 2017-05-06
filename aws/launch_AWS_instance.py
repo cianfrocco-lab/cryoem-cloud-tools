@@ -152,12 +152,13 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     SGexist=False
     SGGroupName=''
     SGcounter=0 
+    cidrout='cidrtmp_%i.log' %(int(time.time()))
     while SGcounter < numSecurityGroups: 
-	cmd='aws ec2 describe-security-groups --query "SecurityGroups[%i].IpPermissions[*]" | grep Cidr > cidrtmp.log' %(SGcounter)
+	cmd='aws ec2 describe-security-groups --query "SecurityGroups[%i].IpPermissions[*]" | grep Cidr > %s' %(SGcounter,cidrout)
 	if params['debug'] is True:
 		print cmd
 	subprocess.Popen(cmd,shell=True).wait()
-    	r1=open('cidrtmp.log','r')
+    	r1=open(cidrout,'r')
     	for l1 in r1:	
 		sgIP=l1.split(':')[-1].split('"')[1]	
         	if params['debug'] is True: 
@@ -172,7 +173,7 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 					securityGroupName=SGGroupName.split(':')[-1].split('"')[1]	
 					SGexist=True
     	r1.close()
-    	os.remove('cidrtmp.log')
+    	os.remove(cidrout)
     	SGcounter=SGcounter+1
 
     if params['debug'] is True:
