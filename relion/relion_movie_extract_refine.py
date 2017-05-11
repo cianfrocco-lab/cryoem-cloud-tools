@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import shutil 
 import time
 import linecache
 import sys
@@ -6,59 +7,33 @@ import os
 import subprocess
 
 micstar=sys.argv[1]
-numThreads=int(sys.argv[2])
-micBucketName=sys.argv[3]
-movieBucket=sys.argv[4]
-numFilesAtATime=int(sys.argv[5])
-aligntype=sys.argv[6] #unblur vs. motioncorr vs. motioncor2
+micBucketName=sys.argv[2]
+micDir=sys.argv[3]
+numThreads=float(sys.argv[4])
+extractBucket=sys.argv[5]
+extractDest=sys.argv[6]
 relioncmd=sys.argv[7]
-gainref=sys.argv[8]
-outdir=sys.argv[9]
-angpix=float(sys.argv[10])
-savemovies=sys.argv[11]
-'''
-#Files to upload: 
--CTF information
--Box files
+outdir=sys.argv[8]
+number=int(sys.argv[9])
 
-#Inputs required:
-micstar=
-numFilesAtATime=
-relioncmd=
-outdir=
-alignedMovieBucketName= 
-numthreadextract=
-numthreadrefine=
-batchSiz=[Hard coded but needs to be optimized]
-
-Other notes:
-#Ebs volume needs to be IO1
-
-'''if numThreads==1:
-	numToGet=1
-	numFilesAtATime=1
-	group1_s=0
-	group1_f=1
-	group2_s=2
-        group2_f=3
-if numThreads==8: 
-	numToGet=8
-	numFilesAtATime=8
-	group1_s=8
-	group1_f=19
-	group2_s=20
-	group2_f=31
+if numThreads==4: 
+	numToGet=4
+	numFilesAtATime=4	
+	numMPI=4
+if numThreads==10:
+        numToGet=4
+        numFilesAtATime=4	
+	numMPI=4
 if numThreads == 16: 
 	numToGet=16
 	numFilesAtATime=16
-        group1_s=16
-        group1_f=38
-        group2_s=39
-        group2_f=63
-motioncor2path='/home/EM_Packages/MotionCor2/MotionCor2-08-22-2016'
-motioncorrpath='/home/EM_Packages/motioncorr_v2.1/bin/dosefgpu_driftcorr'
-unblurpath='/home/EM_Packages/unblur_1.0.2/bin/unblur_openmp_7_17_15.exe'
-summoviepath='/home/EM_Packages/summovie_1.0.2/bin/sum_movie_openmp_7_17_15.exe'
+if numThreads == 36:
+        numToGet=36
+        numFilesAtATime=36
+if numThreads == 87:
+        numToGet=36
+        numFilesAtATime=36
+	numMPI=36
 relionpath='/home/EM_Packages/relion2.0/build/bin/relion_run_motioncorr'
 relionhandler='/home/EM_Packages/relion2.0/build/bin/relion_image_handler'
 
@@ -116,140 +91,6 @@ def parseCMD(rlncmd):
 		preexp=rlncmd.split()[prenum]
 	return rlncmd.split()[outnum],rlncmd.split()[bnum],rlncmd.split()[firstnum],rlncmd.split()[lastnum],rlncmd.split()[binnum],patchx,patchy,kev,dose,preexp,apix
 
-#===================
-def checkLog(newcheck,aligntype): 
-	
-	finished='nope'
-	restart='no'
-
-	if aligntype == 'motioncorr':
-		print 'checking'
-		print '%s.log' %(newcheck[:-4])
-		if os.path.exists('%s.log' %(newcheck[:-4])): 
-			o44=open('%s.log' %(newcheck[:-4]),'r')
-			for line in o44: 
-				if len(line.split()) > 0: 
-					if line.split()[0] == 'Done.': 
-						finished='done'
-					if line.split()[0] == 'Failed': 
-						finished='nope'
-						restart='yes'
-			o44.close()
-	if aligntype == 'motioncor2':
-	  	print 'checking'
-		status=subprocess.Popen('cat %s.out | grep Computational' %(newcheck[:-4]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-		if len(status) > 0: 
-			finished='done'
-	return finished,restart
-
-#=====================
-def uploadRsync(dirToSync,outbucket,rclonetxt,filesAtATime,f1,f2,f3,f4): 
-	
-	outfile='rcloneupload_%0.i.txt' %(time.time())
-	if os.path.exists(outfile): 
-		time.sleep(2)
-	outfile='rcloneupload_%0.i.txt' %(time.time())
-
-	o33=open(outfile,'w')
-	o33.write('#!/bin/bash\n')
-	o33.write('taskset -c %i-%i ~/rclone sync %s %s --quiet --include-from %s --transfers %i > rclonetmp1.txt\n' %(group1_s,group1_f,dirToSync,outbucket,rclonetxt,filesAtATime))
-	o33.write('/bin/rm %s\n' %(f1))  #newcheck))
-	o33.write('/bin/rm %s\n' %(f2)) #newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4])
-	if os.path.exists(f3): 
-		o33.write('/bin/rm %s\n' %(f3)) 
-	if os.path.exists(f4): 
-		o33.write('/bin/rm %s\n' %(f4))
-	if os.path.exists("%s_DW.mrc" %(f4[:-4])): 
-		o33.write('/bin/rm %s_DW.mrc\n' %(f4[:-4]))
-	o33.write('/bin/rm %s\n' %(rclonetxt))
-	o33.close()
-	cmd='/bin/chmod +x %s' %(outfile)
-        subprocess.Popen(cmd,shell=True).wait()
-	cmd='./%s' %(outfile)
-        subprocess.Popen(cmd,shell=True)
-	
-def writeRunUnBlurSum(relioncmd,micname,additionalcmds,totframes): 
-	#--o MotionCorr/job082/ --first_frame_sum 1 --last_frame_sum 0 --use_unblur --j 1  --angpix 0.6 --dose_weighting --voltage 200 --dose_per_frame 1.3 --preexposure 0
-	tot=len(relioncmd.split())
-	counter=0
-	doseweight=False
-	savemovies=False
-	while counter < tot: 
-		entry=relioncmd.split()[counter]
-		if entry == '--o': 
-			outdir=relioncmd.split()[counter+1]
-		if entry == '--first_frame_sum': 
-			firstframe=relioncmd.split()[counter+1]
-		if entry == '--last_frame_sum': 
-			lastframesum=relioncmd.split()[counter+1]
-		if entry == '--angpix': 
-			apix=relioncmd.split()[counter+1]
-		if entry == '--dose_weighting': 
-			doseweight=True
-		if entry == '--dose_per_frame': 
-			doseperframe=relioncmd.split()[counter+1]
-		if entry == '--voltage': 
-			voltage=relioncmd.split()[counter+1]
-		if entry == '--preexposure': 
-			prexpose=relioncmd.split()[counter+1]
-		if entry == '--save_movies': 
-			savemovies=True
-		counter=counter+1
-	if float(lastframesum) == 0: 
-		lastframesum = totframes
-	outmicname='%s/%s' %(outdir,micname)
-	scriptrun='%s_unblur.com' %(outmicname[:-(len(outmicname.split('.')[-1])+1)])
-	unblurlog='%s_unblur.log' %(outmicname[:-(len(outmicname.split('.')[-1])+1)])
-	sumlog='%s_sum.log' %(outmicname[:-(len(outmicname.split('.')[-1])+1)])
-	shifts='%s_shifts.txt' %(outmicname[:-(len(outmicname.split('.')[-1])+1)])
-
-	finddirs=outmicname.split('/')
-	curr=''
-	for find in finddirs: 
-		if len(find) == 0: 
-			continue
-		if len(curr) > 0: 
-			curr=curr+'/'+find+'/'
-		if len(curr) == 0:
-                        curr=find+'/'
-		if os.path.isdir(curr) is False: 
-			if len(curr.split('.mrc')) == 1:
-				if curr != micname.split('/')[-1]: 
-					os.makedirs(curr)
-	if os.path.exists(scriptrun): 
-		os.remove(scriptrun)
-	o1=open(scriptrun,'w')
-	o1.write('#!/usr/bin/env /bin/bash\n')
-	o1.write('export  OMP_NUM_THREADS=1\n')
-	o1.write('/home/EM_Packages/unblur_1.0.2/bin/unblur_openmp_7_17_15.exe > %s << EOF\n' %(unblurlog))
-	o1.write('%s\n' %(micname))
-	o1.write('%s\n' %(totframes))
- 	o1.write('%s\n' %(outmicname))
-	o1.write('%s\n' %(shifts))
-	o1.write('%s\n' %(apix))
-	if doseweight is True: 
-		o1.write('YES\n')
-		o1.write('%s\n' %(doseperframe))
-		o1.write('%s\n' %(voltage))
-		o1.write('%s\n' %(prexpose))
-	if doseweight is False: 
-		o1.write('NO\n')
-	if savemovies is True: 
-		o1.write('YES\n')
-		movieout=outmicname.split('.')
-		del movieout[-1]
-		movieout='.'.join(movieout)
-		o1.write('%s_movie.mrc\n' %(movieout))
-	if savemovies is False: 
-		o1.write('NO\n')
-	o1.write('NO\n')
-	o1.write('EOF\n')
-	o1.close()
-	cmd='/bin/chmod +x %s' %(scriptrun)
-	subprocess.Popen(cmd,shell=True).wait()
-	cmd='./%s' %(scriptrun)
-	subprocess.Popen(cmd,shell=True)
-
 #Num header lines in micstar
 numheader=1
 destdir=''
@@ -271,23 +112,17 @@ for line in o1:
 			micflag=1
 		movielist.append(line)
 o1.close()
-#Get initial round of mics
+#Get mics
 counter=0
-
 if numToGet > len(movielist): 
 	numToGet==len(movielist)
 
 miclist=[]
-if len(destdir) > 0: 
-	if not os.path.exists(destdir): 
-		os.makedirs(destdir)
-	if not os.path.exists('%s/%s/' %(outdir,destdir)): 
-		os.makedirs('%s/%s/' %(outdir,destdir))
 if os.path.exists('rcloneMicList.txt'): 
 	os.remove('rcloneMicList.txt')
 r1=open('rcloneMicList.txt','w')
 #while counter < int(numFilesAtATime): 
-while counter < numToGet:
+while counter < len(movielist):
 	#Get mic and copy into correct location
 	localmicpath=linecache.getline(micstar,counter+numheader).strip()
 	if len(localmicpath.split('/')) == 1: 
@@ -300,223 +135,37 @@ while counter < numToGet:
 	counter=counter+1
 r1.close()
 
-cmd='touch done_list.txt'
-subprocess.Popen(cmd,shell=True).wait()
-
 #Rclone movies to destindation directory 
-cmd='~/rclone sync rclonename:%s %s/ --include-from rcloneMicList.txt --transfers %i' %(movieBucket,destdir,int(numFilesAtATime))
-print cmd 
+cmd='~/rclone sync rclonename:%s %s/ --include-from rcloneMicList.txt --transfers %i' %(micBucketName,destdir,int(numFilesAtATime))
+print cmd
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('rcloneMicList.txt')
-movieCounter=0
-toGetCounter=numToGet-1
-while movieCounter < len(movielist): 
-	threadnum=0
-	outCheckList=[]
-	movieDLchecklist=[]
-	while threadnum < numThreads: 
-		micnum=movieCounter+threadnum
-		print micnum 
-		if micnum >=len(movielist): 
-			threadnum=threadnum+1
-		if micnum < len(movielist): 
-			#select single line from relion mic star file 
-			micname=movielist[micnum].strip()
-			print 'working on %s' %(micname)
-			additionalcmds=''
-			checkexist=0
-                        while checkexist == 0:
-                                if os.path.exists(micname):
-                        		checkexist=1
-			if micnum == 0:	
-				cmd='/home/EM_Packages/relion2.0/build/bin/relion_image_handler --i %s --stats > handler.txt' %(micname)
-				subprocess.Popen(cmd,shell=True).wait()
-				outline=linecache.getline('handler.txt',1).split('=')[1].split('x')[2]
-				lastframe=subprocess.Popen('relion_image_handler --i %s --stats' %(micname),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('=')[1].split('x')[2]
-			if aligntype == 'unblur': 
-				additionlcmds=additionalcmds+' --use_unblur'+' --unblur_exe %s' %(unblurpath)+' --summovie_exe %s' %(summoviepath)+' --j 1'
-			if aligntype == 'motioncorr':
-				additionalcmds=additionalcmds+' --motioncorr_exe %s' %(motioncorrpath)+' --gpu %i' %(threadnum)
-			if aligntype == 'motioncor2': 
-				additionalcmds=additionalcmds+' --motioncorr_exe %s' %(motioncor2path)+' --use_motioncor2'+' --gpu %i' %(threadnum)
-			if gainref != '-1': 
-				additionalcmds=additionalcmds+' --gainref %s' %(gainref)
-			
-			#/home/EM_Packages/motioncorr_v2.1/bin/dosefgpu_driftcorr Micrographs/EMD-2984_0006_frames.mrc -fcs MotionCorr/job051/Micrographs/EMD-2984_0006_frames.mrc -flg MotionCorr/job051/Micrographs/EMD-2984_0006_frames.log -nst 0 -nss 0 -ned 0 -nes 0 -bft 150 -gpu 6 >> MotionCorr/job051/Micrographs/EMD-2984_0006_frames.out 2>> MotionCorr/job051/Micrographs/EMD-2984_0006_frames.err
-			outdir,bfactor,firstframe,lastframe,binfactor,patchx,patchy,kev,dose,preexp,apix=parseCMD(relioncmd)
-			if aligntype == 'motioncorr': 
-				#Parse relion command for info:
-				if savemovies == 'False':
-					savecmd=''
-				if savemovies == 'True':
-					savecmd=' -ssc 1 -fct %s/%s_movie.mrcs ' %(outdir,micname[:-4]) 
-				cmd='taskset -c %i %s %s -fcs %s/%s -flg %s/%s.log -nss %s -nes %s -bft %s -gpu %i %s >> %s/%s.out 2>> %s/%s.err & ' %(threadnum,motioncorrpath,micname,outdir,micname,outdir,micname[:-4],firstframe,lastframe,bfactor,threadnum,savecmd,outdir,micname[:-4],outdir,micname[:-4])
-				print cmd 
-				subprocess.Popen(cmd,shell=True)
-			if aligntype == 'motioncor2': 
-				#cmd='nohup taskset -c %i %s --i %s' %(threadnum,relionpath,micname)+' '+relioncmd+' '+additionalcmds+' &'
-				lastframe=int(lastframe)-1
-				if lastframe <0:
-					lastframe=0
-				doseline='  '
-				if len(dose) > 0: 
-					doseline=' -FmDose %s -PixSize %s -InitDose %s -kV %s' %(dose,apix,preexp,kev)
-				cmd='taskset -c %i %s -InMrc %s -OutMrc %s/%s -Throw %i -Trunc %i -Bft %s -Iter 10 -Patch %s %s -Gpu %i -FtBin %s %s >> %s/%s.out 2>> %s/%s.err &' %(threadnum,motioncor2path,micname,outdir,micname,int(firstframe)-1,lastframe,bfactor,patchx,patchy,threadnum,binfactor,doseline,outdir,micname[:-4],outdir,micname[:-4])
-				#cmd = '%s -InMrc %s -OutMrc %s -Throw %i -Bft %i -Iter 10 -Patch %i %i -FtBin %i -FmDose %f %s %s' %(motionCor2Path,inmovie,outmicro,params['throw'],params['bfactor'],params['patch'],params['patch'],params['binning'],params['doserate'],doseinfo,gainref)
-				print cmd
-				subprocess.Popen(cmd,shell=True)
-			if aligntype == 'unblur': 
-				writeRunUnBlurSum(relioncmd,micname,additionalcmds,lastframe)
-			newnamesplit=micname.split('.')
-			outCheckList.append('%s' %(micname))
-	
-			if os.path.exists('rcloneMicList_%i.txt' %(threadnum)): 
-				os.remove('rcloneMicList_%i.txt' %(threadnum))
-			
-			nextmicNum=micnum+numThreads+1
-			threadnum=threadnum+1
 
-	#Start transfer of next batch
-	if os.path.exists('rcloneMicList1111.txt'):
-        	os.remove('rcloneMicList1111.txt')
-	toGetCounter=nextmicNum-numThreads
-	print 'next mic num %i' %(toGetCounter)
-	maxnumnext=toGetCounter+numToGet
-	if maxnumnext >=len(movielist): 
-		maxnumnext=len(movielist)
-	while toGetCounter < maxnumnext: 
-		micname=movielist[toGetCounter]
-		if len(micname.split('/')) == 1:
-                	micnameonly=micname.strip()
-                if len(micname.split('/')) > 1:
-                        micnameonly=micname.split('/')[-1].strip()
-               	cmd='echo "%s" >> rcloneMicList1111.txt' %(micnameonly)
-		subprocess.Popen(cmd,shell=True).wait()
-		toGetCounter=toGetCounter+1
+#Rclone extract directory
+cmd='~/rclone sync rclonename:%s %s --transfers %i' %(extractBucket,extractDest,int(numFilesAtATime))
+print cmd 
+subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='taskset -c %i-%i ~/rclone sync rclonename:%s %s/ --include-from rcloneMicList1111.txt --transfers %i' %(group2_s,group2_f,movieBucket,destdir,numToGet)
-	print cmd 
-	subprocess.Popen(cmd,shell=True).wait()
+cmd='mpirun -np %i relion_preprocess_mpi %s --i %s' %(numMPI,relioncmd,micstar)
+print cmd
+subprocess.Popen(cmd,shell=True).wait()
 
-	if os.path.exists('rcloneMicList1111.txt'): 
-		os.remove('rcloneMicList1111.txt')
-	
-	#Start waiting for 1) jobs to finish and 2) movies have been downloaded
-	for check in outCheckList: 
-		isdone=0
-		newnamesplit=check.split('.')
-                if aligntype != 'unblur': 
-			if len(newnamesplit) > 2:
-	                	del newnamesplit[-1]
-                        	newnamesplit='_'.join(newnamesplit)
-                       		newmicname=newnamesplit+'.'+micname.split('.')[-1]
-                	if len(newnamesplit) == 2:
-                        	newmicname=check
-                	newcheck=outdir+'/'+newmicname
-			newcheck=newcheck.strip()
-		if aligntype == 'unblur': 
-			newcheck=outdir+'/'+check
-		while isdone == 0:
-			time.sleep(3)
-			print 'waiting on %s' %(newcheck)
-			if aligntype != 'unblur': 
-				micstatus,restart=checkLog(newcheck,aligntype)
-				if restart == 'yes': 
-					cmd='%s.com&' %(newcheck[:-4])
-					print cmd
-					subprocess.Popen(cmd,shell=True)
-					###FIL> IN HERE
-				if micstatus == 'done':
-					if os.path.exists(newcheck):
-						print '--------------finished %s' %(newcheck)
-						isdone=1
-						rclonetxt='rcloneMicList_%0.i' %(time.time())
-						if os.path.exists(rclonetxt): 
-							os.remove(rclonetxt)
-						if len(check.split('/')) == 1:
-							micname=check
-						if len(check.split('/')) > 1:
-							micname=check.split('/')[-1]
-						if angpix == -1: 
-							angpix=1	
-					#cmd='%s --i %s --o %s_bin.mrc --angpix %f --rescale_angpix %f' %(relionhandler,newcheck,newcheck[:-4],angpix,angpix*4)
-					#subprocess.Popen(cmd,shell=True).wait()
+#out_upload_bucket
+outBucket=extractBucket.split('/')
+del outBucket[-1]
+outBucket='/'.join(outBucket)+'/'+outdir.split('/')[0].lower()+'-'+outdir.split('/')[1]
 
-						cmd='echo "%s" >> %s' %(newcheck.split('/')[-1],rclonetxt)
-        	                        	subprocess.Popen(cmd,shell=True)
+#Rename output files
+shutil.move('%s/micrographs_movie_list.star' %(outdir),'%s/micrographs_movie_list_%i.star' %(outdir,number))
+if os.path.exists('%s/batch_50mics_nr001.star' %(outdir)): 
+	shutil.move('%s/batch_50mics_nr001.star' %(outdir),'%s/batch_50mics_nr001_%i.star' %(outdir,number))
+if os.path.exists('%s/particles_movie.star' %(outdir)): 
+	shutil.move('%s/particles_movie.star' %(outdir),'%s/particles_movie_%i.star' %(outdir,number))
 
-						if len(kev) > 0:
-							cmd='echo "%s_DW.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-							subprocess.Popen(cmd,shell=True)	
-					#cmd='echo "%s_bin.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                	                #subprocess.Popen(cmd,shell=True)
+cmd='~/rclone copy %s/ rclonename:%s --transfers %i --exclude=particles_movie_%i.star' %(outdir,outBucket,int(numFilesAtATime),number)
+print cmd
+subprocess.Popen(cmd,shell=True).wait()
 
-						cmd='echo "%s.out" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-        	                        	subprocess.Popen(cmd,shell=True)
-
-						cmd='echo "%s_shifts.eps" >> %s' %(check.split('/')[-1][:-4],rclonetxt)
-                        	               	subprocess.Popen(cmd,shell=True)
-
-						if savemovies == 'True': 
-							cmd='echo "%s_movie.mrcs" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-							subprocess.Popen(cmd,shell=True)
-
-						cmd='echo "%s" >> done_list.txt' %(newcheck.split('/')[-1])
-						subprocess.Popen(cmd,shell=True)
-	
-						#cmd='taskset -c 17-21 ~/rclone sync %s/%s %s --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,numToGet)
-						#subprocess.Popen(cmd,shell=True)
-                        	 	        #print cmd 
-						uploadRsync('%s/%s' %(outdir,destdir),'%s'%(micBucketName),rclonetxt,int(numToGet),newcheck, '%s/%s' %(destdir,check.split('/')[-1]),'%s_movie.mrcs' %(newcheck[:-4]),'%s_bin.mrc' %(newcheck[:-4]))
-					
-			if aligntype == 'unblur': 
-				unblurbase=newcheck[:-(len(newcheck.split('.')[-1])+1)]
-				if os.path.exists('%s_unblur.log' %(unblurbase)):
-					checkdone=subprocess.Popen('/bin/cat %s_unblur.log | /bin/grep cleanly' %(unblurbase),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-					if len(checkdone) > 0: 
-						isdone=1
-						rclonetxt='rcloneMicList_%0.i' %(time.time())
-	                                        if os.path.exists(rclonetxt):
-        	                                        os.remove(rclonetxt)
-                	                        if len(check.split('/')) == 1:
-                        	                        micname=check
-                                	        if len(check.split('/')) > 1:
-                                        	        micname=check.split('/')[-1]
-	                                        if angpix == -1:
-        	                                        angpix=1
-                	                        cmd='%s --i %s --o %s_bin.mrc --angpix %f --rescale_angpix %f' %(relionhandler,newcheck,newcheck[:-4],angpix,angpix*4)
-                                	        subprocess.Popen(cmd,shell=True).wait()
-	
-        	                                cmd='echo "%s" >> %s' %(newcheck.split('/')[-1],rclonetxt)
-                	                        subprocess.Popen(cmd,shell=True)
-	
-        	                                cmd='echo "%s_bin.mrc" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                	                        subprocess.Popen(cmd,shell=True)
-	
-        	                                cmd='echo "%s_unblur.log" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                	                        subprocess.Popen(cmd,shell=True)
-
-						cmd='echo "%s_sum.log" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                                                subprocess.Popen(cmd,shell=True)
-
-						cmd='echo "%s_shifts.txt" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                                                subprocess.Popen(cmd,shell=True)
-	
-						cmd='echo "%s_shifts_frc.txt" >> %s' %(newcheck.split('/')[-1][:-4],rclonetxt)
-                                                subprocess.Popen(cmd,shell=True)
-	
-						if savemovies == 'True':
-							cmd='echo "%s_movie.mrc" >> %s'%(newcheck.split('/')[-1][:-4],rclonetxt)
-							subprocess.Popen(cmd,shell=True)
-
-						cmd='~/rclone sync %s/%s %s --quiet --include-from %s --transfers %i' %(outdir,destdir,micBucketName,rclonetxt,int(numFilesAtATime))
-						subprocess.Popen(cmd,shell=True).wait()
-
-                        	                os.remove(newcheck)
-                	                        os.remove('%s/%s' %(destdir,check.split('/')[-1]))
-        	                                os.remove('%s_bin.mrc' %(newcheck[:-4]))
-	                                        os.remove(rclonetxt)
-
-	movieCounter=movieCounter+numThreads
-
-
+cmd='~/rclone copy %s/particles_movie_%i.star rclonename:%s' %(outdir,number,outBucket)
+print cmd
+subprocess.Popen(cmd,shell=True).wait()
