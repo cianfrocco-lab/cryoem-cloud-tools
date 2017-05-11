@@ -47,6 +47,11 @@ def setupParserOptions():
 
 #=============================
 def checkConflicts(params,outdir):
+
+	if params['relax'] is True: 
+		if len(open(params['pdb_list'],'r').readlines()) > 1: 
+			print '\nError: Rosetta-Relax will only operate on a single PDB file. Exiting.'
+			sys.exit()
 	
 	if os.path.exists(outdir): 
 		print "\nError: Output directory already exists. Exiting" %(outdir)
@@ -130,7 +135,7 @@ if __name__ == "__main__":
 	instance='c4.xlarge'
 	numthreads=4
 	loadMin=5
-	numToRequest=12
+	numToRequest=8
         params=setupParserOptions()
 
 	if numToRequest % numthreads != 0:
@@ -141,9 +146,9 @@ if __name__ == "__main__":
 	        startTime=datetime.datetime.utcnow()
  		params['outdir']=startTime.strftime('%Y-%m-%d-%H%M%S')
 		if params['relax'] is False: 
-			params['outdir']=params['outdir']+'-cm'
+			params['outdir']=params['outdir']+'-Rosetta-CM'
 		if params['relax'] is True:
-                        params['outdir']=params['outdir']+'-r'
+                        params['outdir']=params['outdir']+'-Rosetta-Relax'
 	volsize,awsregion,AWS_ID,key_ID,secret_ID,teamname,keypair,awsdir,rosettadir=checkConflicts(params,params['outdir'])
 
 	#Make output directory
@@ -271,9 +276,14 @@ if __name__ == "__main__":
 		pickle.dump(instanceIPlist,fp)
 	with open('%s/instanceIDlist.txt' %(params['outdir']),'wb') as fp:
                 pickle.dump(instanceIDlist,fp)
-	#with open('%s/volIDlist.txt' %(params['outdir']),'wb') as fp:
-        #        pickle.dump(volIDlist,fp)
-	
-	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s&' %(rosettadir,params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'])
-	subprocess.Popen(cmd,shell=True)
+	if params['relax'] is False:
+		rosettaflag='cm'
+	if params['relax'] is True:
+                rosettaflag='relax'
+
+	pdbfilename=linecache.getline(params['pdb_list'],1).split()[0].strip()
+
+	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s --pdbfilename=%s --type=%s&' %(rosettadir,params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'],pdbfilename,rosettaflag)
+	print cmd
+	#subprocess.Popen(cmd,shell=True)
 

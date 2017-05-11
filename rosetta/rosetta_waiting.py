@@ -23,14 +23,16 @@ def setupParserOptions():
                     help="Instance ID list (pickle dump)")
         parser.add_option("--instanceIPlist",dest="instanceIP",type="string",metavar="FILE",
                     help="Instance IP list (pickle dump)")
-        #parser.add_option("--volIDlist",dest="volID",type="string",metavar="FILE",
-        #            help="Volume ID list (pickle dump)")
         parser.add_option("--numModels",dest="numModels",type="int",metavar="INT",
                     help="Total number of models in rosetta run")
 	parser.add_option("--numPerInstance",dest="numPerInstance",type="int",metavar="Number",
                     help="Number of models per instance requested")
 	parser.add_option("--outdir",dest='outdir',type="string",metavar='FILE',
 		    help='Output directory')
+	parser.add_option("--type",dest='type',type="string",metavar='FILE',
+                    help='Rosetta refinement type: relax or cm')
+	parser.add_option("--pdbfilename",dest='pdbfilename',type="string",metavar='FILE',
+                    help='PDB filename for first entry in pdb_list')
         options,args = parser.parse_args()
 
         if len(args) > 0:
@@ -60,8 +62,6 @@ if __name__ == "__main__":
 	#Read in pickle files
 	with open (params['instanceIP'], 'rb') as fp:
 		instanceIPlist = pickle.load(fp)
-	#with open (params['volID'], 'rb') as fp:
-        #        volIDlist = pickle.load(fp)
 	with open (params['instanceID'], 'rb') as fp:
                 instanceIDlist = pickle.load(fp)
 
@@ -123,12 +123,17 @@ if __name__ == "__main__":
                                                         subprocess.Popen(cmd,shell=True).wait()
         						currCounter=1				
 							while currCounter <= params['numPerInstance']:
-								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
-								print cmd
-								subprocess.Popen(cmd,shell=True).wait()		
+								if params['type'] == 'cm':
+									cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
+									print cmd 
+									subprocess.Popen(cmd,shell=True).wait()			
+								if params['type'] == 'relax':
+                                                                        cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/%s_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],params['pdbfilename'][:-4],currCounter,params['outdir'],instanceCounter)
+                                                                        subprocess.Popen(cmd,shell=True).wait()
 
 								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/score_%i.sc %s/output/S_%i_0001_score.sc' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
-                                                                subprocess.Popen(cmd,shell=True).wait()
+                                                                print cmd 
+								subprocess.Popen(cmd,shell=True).wait()
 								instanceCounter=instanceCounter+1
 								currCounter=currCounter+1	
 
@@ -150,9 +155,6 @@ if __name__ == "__main__":
               		if status == 'terminated':
                     		isdone=1
               	time.sleep(10)
-
-        	#cmd='aws ec2 delete-volume --volume-id %s > %s/tmp4949585940.txt' %(volIDlist[counter],params['outdir'])
-        	#subprocess.Popen(cmd,shell=True).wait()
 		counter=counter+1
 
         now=datetime.datetime.now()
@@ -179,8 +181,7 @@ if __name__ == "__main__":
 		#Generate the score file name, file number etc.
 		splitSc = sc.split('/')
 		file_name_with_ext = '%s' %(splitSc[-1])
-                file_name = '%s' %(file_name_with_ext[:-3])
-                file_number = '%s' %(file_name[5:])
+                file_name = '%s' %(file_name_with_ext[:-10])
 
 		#Open score file for reading
         	inputsc = open(sc,'r')
@@ -195,7 +196,7 @@ if __name__ == "__main__":
 				if not splitLine[1] == 'total_score':
 
 					#Write out the name of the pdb and the energr score
-                    			outputsc_write.write('%s/output/%s.pdb\t%s\n' %(params['outdir'],splitLine[-1],splitLine[1]))
+                    			outputsc_write.write('%s/output/%s.pdb\t%s\n' %(params['outdir'],file_name,splitLine[1]))
 					counter = counter + 1
 
 	outputsc_write.close()
