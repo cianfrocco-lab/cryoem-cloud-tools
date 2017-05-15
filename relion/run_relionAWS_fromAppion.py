@@ -55,18 +55,17 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 		exec_remote_cmd('mv tmp.mrcs /data/%s' %(fileonly))
 
 #=========================
-def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awspath,project,rclonelist):
+def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awspath,project,rclonelist,outdir):
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
 		rclonepath='%s/rclone' %(awspath)
 	if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 		rclonepath='%s/rclone_mac'%(awspath)
 
 	#Write .rclone.conf
-	homedir=subprocess.Popen('echo $HOME', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
-	if os.path.exists('%s/.rclone.conf' %(homedir)):
-		os.remove('%s/.rclone.conf' %(homedir))
+	if os.path.exists('%s/.rclone.conf' %(outdir)):
+		os.remove('%s/.rclone.conf' %(outdir))
 
-	r1=open('%s/.rclone.conf' %(homedir),'w')
+	r1=open('%s/.rclone.conf' %(outdir),'w')
 	r1.write('[rclonename]\n')
 	r1.write('type = s3\n')
 	r1.write('env_auth = false\n')
@@ -86,10 +85,10 @@ def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awsp
 	#	subprocess.Popen(cmd,shell=True).wait()
 	#	os.remove('s3.log')
 	if len(rclonelist) == 0:
-		cmd='%s copy %s rclonename:%s --quiet --transfers %i > rclone.log' %(rclonepath,indir,bucketname,math.ceil(numfiles))
+		cmd='%s copy %s rclonename:%s --quiet  --config %s/.rclone.conf --transfers %i > rclone.log' %(rclonepath,indir,bucketname,outdir,math.ceil(numfiles))
 		subprocess.Popen(cmd,shell=True).wait()
 	if len(rclonelist) > 0:
-		cmd='%s copy %s rclonename:%s --quiet --transfers %i --include-from %s > rclone.log' %(rclonepath,indir,bucketname,math.ceil(numfiles),rclonelist)
+		cmd='%s copy %s rclonename:%s --quiet --config %s/.rclone.conf --transfers %i --include-from %s > rclone.log' %(rclonepath,indir,bucketname,outdir,math.ceil(numfiles),rclonelist)
 		subprocess.Popen(cmd,shell=True).wait()
 	os.remove('rclone.log')
 	return 's3://%s' %(bucketname)
@@ -110,13 +109,13 @@ def writeToLog(msg,outfile):
         subprocess.Popen(cmd,shell=True).wait()
 
 #==============================
-def getCMDrefine(f1):
-	o1=open(f1,'r')
-	for line in o1:
-		if len(line.split('=')) > 0:
-			if line.split('=')[0] == 'relioncmd':
-				rlncmd=line.split('=')[1]
-	o1.close()
+def getCMDrefine(rlncmd):
+	#o1=open(f1,'r')
+	#for line in o1:
+	#	if len(line.split('=')) > 0:
+	#		if line.split('=')[0] == 'relioncmd':
+	#			rlncmd=line.split('=')[1]
+	#o1.close()
 
 	#Get particle input directory and if there is a reference model
 	outbasenanme=''
@@ -164,13 +163,22 @@ def getCMDrefine(f1):
 		del partdir[-1]
 		partdir='/'.join(partdir)
 	if partdiamcounter > 0:
-		particlediameter=float(rlncmd.split()[partdiamcounter])
+		diamlength=len(repr(rlncmd.split()[partdiamcounter].strip()))
+		if diamlength>10: 
+			particlediameter=float(repr(rlncmd.split()[partdiamcounter].strip())[1:-9])	
+		if diamlength<=10:
+			particlediameter=float(rlncmd.split()[partdiamcounter].strip())
+		#Since appions command comes with this formatting: 234.0\xc2\xa0
 	outbasename=rlncmd.split()[outcounter]
 	outdir=rlncmd.split()[outcounter].split('/')
 	del outdir[-1]
 	outdir='/'.join(outdir)
 	if itercounter > 0:
-		numiters=int(rlncmd.split()[itercounter])
+		numiterslength=len(repr(rlncmd.split()[itercounter].strip()))
+		if numiterslength>8:
+			numiters=int(repr(rlncmd.split()[itercounter].strip())[1:-9])
+		if numiterslength<=8:
+			numiters=int(rlncmd.split()[itercounter].strip())
 	if refcounter > 0:
 		ref=rlncmd.split()[refcounter]
 	if maskcounter > 0:
@@ -256,6 +264,12 @@ def parseCMDrefine(relioncmd):
 	counter=0
 	selectflag=''
 	while counter < tot:
+		if 'mpirun' in l[counter]: 
+			counter=counter+1
+			continue
+		if l[counter] == '-np': 
+			counter=counter+2
+			continue
 		if l[counter] == '--preread_images':
 			counter=counter+1
 			continue
@@ -271,6 +285,12 @@ def parseCMDrefine(relioncmd):
 		if l[counter] == 'relion_refine`':
                         counter=counter+1
                         continue
+		if l[counter] == 'relion_refine':
+			counter=counter+1
+			continue
+		if l[counter] == 'relion_refine_mpi': 
+			counter=counter+1
+			continue
 		if l[counter] == '--gpu':
 			if counter+1 < tot:
 				if l[counter+1][0] == '-':
@@ -316,7 +336,7 @@ def getSelectParticleDir(selectdir):
 	return 'Extract/%s' %(jobname)
 
 #==============================
-def relion_refine_mpi(project):
+def relion_refine_mpi(in_cmd):
 
 	#Set entry
 	otherPartDir=''
@@ -324,7 +344,12 @@ def relion_refine_mpi(project):
 	error=''
 
 	#Get relion command and input options
-	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename,diameter=getCMDrefine(infile)
+	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename,diameter=getCMDrefine(in_cmd)
+
+	#Make output directory
+	os.makedirs(outdir)
+	cmd='touch %s/note.txt' %(outdir)
+	subprocess.Popen(cmd,shell=True).wait()
 
 	if os.path.exists('%s/run.err' %(outdir)):
 		os.remove('%s/run.err' %(outdir))
@@ -464,18 +489,9 @@ def relion_refine_mpi(project):
 		writeToLog('Error: Diameter specified (%.0f Angstroms) is greater than box size (%.0f Angstroms). Exiting' %(diameter,apixVal*partxdim),'%s/run.out' %(outdir))
 		sys.exit()
 
-	#Re-write note.txt without 'Kill'
-	cmd='mv %s/note.txt %s/note_bckup.txt' %(outdir,outdir)
-	subprocess.Popen(cmd,shell=True).wait()
-	newNoteOut=open('%s/note.txt' %(outdir),'w')
-	for line in open('%s/note_bckup.txt' %(outdir),'r'):
-		if 'Kill' not in line:
-			newNoteOut.write(line)
-	newNoteOut.close()
-	os.remove('%s/note_bckup.txt' %(outdir))
-
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
 	relioncmd,select=parseCMDrefine(relioncmd)
+		
 	#Check where input particles are located
 	if stack is False:
 		otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
@@ -506,6 +522,7 @@ def relion_refine_mpi(project):
 				instance='p2.8xlarge'
 		if autoref != -1: #3D refinement
 			instance='p2.8xlarge'
+	instance='p2.xlarge'
 	#Get AWS region from aws_init.sh environment variable
 	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
 	if len(awsregion) == 0:
@@ -535,7 +552,7 @@ def relion_refine_mpi(project):
                 for line in open('.aws_relion','r'):
                         if line.split()[0] == particledir:
 				bucketname=line.split()[1]
-				ebsvolname=line.split()[2]
+				ebsvolname=''
 				#Check if it exists:
 				if os.path.exists('%s/ebsout.log' %(outdir)):
 					os.remove('%s/ebsout.log' %(outdir))
@@ -561,7 +578,8 @@ def relion_refine_mpi(project):
         outdirname='-'.join(outdirname)
         outdirname=outdirname.lower().strip()
         keyname=keyname.lower().strip()
-        project=project.strip()
+        project=''
+	project=project.strip()
 	if s3_exist is False:
 		if ebs_exist is True:
 			ebs_exist=False
@@ -585,9 +603,9 @@ def relion_refine_mpi(project):
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Darwin':
 	                numCPUs=int(subprocess.Popen('sysctl -n hw.ncpu',shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 		if len(otherPartRclone) == 0:
-			bucketname=rclone_to_s3(particledir,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project,otherPartRclone)
+			bucketname=rclone_to_s3(particledir,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project,otherPartRclone,outdir)
 		if len(otherPartRclone) > 0:
-			bucketname=rclone_to_s3(otherPartDir,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project,otherPartRclone)
+			bucketname=rclone_to_s3(otherPartDir,numCPUs*2.4,awsregion,key_ID,secret_ID,bucketname,bucketname,awsdir,project,otherPartRclone,outdir)
 		writeToLog('Finished at %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 	if ebs_exist is False:
 		writeToLog('Creating data storage drive ...','%s/run.out' %(outdir))
@@ -613,7 +631,7 @@ def relion_refine_mpi(project):
 	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
-	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1].strip()
 	keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
 	userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 
@@ -727,12 +745,14 @@ def relion_refine_mpi(project):
 	writeToLog('Shutting everything down ...','%s/run.out' %(outdir))
 	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	isdone=0
-	#while isdone == 0:
-	#	status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-	#	if status == 'terminated':
-	#		isdone=1
-	#	time.sleep(10)
+	time.sleep(10)
+	while isdone == 0:
+		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		if 'terminated' in status: 
+			isdone=1
+		time.sleep(10)
 
+	volID=subprocess.Popen('aws ec2 delete-volume --volume-id %s' %(volID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	now=datetime.datetime.now()
         finday=now.day
         finhr=now.hour
@@ -763,33 +783,8 @@ def relion_refine_mpi(project):
 		tmpout.close()
 	        os.remove('.aws_relion_tmp')
 
-	cmd='echo "%s     %s      %s" >> .aws_relion' %(particledir,bucketname,volID)
+	cmd='echo "%s     %s      %s" >> .aws_relion' %(particledir,bucketname,'')
 	subprocess.Popen(cmd,shell=True).wait()
-
-	if len(project) > 0:
-                projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
-                cmd='aws s3 cp .aws_relion s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-
-                if os.path.exists('.aws_relion_project_info'):
-                        cmd='aws s3 cp .aws_relion_project_info s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
-                        subprocess.Popen(cmd,shell=True).wait()
-
-                cmd='aws s3 cp aws_relion_costs.txt s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-
-                cmd='aws s3 sync %s/ s3://%s/%s > %s/s3tmp.log ' %(outdir,projectbucket,outdirname,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-
-                cmd='aws s3 cp default_pipeline.star s3://%s/ > %s/s3tmp.log' %(projectbucket,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-
-                guilist=glob.glob('.gui*')
-                for gui in guilist:
-                        cmd='aws s3 cp %s s3://%s/ > %s/s3tmp.log' %(gui,projectbucket,outdir)
-                        subprocess.Popen(cmd,shell=True).wait()
-                if os.path.exists('%s/s3tmp.log' %(outdir)):
-                        os.remove('%s/s3tmp.log' %(outdir))
 
 	#Cleanup
 	if os.path.exists('%s/awslog.log' %(outdir)):
@@ -800,8 +795,8 @@ def relion_refine_mpi(project):
 		os.remove('run_aws.job')
 	if os.path.exists('rclonetmplist1298.txt'):
 		os.remove('rclonetmplist1298.txt')
-	if os.path.exists('rclone.conf'):
-		os.remove('rclone.conf')
+	if os.path.exists('%s/.rclone.conf' %(outdir)):
+		os.remove('%s/.rclone.conf' %(outdir))
 	if os.path.exists('runningProcs.txt'):
 		os.remove('runningProcs.txt')
 
