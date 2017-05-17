@@ -376,12 +376,9 @@ def module_exists(module_name):
 def exec_remote_cmd(cmd):
     from fabric.operations import run, put
     from fabric.api import hide,settings
-    if float(sys.version_info[1])==float(6):
-	with hide('output','running','warnings') and settings(warn_only=True):
-                return run(cmd)
-    if float(sys.version_info[1])>=7: 
-	with hide('output','running','warnings'), settings(warn_only=True):
-        	return run(cmd)
+    with hide('output','running','warnings') and settings(warn_only=True):
+	return run(cmd)
+
 #==============================
 def query_yes_no(question, default="no"):
 	valid = {"yes": True, "y": True, "ye": True,"no": False, "n": False}
