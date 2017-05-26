@@ -97,7 +97,7 @@ def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awsp
 def exec_remote_cmd(cmd):
     from fabric.operations import run, put
     from fabric.api import hide,settings
-    with hide('output','running','warnings'), settings(warn_only=True):
+    with hide('output','running','warnings'); with settings(warn_only=True):
     	return run(cmd)
 
 #==============================
