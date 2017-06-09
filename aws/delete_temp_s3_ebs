@@ -24,18 +24,20 @@ while vol <= float(numVols):
 			nameVol=value.split('"')[count2*2-1]	
 		count2=count2+1
 	if len(nameVol.split('rln-aws-tmp-%s' %(teamname))) > 1:
-		volID=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{VolumeID:VolumeId}" | grep VolumeID' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-		createdDate=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{CreateTime:CreateTime}"'%(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('"CreateTime":')[-1].split('"')[1]
-		status=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{State:State}" | grep State' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-		if status == 'available': 
-			day=createdDate.split('T')[0]
-			d0=date(int(day.split('-')[0]),int(day.split('-')[1]),int(day.split('-')[2]))
-			d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
-			delta = d1 - d0
-			timeDiff=delta.days-1
-			if timeDiff > ebs_lifetime:
-				volsToDelete.append(volID)
-	vol=vol+1
+		volID=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{VolumeID:VolumeId}" | grep VolumeID' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		if len(volID.split())>0: 
+			volID=volID.split()[-1].split('"')[1]
+			createdDate=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{CreateTime:CreateTime}"'%(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('"CreateTime":')[-1].split('"')[1]
+			status=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{State:State}" | grep State' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+			if status == 'available': 
+				day=createdDate.split('T')[0]
+				d0=date(int(day.split('-')[0]),int(day.split('-')[1]),int(day.split('-')[2]))
+				d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
+				delta = d1 - d0
+				timeDiff=delta.days-1
+				if timeDiff > ebs_lifetime:
+					volsToDelete.append(volID)
+		vol=vol+1
 
 if len(volsToDelete)> 0: 
 	for vol in volsToDelete: 
