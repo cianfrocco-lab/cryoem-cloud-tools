@@ -104,17 +104,15 @@ def checkConflicts(params,availInstances):
 
     if AWS_DEFAULT_REGION == 'us-east-1':
 	if params['instance'].split('.')[0] == 'p2':
-        	AMI='ami-69eba27e'
+        	AMI='ami-38b2ed2e'
     	if params['instance'].split('.')[0] != 'p2':
-        	AMI='ami-ec3a3b84'
+        	AMI='ami-38b2ed2e'
 	if params['relion2'] is True:
-		AMI='ami-69eba27e'
+		AMI='ami-38b2ed2e'
     if AWS_DEFAULT_REGION == 'us-west-2':
         if params['instance'].split('.')[0] == 'p2':
-		#AMI='ami-26139046'
 		AMI='ami-eacd558a'
 	if params['instance'].split('.')[0] != 'p2':
-		#AMI='ami-bc08c3dc'
 		AMI='ami-eacd558a'
 	if params['relion2'] is True:
 		AMI='ami-eacd558a'
