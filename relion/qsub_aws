@@ -561,7 +561,7 @@ def getCMDpolish(f1):
                 partdir=rlncmd.split()[indircounter].split('/')
 		del partdir[-1]
                 partdir='/'.join(partdir)
-        outdir=rlncmd.split()[outcounter].split('/')
+        outdir=rlncmd.split()[outcounter]
         if maskcounter > 0:
                 mask=rlncmd.split()[maskcounter]
         return rlncmd,partdir,mask,outdir,partstarname
@@ -583,7 +583,6 @@ def checkPartLocation(instarfile,indir):
 					if line.split()[0] == '_rlnMicrographName':
 						microcolnum=int(line.split('#')[-1])
 	o44.close()					
-
 	if microcolnum == 0: 
 		error='Could not find _rlnImageName in starfile %s' %(instarfile)
 	if microcolnum != 0: 
@@ -4030,87 +4029,12 @@ def relion_polish(project):
         #Get relion command and input options
 	relioncmd,particledir,mask,outdir,partstarname=getCMDpolish(infile)
         #Get number of particles to decide how big of a machine to spin up
-	'''
-       	stack=False
-	if stack is False:
-                if len(particledir) == 0:
-                        starfilename=particledir
-                        numParticles=len(open(particledir,'r').readlines())
-                if len(particledir) > 0:
-                        starfilename='%s/%s' %(particledir,partstarname)
-                        numParticles=len(open('%s/%s' %(particledir,partstarname),'r').readlines())
-                magcheck=False
-                pixcheck=False
-                ctfcheck=False
-                partcolnum=-1
-                detectorcolnum=-1
-                magcolnum=-1
-                exampleline=''
-                for line in open(starfilename,'r'):
-                        if len(line.split()) > 0:
-                                if line.split()[0] == '_rlnMagnification':
-                                        magcheck=True
-                                        magcolnum=int(line.split()[1].split('#')[-1])
-                                if line.split()[0] == '_rlnDetectorPixelSize':
-					pixcheck=True
-                                        detectorcolnum=int(line.split()[1].split('#')[-1])
-                                if line.split()[0] == '_rlnDefocusU':
-                                        ctfcheck=True
-                                if line.split()[0] == '_rlnImageName':
-                                        partcolnum=int(line.split()[1].split('#')[-1])
-                                exampleline=line
-                ctfin=False
-                apixin=False
-                rlncounter=1
-                while rlncounter <= len(relioncmd.split()):
-                        if relioncmd.split()[rlncounter-1] == '--ctf':
-                                ctfin=True
-                        if relioncmd.split()[rlncounter-1] == '--angpix':
-                                apixin=True
-                                apixVal=float(relioncmd.split()[rlncounter])
-                        rlncounter=rlncounter+1
-                if partcolnum < 0:
-                        writeToLog('Error: could not find _rlnImageName in .star file. Exiting','%s/run.err' %(outdir))
-                        sys.exit()
-                if apixin is False:
-                        if magcheck is False:
-                                writeToLog('Error: No magnification information found in .star file. Exiting', '%s/run.err' %(outdir))
-                                sys.exit()
-                if apixin is False:
-                        if pixcheck is False:
-                                writeToLog('Error: No detector pixel size information found in .star file. Exiting', '%s/run.err' %(outdir))
-                                sys.exit()
-                if ctfin is True:
-                        if ctfcheck is False:
-                                writeToLog('Error: no defocus information found in .star file. Exiting', '%s/run.err' %(outdir))
-                                sys.exit()
-
-                #Get xdims
-                if len(exampleline) == 0:
-                        writeToLog('Error: no inputline found','%s/run.err' %(outdir))
-                        sys.exit()
-                examplePart=exampleline.split()[partcolnum-1]
-                if os.path.exists('%s/handler.txt' %(outdir)):
-                        os.remove('%s/handler.txt' %(outdir))
-                cmd='relion_image_handler --i %s --stats > %s/handler.txt' %(examplePart,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-                partxdim=int(linecache.getline('%s/handler.txt' %(outdir),1).split('=')[1].split('x')[0].strip())
-
-                if apixin is False:
-                        if len(exampleline.split()) < detectorcolnum-1:
-                                writeToLog('Error: particle line is missing columns: %s' %(exampleline), '%s/run.err' %(outdir))
-                                sys.exit()
-                        example_detector=float(exampleline.split()[detectorcolnum-1])
-			example_mag=float(exampleline.split()[magcolnum-1])
-                        apixVal=(example_detector/example_mag)*10000
-	'''
-        #Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
         relioncmd,select=parseCMDpolish(relioncmd)
 	#Check where input particles are located
 	starfilename='%s/%s' %(particledir,partstarname)
-	otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
-        print otherPartDir
-	sys.exit()
+	#otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
+	otherPartDir=''
+	otherPartRclone=''
 	if len(error) > 0:
                 writeToLog(error,'%s/run.err' %(outdir))
                 sys.exit()
@@ -4123,23 +4047,12 @@ def relion_polish(project):
                 o89.close()
                 otherPartRclone='rclonetmplist1298.txt'
         #Choose instance type
-        if initmodel == 'None': #2D classification
-                if numParticles < 20000:
-                        instance='p2.xlarge'
-                if numParticles >= 20000 and numParticles <= 100000:
-                        instance='p2.8xlarge'
-                if numParticles > 100000:
-                        instance='p2.16xlarge'
-        if initmodel != 'None': #3D classification or refinement
-                if autoref == -1: #3D classification
-                        if numParticles <25000:
-                                instance='p2.xlarge'
-                        if numParticles >=25000:
-                                instance='p2.8xlarge'
-                if autoref != -1: #3D refinement
-                        instance='p2.8xlarge'
-        #Get AWS region from aws_init.sh environment variable
-        awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+        instance='t2.micro'
+	j='--j 3 '
+        mpi=4
+        numfiles=90
+        cost=14.40
+	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
         if len(awsregion) == 0:
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
@@ -4194,20 +4107,18 @@ def relion_polish(project):
         outdirname=outdirname.lower().strip()
         keyname=keyname.lower().strip()
         project=project.strip()
-        if s3_exist is False:
-                if ebs_exist is True:
-                        ebs_exist=False
-                        cmd='aws ec2 delete-volume --volume-id %s' %(ebsvolname)
-			subprocess.Popen(cmd,shell=True).wait()
         if len(otherPartDir) == 0:
                 inputfilesize=subprocess.Popen('du %s' %(particledir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
         if len(otherPartDir) > 0:
                 inputfilesize=subprocess.Popen('du %s' %(otherPartDir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[-2]
         sizeneeded='%.0f' %(math.ceil((float(inputfilesize)*4)/1000000))
         actualsize='%.0f' %(math.ceil((float(inputfilesize)/1000000)))
-        #Upload data to S3
+        #Upload data to S3\
+	stack=False
         if s3_exist is False:
-                writeToLog('Started uploading %sGB to AWS on %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+                #writeToLog('Error: Data does not already exist on AWS for polishing. Please perform all movie processing steps on AWS in order to do polishing. Exiting.','%s/run.err' %(outdir))
+                #sys.exit()
+		writeToLog('Started uploading %sGB to AWS on %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
                 if len(project) == 0:
                         bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
@@ -4242,7 +4153,7 @@ def relion_polish(project):
         #Launch instance
         if os.path.exists('%s/awslog.log' %(outdir)):
                 os.remove('%s/awslog.log' %(outdir))
-        cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+        cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
         #Get instance ID, keypair, and username:IP
         instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -4250,25 +4161,7 @@ def relion_polish(project):
         userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 
         #Create directories on AWS
-        if instance == 'p2.xlarge':
-                gpu='--gpu '
-                j='--j 2 '
-                mpi=2
-                numfiles=8
-                cost=0.9
-        if instance == 'p2.8xlarge':
-                gpu='--gpu '
-                j='--j 3 '
-                mpi=9
-                numfiles=50
-                cost=7.20
-        if instance == 'p2.16xlarge':
-                gpu='--gpu '
-                j='--j 3 '
-                mpi=17
-                numfiles=90
-                cost=14.40
-        env.host_string='ubuntu@%s' %(userIP)
+	env.host_string='ubuntu@%s' %(userIP)
         env.key_filename = '%s' %(keypair)
         if ebs_exist is False:
                 writeToLog('Started transferring %sGB at %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
@@ -4286,6 +4179,8 @@ def relion_polish(project):
                 if len(otherPartDir) > 0:
                         s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(otherPartDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles)
                 writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
+
+	sys.exit()
 
         #Make output directories
         dirlocation='/data'
@@ -4470,30 +4365,36 @@ if __name__ == "__main__":
 	#Align movies
 	if jobtype  == 'relion_run_motioncorr' or jobtype == 'relion_run_motioncorr_mpi':
 		relion_run_motioncorr(project)
+		sys.exit()
 
 	#CTF estimation
 	if jobtype  == 'relion_run_ctffind' or jobtype == 'relion_run_ctffind_mpi':
                 relion_run_ctffind(project)
-
+		sys.exit()
 	#Extract particles
 	if numjobsIn == 1:
 		if jobtype == 'relion_preprocess' or jobtype == 'relion_preprocess_mpi':
         	        relion_preprocess_mpi(project)
+			sys.exit()
 
 	#Perform 2D or 3D classification / refinement
 	if jobtype == 'relion_refine' or jobtype == 'relion_refine_mpi':
 		relion_refine_mpi(project)
+		sys.exit()
 
 	#Submit auto picking job to GPUs
 	if jobtype == 'relion_autopick' or jobtype == 'relion_autopick_mpi':
 		relion_autopick_mpi(project)
+		sys.exit()
 
 	if jobtype == 'relion_particle_polish_mpi' or jobtype == 'relion_particle_polish': 
 		relion_polish(project) 
+		sys.exit()
 
 	#Movie refinemnt
 	if numjobsIn==2:
 		relion_movie_refine(project)
+		sys.exit()
 
 	print 'Error: Job submission not recognized. Exiting'
 
