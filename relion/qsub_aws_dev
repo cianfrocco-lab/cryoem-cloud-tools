@@ -4365,30 +4365,36 @@ if __name__ == "__main__":
 	#Align movies
 	if jobtype  == 'relion_run_motioncorr' or jobtype == 'relion_run_motioncorr_mpi':
 		relion_run_motioncorr(project)
+		sys.exit()
 
 	#CTF estimation
 	if jobtype  == 'relion_run_ctffind' or jobtype == 'relion_run_ctffind_mpi':
                 relion_run_ctffind(project)
-
+		sys.exit()
 	#Extract particles
 	if numjobsIn == 1:
 		if jobtype == 'relion_preprocess' or jobtype == 'relion_preprocess_mpi':
         	        relion_preprocess_mpi(project)
+			sys.exit()
 
 	#Perform 2D or 3D classification / refinement
 	if jobtype == 'relion_refine' or jobtype == 'relion_refine_mpi':
 		relion_refine_mpi(project)
+		sys.exit()
 
 	#Submit auto picking job to GPUs
 	if jobtype == 'relion_autopick' or jobtype == 'relion_autopick_mpi':
 		relion_autopick_mpi(project)
+		sys.exit()
 
 	if jobtype == 'relion_particle_polish_mpi' or jobtype == 'relion_particle_polish': 
 		relion_polish(project) 
+		sys.exit()
 
 	#Movie refinemnt
 	if numjobsIn==2:
 		relion_movie_refine(project)
+		sys.exit()
 
 	print 'Error: Job submission not recognized. Exiting'
 
