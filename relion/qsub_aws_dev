@@ -357,9 +357,9 @@ def rclone_to_s3(indir,numfiles,region,keyid,secretid,rclonename,bucketname,awsp
 	r1.close()
 
 	#Create bucket on aws:
-	#if len(project) == 0: 
-	#	cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname,region)
-	#	subprocess.Popen(cmd,shell=True).wait()
+	cmd='aws s3 mb s3://%s --region %s > s3.log' %(bucketname.split('/')[0],region)
+	subprocess.Popen(cmd,shell=True).wait()
+
 	#	os.remove('s3.log')
 	if len(rclonelist) == 0: 
 		cmd='%s copy %s rclonename:%s --quiet --transfers %i > rclone.log' %(rclonepath,indir,bucketname,math.ceil(numfiles))
@@ -1104,7 +1104,7 @@ def relion_refine_mpi(project):
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
 
-	writeToLog('Booting up virtual machine %s on AWS in availability zone %sa' %(instance,awsregion), '%s/run.out' %(outdir))
+	writeToLog('Booting up virtual machine %s on AWS in availability zone %s%s' %(instance,awsregion,AZ_letter), '%s/run.out' %(outdir))
 
 	#Get AWS ID
 	AWS_ID=subprocess.Popen('echo $AWS_ACCOUNT_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -1169,7 +1169,7 @@ def relion_refine_mpi(project):
 	if s3_exist is False:
 		writeToLog('Started uploading %sGB to AWS on %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 		if len(project) == 0:
-			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time()) 
+			bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time()) 
 		if len(project) > 0: 
 			bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -1186,7 +1186,7 @@ def relion_refine_mpi(project):
         	#Create EBS volume
         	if os.path.exists('%s/awsebs.log' %(outdir)) :
                 	os.remove('%s/awsebs.log' %(outdir))
-        	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,particledir)+'> %s/awsebs.log' %(outdir)
+        	cmd='%s/create_volume.py %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,AZ_letter,teamname,particledir)+'> %s/awsebs.log' %(outdir)
         	subprocess.Popen(cmd,shell=True).wait()
 
         	#Get volID from logfile
@@ -1202,7 +1202,7 @@ def relion_refine_mpi(project):
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,AZ_letter,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -1837,7 +1837,7 @@ def relion_movie_refine(project):
 	if s3_exist is False and len(micstar.split('s3-')) == 1:
 		writeToLog('Started upload of movies to AWS on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 		if len(project) == 0:
-			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+			bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
                         bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,indirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -1855,7 +1855,7 @@ def relion_movie_refine(project):
                 if micstarinput[-1] == '/':
                         micstarinput=micstarinput[:-1]
                 if len(project) == 0:
-                        bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+                        bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
                         bucketname='rln-aws-%s-%s/%s' %(teamname,keyname,micstarinput)
                         outputbucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
@@ -1918,7 +1918,7 @@ def relion_movie_refine(project):
 	if Es3_exist is False:
                 writeToLog('Started upload of particle stacks to AWS on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
                 if len(project) == 0:
-                        Ebucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+                        Ebucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
                         Ebucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,indirname)
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -2137,7 +2137,7 @@ def relion_movie_refine(project):
 	instanceNum=0
 	if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
         	os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-        cmd='%s/launch_AWS_instance.py  --AMI=%s --relion2 --instance=%s --availZone=%sa --noEBS > %s/awslog_%i.log' %(awsdir,AMI,Refinstance,awsregion,outdir,instanceNum)
+        cmd='%s/launch_AWS_instance.py  --AMI=%s --relion2 --instance=%s --availZone=%s%s --noEBS > %s/awslog_%i.log' %(awsdir,AMI,Refinstance,awsregion,AZ_letter,outdir,instanceNum)
         subprocess.Popen(cmd,shell=True)
         time.sleep(10)
 	instanceList=[]
@@ -2353,7 +2353,7 @@ def relion_preprocess_mpi(project):
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
 
-	writeToLog('Booting up virtual machine %s on AWS in availability zone %sa' %(instance,awsregion), '%s/run.out' %(outdir))
+	writeToLog('Booting up virtual machine %s on AWS in availability zone %s%s' %(instance,awsregion,AZ_letter), '%s/run.out' %(outdir))
 
 	#Get AWS CLI directory location
 	awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -2408,7 +2408,7 @@ def relion_preprocess_mpi(project):
 	if s3_exist is False:
 		writeToLog('Started upload to AWS on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
 		if len(project) == 0:
-			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+			bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
                         bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,indirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -2450,7 +2450,7 @@ def relion_preprocess_mpi(project):
         	#Create EBS volume
         	if os.path.exists('%s/awsebs.log' %(outdir)) :
                		os.remove('%s/awsebs.log'%(outdir))
-        	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,boxdir)+'> %s/awsebs.log'%(outdir)
+        	cmd='%s/create_volume.py %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,AZ_letter,teamname,boxdir)+'> %s/awsebs.log'%(outdir)
         	subprocess.Popen(cmd,shell=True).wait()
 
         	#Get volID from logfile
@@ -2461,7 +2461,7 @@ def relion_preprocess_mpi(project):
 	#Launch instance
 	if os.path.exists('%s/awslog.log'%(outdir)):
 		os.remove('%s/awslog.log'%(outdir))
-	cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,AZ_letter,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	now=datetime.datetime.now()
@@ -2683,7 +2683,7 @@ def relion_run_ctffind(project):
 	if s3_exist is False:
                 writeToLog('Started micrograph upload on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
                 if len(project) == 0:
-			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time()) 
+			bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0: 
 			bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -2714,7 +2714,7 @@ def relion_run_ctffind(project):
                 mpi=4
                 gpu=1
                 cost=0.9
-	writeToLog('Booting up %i x %s virtual machines on AWS to estimate CTF with Gctf in availability zone %sa' %(numInstancesRequired,instance,awsregion), '%s/run.out' %(outdir))
+	writeToLog('Booting up %i x %s virtual machines on AWS to estimate CTF with Gctf in availability zone %s%s' %(numInstancesRequired,instance,awsregion,AZ_letter), '%s/run.out' %(outdir))
 
         instanceNum=0
         ebsVolList=[]
@@ -2777,7 +2777,7 @@ def relion_run_ctffind(project):
                 #Create EBS volume
                	if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-               	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+               	cmd='%s/create_volume.py %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,AZ_letter,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                	#Get volID from logfile
                	volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -2792,7 +2792,7 @@ def relion_run_ctffind(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
+                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -3132,7 +3132,7 @@ def relion_run_motioncorr(project):
         if s3_exist is False and len(micstar.split('s3-')) == 1:
                 writeToLog('Started movie upload on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
                 if len(project) == 0:
-			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+			bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
 			bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
 		if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -3148,7 +3148,7 @@ def relion_run_motioncorr(project):
 		if micstarinput[-1] == '/': 
 			micstarinput=micstarinput[:-1]
 		if len(project) == 0:
-                        bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+                        bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
 		if len(project) > 0:
 			bucketname='rln-aws-%s-%s/%s' %(teamname,keyname,micstarinput)
                         outputbucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)	
@@ -3259,7 +3259,7 @@ def relion_run_motioncorr(project):
 		instancenum=instancenum+1
 		n1.close()
 		count=count+int(numMoviesPerInstance)
-	writeToLog('Booting up %i x %s virtual machines on AWS to align movies in availability zone %sa' %(numInstancesRequired,instance,awsregion), '%s/run.out' %(outdir))
+	writeToLog('Booting up %i x %s virtual machines on AWS to align movies in availability zone %s%s' %(numInstancesRequired,instance,awsregion,AZ_letter), '%s/run.out' %(outdir))
 
 	instanceNum=0
 	ebsVolList=[]
@@ -3273,7 +3273,7 @@ def relion_run_motioncorr(project):
 		if iosize > 5000:
 			iosize=5000
 			
-                cmd='%s/create_volume_IOPS.py %i %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+                cmd='%s/create_volume_IOPS.py %i %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,AZ_letter,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -3287,7 +3287,7 @@ def relion_run_motioncorr(project):
        	 	#Launch instance
         	if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                 	os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-		cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
+		cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True)
 		instanceNum=instanceNum+1
        		time.sleep(10)
@@ -3615,7 +3615,7 @@ def relion_autopick_mpi(project):
         if s3_exist is False:
                 writeToLog('Started micrograph upload on %s' %(time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
                 if len(project) == 0:
-			bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())	
+			bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
                         bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -3675,7 +3675,7 @@ def relion_autopick_mpi(project):
                 gpu=1
                 cost=0.9
 
-        writeToLog('Booting up %i x %s virtual machines on AWS to auto pick particles (GPU accelerated) in availability zone %sa' %(numInstancesRequired,instance,awsregion), '%s/run.out' %(outdir))
+        writeToLog('Booting up %i x %s virtual machines on AWS to auto pick particles (GPU accelerated) in availability zone %s%s' %(numInstancesRequired,instance,awsregion,AZ_letter), '%s/run.out' %(outdir))
 
         instanceNum=0
         ebsVolList=[]
@@ -3711,7 +3711,7 @@ def relion_autopick_mpi(project):
                 #Create EBS volume
                 if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
                         os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-                cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+                cmd='%s/create_volume.py %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,AZ_letter,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True).wait()
                 #Get volID from logfile
                 volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
@@ -3726,7 +3726,7 @@ def relion_autopick_mpi(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,ebsVolList[instanceNum],outdir,instanceNum)
+                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -4057,7 +4057,7 @@ def relion_polish(project):
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
 
-        writeToLog('Booting up virtual machine %s on AWS in availability zone %sa' %(instance,awsregion), '%s/run.out' %(outdir))
+        writeToLog('Booting up virtual machine %s on AWS in availability zone %s%s' %(instance,awsregion,AZ_letter), '%s/run.out' %(outdir))
 
 	 #Get AWS ID
         AWS_ID=subprocess.Popen('echo $AWS_ACCOUNT_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -4120,7 +4120,7 @@ def relion_polish(project):
                 #sys.exit()
 		writeToLog('Started uploading %sGB to AWS on %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
                 if len(project) == 0:
-                        bucketname='rln-aws-tmp-%s/%s/%0.f' %(teamname,keyname,time.time())
+                        bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
                 if len(project) > 0:
                         bucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)
                 if subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip() == 'Linux':
@@ -4137,7 +4137,7 @@ def relion_polish(project):
                 #Create EBS volume
                 if os.path.exists('%s/awsebs.log' %(outdir)) :
                         os.remove('%s/awsebs.log' %(outdir))
-                cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,teamname,particledir)+'> %s/awsebs.log' %(outdir)
+                cmd='%s/create_volume.py %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),awsregion,AZ_letter,teamname,particledir)+'> %s/awsebs.log' %(outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 
                 #Get volID from logfile
@@ -4153,7 +4153,7 @@ def relion_polish(project):
         #Launch instance
         if os.path.exists('%s/awslog.log' %(outdir)):
                 os.remove('%s/awslog.log' %(outdir))
-        cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+        cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,AZ_letter,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
         #Get instance ID, keypair, and username:IP
         instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -4358,6 +4358,14 @@ if __name__ == "__main__":
 		print 'Error: unrecognized relion command'
 		sys.exit()
 	project=''
+
+	#Get region to determine zone letter
+	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+	if awsregion == 'us-east-1': 
+		AZ_letter='b'
+	if awsregion != 'us-east-1': 
+		AZ_letter='a'
+
 	#Get project name if exists
 	if os.path.exists('.aws_relion_project_info'):
 		project=linecache.getline('.aws_relion_project_info',1).split('=')[-1]
@@ -4371,6 +4379,7 @@ if __name__ == "__main__":
 	if jobtype  == 'relion_run_ctffind' or jobtype == 'relion_run_ctffind_mpi':
                 relion_run_ctffind(project)
 		sys.exit()
+
 	#Extract particles
 	if numjobsIn == 1:
 		if jobtype == 'relion_preprocess' or jobtype == 'relion_preprocess_mpi':
