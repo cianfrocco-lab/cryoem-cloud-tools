@@ -4047,11 +4047,28 @@ def relion_polish(project):
                 o89.close()
                 otherPartRclone='rclonetmplist1298.txt'
         #Choose instance type
-        instance='t2.micro'
-	j='--j 3 '
-        mpi=4
-        numfiles=90
-        cost=14.40
+        numParticles=float(subprocess.Popen('cat %s | wc -l' %(starfilename),shell=True, stdout=subprocess.PIPE).stdout.read().strip())
+	
+	if numParticles > 1000000:
+                #instance='x1.32xlarge'
+                #mpi=128
+                #numfiles=128
+                #cost=13.338
+		instance='m4.16xlarge'
+                mpi=64
+                numfiles=64
+                cost=3.2
+	if numParticles < 1000000: 
+		instance='m4.16xlarge'
+                mpi=64
+                numfiles=64
+                cost=3.2
+	if numParticles < 200000: 
+		instance='m4.2xlarge'
+        	mpi=8
+        	numfiles=8
+        	cost=0.4
+	
 	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
         if len(awsregion) == 0:
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
@@ -4178,9 +4195,7 @@ def relion_polish(project):
                                 s3_to_ebs(userIP,keypair,bucketname,'/data/%s' %(particledir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles)
                 if len(otherPartDir) > 0:
                         s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(otherPartDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles)
-                writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
-
-	sys.exit()
+	        writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
 
         #Make output directories
         dirlocation='/data'
@@ -4191,23 +4206,11 @@ def relion_polish(project):
                 dirlocation=dirlocation+'/'+entry
         cmd='rsync -avzu --rsync-path="rsync" --log-file="%s/rsync.log" -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > %s/rsync.log' %(outdir,keypair,outdir,userIP,dirlocation,outdir)
         subprocess.Popen(cmd,shell=True).wait()
-        if len(otherPartDir) > 0:
-                dirlocation='/data/'
-                partdirlist=particledir.split('/')
-                del partdirlist[-1]
-                for entry in partdirlist:
-                        exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
-                        dirlocation=dirlocation+'/'+entry
-                cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > %s/rsync.log' %(outdir,keypair,particledir,userIP,dirlocation,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-        if initmodel != 'None':
-                cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,initmodel,userIP,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
         if len(mask) > 0:
                 cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,mask,userIP,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
 
-        relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
+        relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_particle_polish_mpi %s' %(mpi,relioncmd)
 
         o2=open('run_aws.job','w')
         o2.write('#!/bin/bash\n')
@@ -4230,13 +4233,11 @@ def relion_polish(project):
                 cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
                 time.sleep(2)
-		if autoref == -1:
-                        if os.path.exists('%s_it%03i_data.star' %(outbasename,int(numiters))):
-                                isdone=1
-                if autoref != -1:
-                        if os.path.exists('%s_class001.mrc' %(outbasename)):
-                                isdone=1
-                #Check if job was specified to be killed
+		                
+		if float(subprocess.Popen('cat %s/run.out | grep done | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0:
+			isdone=1
+
+		#Check if job was specified to be killed
                 if isdone ==0:
                         isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
 
@@ -4246,7 +4247,6 @@ def relion_polish(project):
                                 if float(subprocess.Popen('cat %s/run.err | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0:
                                         writeToLog('\nError detected in run.err. Shutting down instance.','%s/run.out' %(outdir))
                                         isdone=1
-
                 time.sleep(10)
         time.sleep(30)
 
