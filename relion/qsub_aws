@@ -635,7 +635,7 @@ def checkPartLocation(instarfile,indir):
 
 #==============================
 def parseCMDrefine(relioncmd):
-
+	deleteaws=False
 	l=relioncmd.split()
 	newcmd=[]
 	tot=len(l)
@@ -672,9 +672,14 @@ def parseCMDrefine(relioncmd):
 		if l[counter] == '--i':
 			if l[counter+1].split('/')[0] == 'Select':
 				selectflag=l[counter+1]
+		if l[counter] == '--deleteaws': 
+			counter=counter+1
+			deleteaws=True
+                        continue
+
 		newcmd.append(l[counter])
  		counter=counter+1
-	return ' '.join(newcmd),selectflag
+	return ' '.join(newcmd),selectflag,deleteaws
 
 #==============================
 def parseCMDpolish(relioncmd):
@@ -1067,7 +1072,7 @@ def relion_refine_mpi(project):
 	os.remove('%s/note_bckup.txt' %(outdir))
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
-	relioncmd,select=parseCMDrefine(relioncmd)
+	relioncmd,select,deleteaws=parseCMDrefine(relioncmd)
 	#Check where input particles are located
 	if stack is False: 
 		otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
@@ -1342,21 +1347,22 @@ def relion_refine_mpi(project):
 	cmd='echo "%s      %s      %.02f  " >> aws_relion_costs.txt' %(particledir,outdir,float(deltaHr)*float(cost))
         subprocess.Popen(cmd,shell=True).wait()
 
-	#Update .aws_relion
-	if os.path.exists('.aws_relion_tmp'):
-		os.remove('.aws_relion_tmp')
-	if os.path.exists('.aws_relion'):
-		shutil.move('.aws_relion','.aws_relion_tmp')
-		tmpout=open('.aws_relion','w')
-		for line in open('.aws_relion_tmp','r'):
-			if line.split()[0] == particledir:
-				continue
-			tmpout.write(line)
-		tmpout.close()
-	        os.remove('.aws_relion_tmp')
-
-	cmd='echo "%s     %s      %s" >> .aws_relion' %(particledir,bucketname,volID)
-	subprocess.Popen(cmd,shell=True).wait()
+	if deleteaws is False: 
+		#Update .aws_relion
+		if os.path.exists('.aws_relion_tmp'):
+			os.remove('.aws_relion_tmp')
+		if os.path.exists('.aws_relion'):
+			shutil.move('.aws_relion','.aws_relion_tmp')
+			tmpout=open('.aws_relion','w')
+			for line in open('.aws_relion_tmp','r'):
+				if line.split()[0] == particledir:
+					continue
+				tmpout.write(line)
+			tmpout.close()
+		        os.remove('.aws_relion_tmp')
+	
+		cmd='echo "%s     %s      %s" >> .aws_relion' %(particledir,bucketname,volID)
+		subprocess.Popen(cmd,shell=True).wait()
 
 	if len(project) > 0:
                 projectbucket='rln-aws-%s-%s/%s' %(teamname,keyname,project)
@@ -1382,7 +1388,26 @@ def relion_refine_mpi(project):
                         subprocess.Popen(cmd,shell=True).wait()
                 if os.path.exists('%s/s3tmp.log' %(outdir)):
                         os.remove('%s/s3tmp.log' %(outdir))
+
+	#Remove EBS & S3 if flag specified
+	if deleteaws is True: 
+		cmd='aws s3 rm %s --recursive > s3tmpout.txt' %(bucketname)
+		subprocess.Popen(cmd,shell=True).wait()	
+
+                isdone=0
+                while isdone == 0:
+
+			status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID.strip()),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                        if status == 'terminated':
+                                isdone=1
+                        time.sleep(10)
+        	time.sleep(30)
 	
+		cmd='%s/kill_volume.py %s > awslog.log' %(awsdir,volID)
+                subprocess.Popen(cmd,shell=True).wait()
+	
+		os.remove('s3tmpout.txt')
+		os.remove('awslog.log')
 	#Cleanup
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
