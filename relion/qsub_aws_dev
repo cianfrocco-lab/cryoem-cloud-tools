@@ -3228,7 +3228,7 @@ def relion_run_motioncorr(project):
 			numInstancesRequired=1
 		if ifMotionCor2 is True:
                         movieAlignType = 'motioncor2'
-		if movieCounter < 8:
+		if movieCounter < 3:
 			instance='p2.xlarge'
 	        	numInstancesRequired=1
 	        	gpu=1
