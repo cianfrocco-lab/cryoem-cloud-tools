@@ -7,6 +7,7 @@ from pkgutil import iter_modules
 
 homepath=os.environ['HOME']
 cloudtoolsonly=False
+forceinstall=False
 
 #Specify install location
 if len(sys.argv) == 1: 
@@ -46,6 +47,8 @@ if len(sys.argv) == 4:
 			install_location=sys.argv[counter]
 		if in1 == '--cloudToolsOnly': 
 			cloudtoolsonly=True
+		if in1 == '--force': 
+			forinstall=True
 		counter=counter+1
 
 #==============================
@@ -142,8 +145,9 @@ else:
 	pingstatus = 'bad'
 
 if pingstatus == 'bad': 
-	print 'Error: Cannot connect to internet. Check your networking and try again'
-	sys.exit()
+	if forceinstall is False: 
+		print 'Error: Cannot connect to internet. Check your networking and try again'
+		sys.exit()
 #Check relion
 '''
 installRelion=True
