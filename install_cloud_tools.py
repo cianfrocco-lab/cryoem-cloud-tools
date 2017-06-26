@@ -34,6 +34,10 @@ if len(sys.argv) == 2:
 		if sys.argv[1] == '--cloudToolsOnly': 
 			cloudtoolsonly=True
 			install_location='%s/CloudSoftwareTools' %(homepath)
+		
+		if sys.argv[1] == '--force':
+                        forceinstall=True
+
 if len(sys.argv) == 3: 
 	if sys.argv[1] != '--prefix': 
 		print 'Error: Unknown option %s. Was expecting --prefix' %(sys.argv[1])
