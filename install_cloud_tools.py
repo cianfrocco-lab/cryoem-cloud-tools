@@ -22,7 +22,7 @@ if len(sys.argv) == 2:
 		sys.exit()
 
 	if sys.argv[1] != '-h':
-		if sys.argv[1] != '--cloudToolsOnly':
+		if sys.argv[1] != '--cloudToolsOnly' and sys.argv[1] != '--force':
  
 			print 'Usage: ./install_cloud_tools.py'
 	                print '\nBy default, the program will install the software into %s/CloudSoftwareTools.' %(homepath)
@@ -36,6 +36,7 @@ if len(sys.argv) == 2:
 			install_location='%s/CloudSoftwareTools' %(homepath)
 		
 		if sys.argv[1] == '--force':
+			install_location='%s/CloudSoftwareTools' %(homepath)
                         forceinstall=True
 
 if len(sys.argv) == 3: 
