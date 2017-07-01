@@ -195,7 +195,8 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 		if numVPCs == 0: 
 			print 'Error: No VPCs found. Exiting'
 			sys.exit()
-
+    if params['debug'] is True: 
+	print 'vpcCheckFlag=%i' %(vpcCheckFlag)
     ##Loop over all VPCs
     	vpcCounter=0
     	while vpcCounter < numVPCs:
