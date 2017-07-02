@@ -185,36 +185,9 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     #Get VPC ID for 'default' VPC:
     #Strategy: List all VPCs, then loop through to get any default VPC
     #Get number of VPCs available to user
-    	numVPCs=float(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[*].{VPC:VpcId}" | grep VPC | wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip())
-	vpcCheckFlag=0
-    	if params['debug'] is True:
-    		print 'Number of VPCs=%0.f\n' %(numVPCs)
-    	if numVPCs == 0:
-    		numVPCs=float(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[*]" | grep VPC | wc -l', shell=True, stdout=subprocess.PIPE).stdout.read().strip())
-		vpcCheckFlag=1
-		if numVPCs == 0: 
-			print 'Error: No VPCs found. Exiting'
-			sys.exit()
-    if params['debug'] is True: 
-	print 'vpcCheckFlag=%i' %(vpcCheckFlag)
     ##Loop over all VPCs
-    	vpcCounter=0
-    	while vpcCounter < numVPCs:
-    		if int(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[%0.f].{Check:IsDefault}" | grep true | wc -l' %(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()) == 1:
-    			VPC=subprocess.Popen('aws ec2 describe-vpcs --query Vpcs[%0.f].{vpc:VpcId} | grep vpc-'%(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-    			if params['debug'] is True:
-    				print 'Default VPC=%s\n' %(VPC)
-		if int(subprocess.Popen('aws ec2 describe-vpcs --query "Vpcs[%0.f].{Check:IsDefault}" | grep True | wc -l' %(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()) == 1:
-                        if vpcCheckFlag == 0: 
-				VPC=subprocess.Popen('aws ec2 describe-vpcs --query Vpcs[%0.f].{vpc:VpcId} | grep vpc-'%(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                        if vpcCheckFlag == 1: 
-				VPC=subprocess.Popen('aws ec2 describe-vpcs --query Vpcs[%0.f] | grep vpc-'%(vpcCounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-			if params['debug'] is True:
-                                print 'Default VPC=%s\n' %(VPC)
-    		vpcCounter=vpcCounter+1
 
-    	if params['debug'] is True:
-    		print '\nAdding security group into VPC %s ...\n' %(VPC)
+	VPC=subprocess.Popen('aws ec2 describe-account-attributes --attribute-names default-vpc | grep vpc-', shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].strip('"').split("'")[0]
 
     ##Create security group for given IP address
     ##Check if there are more than 500 security groups. If so, throw error
