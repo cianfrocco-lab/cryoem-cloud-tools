@@ -201,6 +201,11 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     		print 'Error: Too many security groups. Exiting\n'
     		sys.exit()
 
+	if params['debug'] is True:
+		print 'aws ec2 create-security-group --group-name %s --vpc-id %s --description "%s" | grep GroupId' %(securityGroupName,VPC,securityGroupDescript)
+		print subprocess.Popen('aws ec2 create-security-group --group-name %s --vpc-id %s --description "%s"'%(securityGroupName,VPC,securityGroupDescript), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		print subprocess.Popen('aws ec2 create-security-group --group-name %s --vpc-id %s --description "%s" | grep GroupId' %(securityGroupName,VPC,securityGroupDescript), shell=True, stdout=subprocess.PIPE).stdout.read().strip()	
+
     	securityGroupId=subprocess.Popen('aws ec2 create-security-group --group-name %s --vpc-id %s --description "%s" | grep GroupId' %(securityGroupName,VPC,securityGroupDescript), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
     	if params['debug'] is True:
