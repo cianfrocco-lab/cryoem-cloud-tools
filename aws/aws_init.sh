@@ -19,7 +19,7 @@
 export AWS_ACCESS_KEY_ID= #INPUT REQUIRED
 export AWS_SECRET_ACCESS_KEY= #INPUT REQUIRED
 export AWS_ACCOUNT_ID= #INPUT REQUIRED
-export AWS_DEFAULT_REGION= #INPUT REQUIRED. AWS regions that have GPUs: US-West-2 (Oregon), US-East-1 (Virgina), EU-West-1 (Ireland)
+export AWS_DEFAULT_REGION= #INPUT REQUIRED. AWS regions that have GPUs: us-west-2 (Oregon), us-east-1 (Virgina), eu-west-1 (Ireland)
 export KEYPAIR_PATH= #INPUT REQUIRED
 
 #Research group name
