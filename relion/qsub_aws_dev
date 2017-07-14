@@ -3901,8 +3901,8 @@ def relion_autopick_mpi(project):
                 micdirlocation=indirlocation
                 cloudpath='/data/'+outdir
 		exec_remote_cmd('~/rclone sync rclonename:%s /data/%s --quiet --max-size 1G --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
-                if len(otherbucketDirName) > 0:
-			exec_remote_cmd('~/rclone sync rclonename:%s %s --quiet --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
+                #if len(otherbucketDirName) > 0:
+		#	exec_remote_cmd('~/rclone sync rclonename:%s %s --quiet  --max-size 1G --transfers %i' %(bucketname.split('s3://')[-1],micpath,mpi*3))
 			
                 if gpu  == 1:
                         relion_remote_cmd='/home/EM_Packages/relion2.0/build/bin/relion_autopick %s --gpu ' %(relioncmd)
