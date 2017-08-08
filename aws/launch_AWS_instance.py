@@ -29,6 +29,8 @@ def setupParserOptions():
 	    help="Optional: Force instance to remain on always (when this option is not specified, instance will be terminated after 30 minutes of idle time)")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
             help="Flag to list available instances")
+    parser.add_option("--tag",dest="tagname",type="string",metavar="STRING",default='None',
+            help="Optional: Provide user-specified tag for instance. By default, instance will be tagged with keypair name")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
             help="debug")
     options,args = parser.parse_args()
@@ -263,12 +265,17 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 	   #Tag instance using keyname (which should be username, region)
             if params['debug'] is True:
         	print '\nTagging instance %s with your key pair name %s\n' %(InstanceID,keyName)
-    	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
-    	    subprocess.Popen(cmd,shell=True).wait()
+            if params['tagname'] == 'None': 
+	    	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+    		    subprocess.Popen(cmd,shell=True).wait()
 
-	    pwd=os.getcwd()
-	    cmd='aws ec2 create-tags --resources %s --tags Key=Directory,Value=%s' %(InstanceID,pwd)
-	    subprocess.Popen(cmd,shell=True).wait()
+            if params['tagname'] != 'None': 
+		    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,params['tagname'])
+                    subprocess.Popen(cmd,shell=True).wait()
+
+            pwd=os.getcwd()
+            cmd='aws ec2 create-tags --resources %s --tags Key=Directory,Value=%s' %(InstanceID,pwd)
+            subprocess.Popen(cmd,shell=True).wait()
 
 	    if params['cloudskip'] is False: 
 		if params['debug'] is True:
@@ -310,7 +317,7 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 	    print 'Spot instance request submitted.\n'
 
 #======================
-def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
+def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
 
    fabric_test=module_exists('fabric.api')
    if fabric_test is False:
@@ -325,7 +332,10 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath):
    #List instances given a users tag
    keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
-   tag=keyPath.split('/')[-1].split('.')[0]
+   if params['tagname'] == 'None':
+	tag=keyPath.split('/')[-1].split('.')[0]
+   if params['tagname'] != 'None': 
+	tag=params['tagname']
 
    print '\n\nAttaching volume %s to instance %s ...\n' %(volID,instanceID)
 
@@ -418,7 +428,7 @@ if __name__ == "__main__":
     keyName,keyPath,AMI,AWS_ACCOUNT_ID=checkConflicts(params,availInstances)
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
-	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath)
+	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath,params)
 
 
 
