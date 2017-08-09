@@ -270,7 +270,10 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     		    subprocess.Popen(cmd,shell=True).wait()
 
             if params['tagname'] != 'None': 
-		    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,params['tagname'])
+		    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+                    subprocess.Popen(cmd,shell=True).wait()
+
+		    cmd='aws ec2 create-tags --resources %s --tags Key=Name,Value=%s' %(InstanceID,params['tagname'])
                     subprocess.Popen(cmd,shell=True).wait()
 
             pwd=os.getcwd()
