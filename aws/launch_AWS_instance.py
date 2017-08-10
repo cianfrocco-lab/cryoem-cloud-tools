@@ -149,7 +149,7 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     if uname == 'Linux': 
     	IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
-    if uname == 'Darwin'
+    if uname == 'Darwin':
 	IPaddress=subprocess.Popen('curl -s ipecho.net | grep "Your IP is" | sed -e "s/^.* //" -e "s/\<.*$//"',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
     #IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
