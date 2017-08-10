@@ -146,8 +146,13 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     uname=subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     securityGroupName='sg_%i' %(int(time.time()))
     securityGroupDescript='Automated security group'
-    #if uname == 'Linux': 
-    IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    if uname == 'Linux': 
+    	IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+    if uname == 'Darwin'
+	IPaddress=subprocess.Popen('curl -s ipecho.net | grep "Your IP is" | sed -e "s/^.* //" -e "s/\<.*$//"',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+    #IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     #if uname == 'Darwin': 
 	#IPaddress=subprocess.Popen('curl ipecho.net/plain ; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     if len(IPaddress) == 0:
