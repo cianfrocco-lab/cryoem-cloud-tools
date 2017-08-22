@@ -11,14 +11,14 @@ if len(sys.argv) < 4:
 if len(sys.argv) == 4: 
 	volSize=sys.argv[1]
 	AZ=sys.argv[2]
-	allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c']
+	allowedZones=['us-east-1a','us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c']
 	description=sys.argv[3]
 	snapid=''
 
 if len(sys.argv) == 5:
         volSize=sys.argv[1]
         AZ=sys.argv[2]
-        allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c']
+        allowedZones=['us-east-1a','us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c']
         description=sys.argv[3]
 	snapid=' --snapshot-id %s' %(sys.argv[4])
 
