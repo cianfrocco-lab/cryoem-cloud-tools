@@ -25,7 +25,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
 	rclonename='ebss3'
 	if os.path.exists('.rclone.conf'):
 		os.remove('.rclone.conf')
-	r1=open('rclone.conf','w')
+	r1=open('.rclone.conf','w')
         r1.write('[rclonename]\n')
         r1.write('type = s3\n')
         r1.write('env_auth = false\n')
@@ -39,7 +39,7 @@ def s3_to_ebs(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,nu
         r1.write('storage_class = STANDARD\n')
         r1.close()
 
-	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s rclone.conf ubuntu@%s:~/.rclone.conf' %(keypair,IP)
+	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s .rclone.conf ubuntu@%s:~/.rclone.conf' %(keypair,IP)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	#Copy data down
@@ -365,7 +365,6 @@ def relion_refine_mpi(in_cmd):
 			if len(line) > 4:
 				if line.split()[0] == '_rlnCurrentIteration':
 					iterationNumOpt=int(line.split()[1].strip())
-		if float(iterationNumOpt) >= float(numiters):
 			writeToLog('Error: Number of iterations requested %i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
 			sys.exit()
 
@@ -676,6 +675,8 @@ def relion_refine_mpi(in_cmd):
 	#Make output directories
 	dirlocation='/data'
 	outdirlist=outdir.split('/')
+	#exec_remote_cmd('mkdir %s'%particledir)
+	#exec_remote_cmd('echo'+particledir+' > /home/ubuntu/check.log')
 	del outdirlist[-1]
         for entry in outdirlist:
         	exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
@@ -718,7 +719,8 @@ def relion_refine_mpi(in_cmd):
 	isdone=0
 
 	while isdone == 0:
-		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+		#cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+		cmd='mkdir -p %s/%s; rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,outbasename,outdir,keypair,userIP,outdir,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		time.sleep(2)
 		if autoref == -1:
@@ -802,7 +804,7 @@ def relion_refine_mpi(in_cmd):
 
 #==============================
 def check_and_kill_job(note,IP,keypair):
-
+	
 	o9=open(note,'r')
 	kill=0
 	for line in o9:
