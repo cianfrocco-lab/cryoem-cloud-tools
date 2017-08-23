@@ -54,9 +54,9 @@ def checkConflicts(params,availInstances):
 	print 'Error: No availability zone specified. Exiting'
 	sys.exit()
 
-    allowedzones=['us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','us-west-1a', 'us-west-1b','us-west-1c','eu-west-1a','eu-west-1b','eu-west-1c','ap-southeast-1a','ap-southeast-1b','ap-northeast-1a','ap-northeast-1b','ap-northeast-1c','ap-southeast-2a','ap-southeast-2b','sa-east-1a','sa-east-1b','us-east-2a','us-east-2b','us-east-2c','ca-central-1a','ca-central-1b','eu-west-2a','eu-west-2b','eu-central-1a','eu-central-1b','ap-northeast-2a','ap-northeast-2c','ap-south-1a','ap-south-1b','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
+    allowedzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','us-west-1a', 'us-west-1b','us-west-1c','eu-west-1a','eu-west-1b','eu-west-1c','ap-southeast-1a','ap-southeast-1b','ap-northeast-1a','ap-northeast-1b','ap-northeast-1c','ap-southeast-2a','ap-southeast-2b','sa-east-1a','sa-east-1b','us-east-2a','us-east-2b','us-east-2c','ca-central-1a','ca-central-1b','eu-west-2a','eu-west-2b','eu-central-1a','eu-central-1b','ap-northeast-2a','ap-northeast-2c','ap-south-1a','ap-south-1b','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
 
-    gpuzones=['us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
+    gpuzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
 
     if params['zone'] not in allowedzones: 
 	print 'Error: Input zone %s is not in allowed zones:' %(params['zone'])
@@ -363,18 +363,24 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
    time.sleep(10)
    env.host_string='ubuntu@%s' %(PublicIP)
    env.key_filename = '%s' %(keyPath)
-   dir_exists=exec_remote_cmd('ls /data')
+   #dir_exists=exec_remote_cmd('ls /data')
+   dir_exists=exec_remote_cmd('ls /gpfs')
    if len(dir_exists.split()) >0: 
 	if dir_exists.split()[2] == 'access': 
-		mk=exec_remote_cmd('sudo mkdir /data/') 
+		#mk=exec_remote_cmd('sudo mkdir /data/') 
+		mk=exec_remote_cmd('sudo mkdir /gpfs/') 
    check_NFS=exec_remote_cmd('sudo file -s /dev/xvdf')
    if 'filesystem' not in check_NFS:
 	nfsmount=exec_remote_cmd('sudo mkfs -t ext4 /dev/xvdf')
-   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data')
-   chmod=exec_remote_cmd('sudo chmod 777 /data/')
+   #mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data')
+   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /gpfs')
+   #chmod=exec_remote_cmd('sudo chmod 777 /data/')
+   chmod=exec_remote_cmd('sudo chmod 777 /gpfs/')
    if 'filesystem' not in check_NFS:
-	chmod=exec_remote_cmd('rm /data/lost+found')
-   print '\n...volume mounted onto /data/ ...\n' 
+	#chmod=exec_remote_cmd('rm /data/lost+found')
+	chmod=exec_remote_cmd('rm /gpfs/lost+found')
+   #print '\n...volume mounted onto /data/ ...\n' 
+   print '\n...volume mounted onto /gpfs/ ...\n' 
 
 #====================
 def module_exists(module_name):

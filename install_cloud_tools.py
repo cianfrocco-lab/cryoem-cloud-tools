@@ -151,8 +151,9 @@ else:
 
 if pingstatus == 'bad': 
 	if forceinstall is False: 
-		print 'Error: Cannot connect to internet. Check your networking and try again'
-		sys.exit()
+		#print 'Error: Cannot connect to internet. Check your networking and try again'
+		#sys.exit()
+		print("Error: Cannot ping google.com. This may because of firewall settings. Continuing anyway."
 #Check relion
 '''
 installRelion=True
