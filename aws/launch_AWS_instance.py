@@ -98,32 +98,22 @@ def checkConflicts(params,availInstances):
     if len(AWS_DEFAULT_REGION) == 0:
     	print '\nError: AWS_DEFAULT_REGION not specified as environment variable. Exiting\n'
     	sys.exit()
-    if params['instance'].split('.')[0] == 'p2':
+    if params['instance'].split('.')[0] == 'p2' or params['instance'].split('.')[0] == 'g3': 
 	if params['zone'] not in gpuzones: 
-		print 'Error: Specified availability zone %s does not have GPU instances (p2). Please use one of the availability zones (regions) below:' %(params['zone'])
+		print 'Error: Specified availability zone %s does not have GPU instances (p2 nor g3). Please use one of the availability zones (regions) below:' %(params['zone'])
 		print gpuzones
 		sys.exit()
 
     if AWS_DEFAULT_REGION == 'us-east-1':
-	if params['instance'].split('.')[0] == 'p2':
-        	AMI='ami-38b2ed2e'
-    	if params['instance'].split('.')[0] != 'p2':
-        	AMI='ami-38b2ed2e'
-	if params['relion2'] is True:
-		AMI='ami-38b2ed2e'
+        AMI='ami-5df9ff26'
     if AWS_DEFAULT_REGION == 'us-west-2':
-        if params['instance'].split('.')[0] == 'p2':
-		AMI='ami-eacd558a'
-	if params['instance'].split('.')[0] != 'p2':
-		AMI='ami-eacd558a'
-	if params['relion2'] is True:
-		AMI='ami-eacd558a'
+	AMI='ami-d6c920ae'
     if AWS_DEFAULT_REGION == 'us-east-2':
-		AMI='ami-c1a283a4'
+	AMI='ami-ac1734c9'
     if AWS_DEFAULT_REGION == 'eu-west-1':
-		AMI='ami-5f799b26'
-    if AWS_DEFAULT_REGION == 'ap-northeast-2':
-		AMI='ami-07e13f69'
+	AMI='ami-3fbe4746'
+    if AWS_DEFAULT_REGION == 'ap-southeast-2':
+        AMI='ami-c36e74a0'
     if params['AMI'] != 'None': 
         AMI=params['AMI']
 
@@ -438,7 +428,6 @@ if __name__ == "__main__":
 		if qans is False: 
 			sys.exit() 
 
-    #Need to create directory for AMIs across regions. Right now, just US-East-1 
     keyName,keyPath,AMI,AWS_ACCOUNT_ID=checkConflicts(params,availInstances)
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
