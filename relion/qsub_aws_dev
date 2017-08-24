@@ -941,9 +941,10 @@ def relion_refine_mpi(project,AZ_letter):
 			if len(line) > 4: 
 				if line.split()[0] == '_rlnCurrentIteration': 
 					iterationNumOpt=int(line.split()[1].strip())
-		if float(iterationNumOpt) >= float(numiters): 
-			writeToLog('Error: Number of iterations requested %i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
-			sys.exit()
+		if outdir.split('/')[0] == 'Class2D' or outdir.split('/')[0] == 'Class3D':
+			if float(iterationNumOpt) >= float(numiters): 
+				writeToLog('Error: Number of iterations requested %i is less than / equal to current iteration of data (%i). Exiting' %(numiters,iterationNumOpt),'%s/run.err' %(outdir))
+				sys.exit()
 
 	if len(particledir) == 0: 
 		particledir=partstarname	
@@ -1099,6 +1100,8 @@ def relion_refine_mpi(project,AZ_letter):
                         instance='p2.8xlarge'
 		if numParticles > 100000:
                         instance='p2.16xlarge'
+		if len(continueRun) > 0: 
+			instance='p2.8xlarge'
 	if initmodel != 'None': #3D classification or refinement
 		if autoref == -1: #3D classification
 			if numParticles <25000:
@@ -2271,7 +2274,7 @@ def relion_movie_refine(project):
 
 	isdone=0
         while isdone == 0:
-                cmd='rsync --max-size=0.2G -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(keypair,userIP,outdir,outdir,outdir)
+                cmd='rsync -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/run_ra* %s/ > %s/rsync.log' %(keypair,userIP,outdir,outdir,outdir)
                 subprocess.Popen(cmd,shell=True).wait()
                 if os.path.exists('%s_it%03i_data.star' %(outdirRefFull,nextIt)):
                         testsize=os.path.getsize('%s_it%03i_data.star' %(outdirRefFull,nextIt))
