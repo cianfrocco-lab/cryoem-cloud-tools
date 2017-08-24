@@ -1791,7 +1791,16 @@ def relion_movie_refine(project):
 	numParticlesIn=float(subprocess.Popen('cat %s_data.star | grep mrc | wc -l' %(contLocation[:-15]), shell=True, stdout=subprocess.PIPE).stdout.read().strip())
 
 	#Choose instance type
-	AMI='ami-5d26b83d'
+	if awsregion == 'us-west-2': 
+		AMI='ami-28ca2350'
+	if awsregion == 'us-east-2': 
+                AMI='ami-6a17340f'
+	if awsregion == 'us-east-1': 
+                AMI='ami-7f828404'
+	if awsregion == 'eu-west-1': 
+                AMI='ami-0aa95073'
+	if awsregion == 'ap-southeast-2': 
+                AMI='ami-5c6c763f'
 	instance='d2.8xlarge'
         numInstancesRequired=8
 	mpi=36
@@ -4242,10 +4251,22 @@ def relion_polish(project):
         starthr=now.hour
         startmin=now.minute
 
+	#select AMI
+	if awsregion == 'us-west-2':
+                AMI='ami-28ca2350'
+        if awsregion == 'us-east-2':
+                AMI='ami-6a17340f'
+        if awsregion == 'us-east-1':
+                AMI='ami-7f828404'
+        if awsregion == 'eu-west-1':
+                AMI='ami-0aa95073'
+        if awsregion == 'ap-southeast-2':
+                AMI='ami-5c6c763f'
+
         #Launch instance
         if os.path.exists('%s/awslog.log' %(outdir)):
                 os.remove('%s/awslog.log' %(outdir))
-        cmd='%s/launch_AWS_instance.py --AMI=ami-5d26b83d --alwaysOn --instance=%s --availZone=%s%s --noEBS > %s/awslog.log' %(awsdir,instance,awsregion,AZ_letter,outdir)
+        cmd='%s/launch_AWS_instance.py --AMI=%s --alwaysOn --instance=%s --availZone=%s%s --noEBS > %s/awslog.log' %(awsdir,AMI,instance,awsregion,AZ_letter,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
         #Get instance ID, keypair, and username:IP
         instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
