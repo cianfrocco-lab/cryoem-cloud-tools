@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 notincluded=['aws_init.sh','rclone','rclone_mac','aws_init.sh','s3tmpout.txt','install_cloud_tools.py']
-outdirname='aws_build_osx' #Choices: aws_build_linux, aws_build_osx
+outdirname='aws_build_linux' #Choices: aws_build_linux, aws_build_osx
 filelist=glob.glob('aws/*')
 
 for f in filelist: 
@@ -34,6 +34,9 @@ cmd='mv dist/qsub_aws %s/' %(outdirname)
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('qsub_aws.spec')
 
+shutil.rmtree('dist')
+shutil.rmtree('build')
+
 sys.exit()
 cmd='pyinstaller install_cloud_tools.py --onefile'
 subprocess.Popen(cmd,shell=True).wait()
@@ -49,5 +52,3 @@ if outdirname == 'aws_build_osx':
 		os.remove('install_cloud_tools/install_cloud_tools_macOSX')
 	cmd='mv dist/install_cloud_tools install_cloud_tools/install_cloud_tools_macOSX'
 	subprocess.Popen(cmd,shell=True).wait()
-shutil.rmtree('dist')
-shutil.rmtree('build')
