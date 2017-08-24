@@ -1,0 +1,5 @@
+('/Library/Python/2.7/site-packages/six-1.10.0-py2.7.egg',
+ None,
+ set(['*.py', '*.pyc', '*.pyd', '*.pyo', '*.so', 'EGG-INFO']),
+ 'DATA',
+ [])
