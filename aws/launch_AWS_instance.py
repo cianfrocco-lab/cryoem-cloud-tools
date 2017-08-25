@@ -105,15 +105,15 @@ def checkConflicts(params,availInstances):
 		sys.exit()
 
     if AWS_DEFAULT_REGION == 'us-east-1':
-        AMI='ami-5df9ff26'
+        AMI='ami-fc4d4c87'
     if AWS_DEFAULT_REGION == 'us-west-2':
-	AMI='ami-d6c920ae'
+	AMI='ami-5a2bc222'
     if AWS_DEFAULT_REGION == 'us-east-2':
-	AMI='ami-ac1734c9'
+	AMI='ami-6b16350e'
     if AWS_DEFAULT_REGION == 'eu-west-1':
-	AMI='ami-3fbe4746'
+	AMI='ami-f3976e8a'
     if AWS_DEFAULT_REGION == 'ap-southeast-2':
-        AMI='ami-c36e74a0'
+        AMI='ami-9a617bf9'
     if params['AMI'] != 'None': 
         AMI=params['AMI']
 

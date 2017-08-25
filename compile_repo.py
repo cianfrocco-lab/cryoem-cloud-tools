@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 notincluded=['aws_init.sh','rclone','rclone_mac','aws_init.sh','s3tmpout.txt','install_cloud_tools.py']
-outdirname='aws_build_linux' #Choices: aws_build_linux, aws_build_osx
+outdirname='aws_build_osx' #Choices: aws_build_linux, aws_build_osx
 filelist=glob.glob('aws/*')
 
 for f in filelist: 
