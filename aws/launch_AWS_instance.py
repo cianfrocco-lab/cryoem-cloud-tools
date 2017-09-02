@@ -31,6 +31,8 @@ def setupParserOptions():
             help="Flag to list available instances")
     parser.add_option("--tag",dest="tagname",type="string",metavar="STRING",default='None',
             help="Optional: Provide user-specified tag for instance. By default, instance will be tagged with keypair name")
+    parser.add_option("--dirname",dest="dirname",type="string",metavar="STRING",default='data',
+            help="Optional: Provide user-specified directory name onto which EBS volume will be mounted. (Default=data, which will be mounted as /data")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
             help="debug")
     options,args = parser.parse_args()
@@ -353,24 +355,18 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
    time.sleep(10)
    env.host_string='ubuntu@%s' %(PublicIP)
    env.key_filename = '%s' %(keyPath)
-   #dir_exists=exec_remote_cmd('ls /data')
-   dir_exists=exec_remote_cmd('ls /gpfs')
+   dir_exists=exec_remote_cmd('ls /%s' %(params['dirname']))
    if len(dir_exists.split()) >0: 
 	if dir_exists.split()[2] == 'access': 
-		#mk=exec_remote_cmd('sudo mkdir /data/') 
-		mk=exec_remote_cmd('sudo mkdir /gpfs/') 
+		mk=exec_remote_cmd('sudo mkdir /%s/' %(params['dirname']))
    check_NFS=exec_remote_cmd('sudo file -s /dev/xvdf')
    if 'filesystem' not in check_NFS:
 	nfsmount=exec_remote_cmd('sudo mkfs -t ext4 /dev/xvdf')
-   #mount_out=exec_remote_cmd('sudo mount /dev/xvdf /data')
-   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /gpfs')
-   #chmod=exec_remote_cmd('sudo chmod 777 /data/')
-   chmod=exec_remote_cmd('sudo chmod 777 /gpfs/')
+   mount_out=exec_remote_cmd('sudo mount /dev/xvdf /%s' %(params['dirname']))
+   chmod=exec_remote_cmd('sudo chmod 777 /%s/' %(params['dirname']))
    if 'filesystem' not in check_NFS:
-	#chmod=exec_remote_cmd('rm /data/lost+found')
-	chmod=exec_remote_cmd('rm /gpfs/lost+found')
-   #print '\n...volume mounted onto /data/ ...\n' 
-   print '\n...volume mounted onto /gpfs/ ...\n' 
+	chmod=exec_remote_cmd('rm -rf /%s/lost+found' %(params['dirname']))
+   print '\n...volume mounted onto /%s/ ...\n' %(params['dirname']) 
 
 #====================
 def module_exists(module_name):

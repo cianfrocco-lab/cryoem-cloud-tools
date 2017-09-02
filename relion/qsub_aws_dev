@@ -1214,7 +1214,7 @@ def relion_refine_mpi(project,AZ_letter):
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,AZ_letter,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -2046,7 +2046,7 @@ def relion_movie_refine(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --AMI=%s --relion2 --instance=%s --availZone=%sa --noEBS > %s/awslog_%i.log' %(awsdir,AMI,instance,awsregion,outdir,instanceNum)
+                cmd='%s/launch_AWS_instance.py --dirname=%s --AMI=%s --relion2 --instance=%s --availZone=%sa --noEBS > %s/awslog_%i.log' %(data_dir,awsdir,AMI,instance,awsregion,outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -2184,7 +2184,7 @@ def relion_movie_refine(project):
 	instanceNum=0
 	if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
         	os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-        cmd='%s/launch_AWS_instance.py  --alwaysOn --AMI=%s --relion2 --instance=%s --availZone=%s%s --noEBS > %s/awslog_%i.log' %(awsdir,AMI,Refinstance,awsregion,AZ_letter,outdir,instanceNum)
+        cmd='%s/launch_AWS_instance.py --dirname=%s --alwaysOn --AMI=%s --relion2 --instance=%s --availZone=%s%s --noEBS > %s/awslog_%i.log' %(data_dirawsdir,AMI,Refinstance,awsregion,AZ_letter,outdir,instanceNum)
         subprocess.Popen(cmd,shell=True)
         time.sleep(10)
 	instanceList=[]
@@ -2516,7 +2516,7 @@ def relion_preprocess_mpi(project):
 	#Launch instance
 	if os.path.exists('%s/awslog.log'%(outdir)):
 		os.remove('%s/awslog.log'%(outdir))
-	cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,AZ_letter,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --dirname=%s --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	now=datetime.datetime.now()
@@ -2854,7 +2854,7 @@ def relion_run_ctffind(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
+                cmd='%s/launch_AWS_instance.py --dirname=%s --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -3349,7 +3349,7 @@ def relion_run_motioncorr(project):
        	 	#Launch instance
         	if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                 	os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-		cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
+		cmd='%s/launch_AWS_instance.py --dirname=%s --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
 		subprocess.Popen(cmd,shell=True)
 		instanceNum=instanceNum+1
        		time.sleep(10)
@@ -3788,7 +3788,7 @@ def relion_autopick_mpi(project):
                 #Launch instance
                 if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                         os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-                cmd='%s/launch_AWS_instance.py --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
+                cmd='%s/launch_AWS_instance.py --dirname=%s --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
                 subprocess.Popen(cmd,shell=True)
                 instanceNum=instanceNum+1
                 time.sleep(10)
@@ -4266,7 +4266,7 @@ def relion_polish(project):
         #Launch instance
         if os.path.exists('%s/awslog.log' %(outdir)):
                 os.remove('%s/awslog.log' %(outdir))
-        cmd='%s/launch_AWS_instance.py --AMI=%s --alwaysOn --instance=%s --availZone=%s%s --noEBS > %s/awslog.log' %(awsdir,AMI,instance,awsregion,AZ_letter,outdir)
+        cmd='%s/launch_AWS_instance.py --dirname=%s --AMI=%s --alwaysOn --instance=%s --availZone=%s%s --noEBS > %s/awslog.log' %(data_dir,awsdir,AMI,instance,awsregion,AZ_letter,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
         #Get instance ID, keypair, and username:IP
         instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -4476,6 +4476,9 @@ if __name__ == "__main__":
 		AZ_letter='b'
 	if awsregion != 'us-east-1': 
 		AZ_letter='a'
+
+	#Get data directory name for job
+	data_dir=subprocess.Popen('$AWS_DATA_DIRECTORY',shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
 
 	#Get project name if exists
 	if os.path.exists('.aws_relion_project_info'):

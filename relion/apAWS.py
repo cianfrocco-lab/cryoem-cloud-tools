@@ -360,7 +360,7 @@ def getSelectParticleDir(selectdir):
 	return 'Extract/%s' %(jobname)
 
 #==============================
-def relion_refine_mpi(in_cmd,numParticles,partxdim,instancetype=''):
+def relion_refine_mpi(in_cmd,numParticles,partxdim,instancetype='',data_dir):
 
 	assert type(instancetype) == str
 	assert type(numParticles) == int
@@ -667,7 +667,7 @@ def relion_refine_mpi(in_cmd,numParticles,partxdim,instancetype=''):
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(data_dir,awsdir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1].strip()
@@ -907,4 +907,7 @@ if __name__ == "__main__":
 
 	#checkConflicts()
 
-	relion_refine_mpi(in_cmd)
+	#Get data directory name for job
+        data_dir=subprocess.Popen('$AWS_DATA_DIRECTORY',shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+
+	relion_refine_mpi(in_cmd,data_dir)

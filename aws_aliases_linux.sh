@@ -36,3 +36,5 @@ export PATH=$AWS_CLI_DIR/:$PATH
 alias aws_snapshot_create=$AWS_CLI_DIR/create_snapshot.py
 #Delete snapshot
 alias aws_snapshot_delete=$AWS_CLI_DIR/kill_snapshot.py
+#Data directory
+export AWS_DATA_DIRECTORY=data
