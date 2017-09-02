@@ -667,7 +667,7 @@ def relion_refine_mpi(in_cmd,numParticles,partxdim,instancetype='',data_dir):
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(data_dir,awsdir,instance,awsregion,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%sa --volume=%s > %s/awslog.log' %(awsdir,data_dir,instance,awsregion,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1].strip()
