@@ -1110,6 +1110,7 @@ def relion_refine_mpi(project,AZ_letter):
 				instance='p2.8xlarge'
 		if autoref != -1: #3D refinement
 			instance='p2.8xlarge'
+	instance='g3.16xlarge'
 	#Get AWS region from aws_init.sh environment variable
 	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
 	if len(awsregion) == 0:
@@ -1214,7 +1215,7 @@ def relion_refine_mpi(project,AZ_letter):
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,volID,outdir)
+	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(awsdir,data_dir,instance,awsregion,AZ_letter,volID,outdir)
 	subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
@@ -1240,6 +1241,12 @@ def relion_refine_mpi(project,AZ_letter):
                 mpi=17
                 numfiles=90
 		cost=14.40
+	if instance == 'g3.16xlarge': 
+		gpu='--gpu'
+		j='--j 12 '
+		mpi=5
+		numfiles=60
+		cost=4.56
 	env.host_string='ubuntu@%s' %(userIP)
         env.key_filename = '%s' %(keypair)
 	if ebs_exist is False:
@@ -4478,7 +4485,7 @@ if __name__ == "__main__":
 		AZ_letter='a'
 
 	#Get data directory name for job
-	data_dir=subprocess.Popen('$AWS_DATA_DIRECTORY',shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
+	data_dir=subprocess.Popen('echo $AWS_DATA_DIRECTORY',shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
 
 	#Get project name if exists
 	if os.path.exists('.aws_relion_project_info'):
