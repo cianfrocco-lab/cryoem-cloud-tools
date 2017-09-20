@@ -60,12 +60,10 @@ if keyPath.split('/')[-1].split('.')[-1] != 'pem':
 
 tag=keyPath.split('/')[-1].split('.')[0]
 
-starcluster=subprocess.Popen('which starcluster',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-if len(starcluster) == 0:
-	clusterflag=0
-if len(starcluster) > 0: 
-	clusterflag=1
+if os.path.exists('%s/.starcluster' %(subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip())):
+        clusterflag=1
 if not os.path.exists('%s/.starcluster' %(subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip())):
+	clusterflag=0
         os.makedirs('%s/.starcluster' %(subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()))
 
 if not os.path.exists('%s/.starcluster/config' %(subprocess.Popen('echo $HOME',shell=True, stdout=subprocess.PIPE).stdout.read().strip())):
