@@ -189,7 +189,7 @@ def makeCMfile(params,outdir):
 					for pdbline in pdb_read:
 						splitPdb = pdbline.split()
 						if not splitPdb[0] == '':
-							replace_name = 'pdb="%s"' %(splitPdb[0])
+							replace_name = 'pdb="%s"' %(splitPdb[0].split('/')[-1])
 							replace_weight = 'weight="%s"' %(splitPdb[1])
 							#print replace_name
 							#print replace_weight

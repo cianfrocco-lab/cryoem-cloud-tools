@@ -20,18 +20,24 @@ from fabric.context_managers import shell_env
 def setupParserOptions():
         parser = optparse.OptionParser()
         parser.set_usage("This program will submit a rosetta atomic model refinement to AWS for refinement. Specify input pdb file(s), FASTA file and cryo-EM maps below.\n\n%prog --pdb_list=<.txt file with the list of input pdbs and their weights> --fasta=<FASTA file with protein sequence> --em_map=<EM map in .mrc format> --num=<number of atomic structures per CPU process (default:5) -r (flag to run relax instead of CM)")
-        parser.add_option("--pdb_list",dest="pdb_list",type="string",metavar="FILE",
-                    help=".txt file with the input pdbs and their weights")
         parser.add_option("--em_map",dest="em_map",type="string",metavar="FILE",
                     help="EM map in .mrc format")
 	parser.add_option("--fasta",dest="fasta",type="string",metavar="FILE",
                     help="FASTA sequence file (not required for rosetta relax)")
+	parser.add_option("--hhr",dest="hhr",type="string",metavar="FILE",default='',
+                    help=".hhr sequence alignment file")
 	parser.add_option("--AMI",dest="AMI",type="string",metavar="AMI",
                     help="AMI for Rosetta software environment on AWS. (Read more here: cryoem-tools.cloud/rosetta-aws)")
 	parser.add_option("-r", action="store_true",dest="relax",default=False,
                     help="run rosetta relax instead of CM")
+	parser.add_option("--pdb_list",dest="pdb_list",type="string",metavar="FILE",default='',
+                    help="PDB reference file OR .txt file with the input pdbs and their weights. List is required Only required if no .hhr file provided")
+	parser.add_option("--num",dest="num_models",type="integer",metavar="INT",default=216,
+                    help="Number of structures to calculate (Default=216)")
 	parser.add_option("--outdir",dest="outdir",type="string",metavar="DIR",default='',
 		    help="Optional: Name of output directory. Otherwise, output directory will be automatically generated")
+	parser.add_option("--nocheck", action="store_true",dest="nocheck",default=False,
+                    help="Include this option to not stop after preparing PDB files, instead continuing straight into Rosetta-CM")
 	options,args = parser.parse_args()
 
         if len(args) > 0:
@@ -57,9 +63,10 @@ def checkConflicts(params,outdir):
 		print "\nError: Output directory already exists. Exiting" %(outdir)
 		sys.exit()
 
-        if not os.path.exists(params['pdb_list']):
-                print "\nError: input pdb list %s doesn't exist, exiting.\n" %(params['pdb_list'])
-                sys.exit()
+	if len(params['pdb_list']) == 0: 
+		if len(params['hhr']) == 0: 
+                	print "\nError: Either .hhr or .pdb files must be specified. Exiting.\n" 
+                	sys.exit()
 	if not os.path.exists(params['em_map']):
                 print "\nError: input EM map %s doesn't exist, exiting.\n" %(params['em_map'])
                 sys.exit()
@@ -84,13 +91,14 @@ def checkConflicts(params,outdir):
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
 
-	pdb_read = open(params['pdb_list'], 'r')
-        for pdbline in pdb_read:
-                splitPdb = pdbline.split()
-                if not splitPdb[0] == '':
-                        if not os.path.exists(str(splitPdb[0])):
-                                print 'Error:Reference pdb file %s does not exist in current directory. Exiting.' %(splitPdb[0])
-                                sys.exit()
+	if len(params['pdb_list']) > 0: 
+		pdb_read = open(params['pdb_list'], 'r')
+        	for pdbline in pdb_read:
+                	splitPdb = pdbline.split()
+                	if not splitPdb[0] == '':
+                        	if not os.path.exists(str(splitPdb[0])):
+                                	print 'Error:Reference pdb file %s does not exist in current directory. Exiting.' %(splitPdb[0])
+                                	sys.exit()
 
         #Get AWS ID
         AWS_ID=subprocess.Popen('echo $AWS_ACCOUNT_ID',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -128,20 +136,27 @@ def checkConflicts(params,outdir):
 #================================================
 if __name__ == "__main__":
 
-	print '\n\nStarting Rosetta model refinement in the cloud ...\n'
+	#Hard code parameters: 
+	loadMin=5 #For monitoring load on machines to determine when rosetta finishes
+	#numToRequest=2 
+        
+	params=setupParserOptions()
 
-	##Hard coded values
-	sizeneeded=100
-	instance='c4.xlarge'
-	numthreads=4
-	loadMin=5
-	numToRequest=8
-        params=setupParserOptions()
+	if params['num'] % 36 == 0: 
+		numInstances=float(params['num']/36)
+		instance='c4.8xlarge'	
+		numthreads=36
+		numToRequest=numthreads
 
-	if numToRequest % numthreads != 0:
-                numToRequest=numthreads*((numToRequest % numthreads)+1)
-		
-	numInstances=(numToRequest/numthreads)
+	if params['num'] % 36 != 0: 
+		numInstances=float(params['num'])/36+1
+		instance='c4.8xlarge'
+                numthreads=36	
+		numToRequest=numthreads
+
+	#if numToRequest % numthreads != 0:
+        #        numToRequest=numthreads*((numToRequest % numthreads)+1)
+	#numInstances=(numToRequest/numthreads)
 	if len(params['outdir']) == 0:
 	        startTime=datetime.datetime.utcnow()
  		params['outdir']=startTime.strftime('%Y-%m-%d-%H%M%S')
@@ -160,12 +175,128 @@ if __name__ == "__main__":
                 project=linecache.getline('.aws_relion_project_info',1).split('=')[-1]
 
 	#Prepare input files
+	#Skip if PDB list provided
+	if len(params['pdb_list']) == 0:  
+
+		print '\nFormatting input .hrr and .fasta files to create PDB files for docking into density...\n'
+
+		counter=0       
+        	while counter < 1:
+                	#Launch instance
+	                cmd='%s/launch_AWS_instance.py --noEBS --instance=t2.micro --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,awsregion,params['AMI'],params['outdir'],counter)
+        	        print '\n...booting up instance to format input files...\n' 
+			subprocess.Popen(cmd,shell=True)
+	                time.sleep(20)
+			counter=counter+1
+        
+	        counter=0
+        	instanceIDlist=[]
+	        instanceIPlist=[]
+        	while counter < 1:
+                	isdone=0
+	                qfile='%s/awslog_%i.log' %(params['outdir'],counter)
+        	        while isdone == 0:
+                	        r1=open(qfile,'r')
+                        	for line in r1:
+                                	if len(line.split()) == 2:
+                                        	if line.split()[0] == 'ID:':
+                                                	isdone=1
+	                        r1.close()
+        	                time.sleep(10)
+                	instanceIDlist.append(subprocess.Popen('cat %s/awslog_%i.log | grep ID'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1].strip())
+	                keypair=subprocess.Popen('cat %s/awslog_%i.log | grep ssh'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+        	        instanceIPlist.append(subprocess.Popen('cat %s/awslog_%i.log | grep ssh'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip())
+                	counter=counter+1	
+
+		#Move up files for preparing
+		filesToUpload=['rosetta_prepare_initial_alignment.py','thread.sh','prepare_hybridize_from_hhsearch.pl']
+
+		for uploadFile in filesToUpload: 
+
+			cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/%s ubuntu@%s:~/'%(keypair,rosettadir,uploadFile,instanceIPlist[0])
+        		subprocess.Popen(cmd,shell=True).wait()
+
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/'%(keypair,params['hhr'],instanceIPlist[0])
+        	subprocess.Popen(cmd,shell=True).wait()
+
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/'%(keypair,params['fasta'],instanceIPlist[0])
+        	subprocess.Popen(cmd,shell=True).wait()
+
+		#Create executable file
+		o1=open('%s/run_prep.sh' %(params['outdir']),'w')
+		o1.write('#!/bin/bash\n')
+		o1.write('/bin/chmod +x prepare_hybridize_from_hhsearch.pl\n')
+		o1.write('/bin/chmod +x rosetta_prepare_initial_alignment.py\n')
+		o1.write('./rosetta_prepare_initial_alignment.py --align_list=%s --fasta=%s\n' %(params['hhr'],params['fasta']))
+		o1.close()
+
+		cmd='chmod +x %s/run_prep.sh' %(params['outdir'])
+                subprocess.Popen(cmd,shell=True).wait()
+
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/run_prep.sh ubuntu@%s:~/'%(keypair,params['outdir'],instanceIPlist[0])
+		subprocess.Popen(cmd,shell=True).wait()
+
+		cmd='ssh -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/bin/$PATH && export PATH=/home/Rosetta/2017_08/main/source/:$PATH && ./run_prep.sh > /home/ubuntu/prep.out 2> /home/ubuntu/prep.err < /dev/null &"' %(keypair,instanceIPlist[0])
+		subprocess.Popen(cmd,shell=True).wait()
+
+		print '...running Rosetta file preparation on t2.micro instance...\n'
+
+		time.sleep(30)
+		#Wait to finish
+		isdone=0
+		while isdone == 0: 
+
+			cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/prep.out %s/' %(keypair,instanceIPlist[0],params['outdir'])
+			subprocess.Popen(cmd,shell=True).wait()
+					
+			check=subprocess.Popen('cat %s/prep.out | grep rosetta_finished'%(params['outdir']), shell=True, stdout=subprocess.PIPE).stdout.read()
+			if len(check) > 0:
+				isdone=1
+
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/*pdb %s/' %(keypair,instanceIPlist[0],params['outdir'])
+                subprocess.Popen(cmd,shell=True).wait()
+
+		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/alignments.filt %s/'%(keypair,instanceIPlist[0],params['outdir'])
+		subprocess.Popen(cmd,shell=True).wait()
+
+		#Kill instance
+		cmd='%s/kill_instance.py %s > %s/aws.log' %(awsdir,instanceIDlist[0],params['outdir'])
+		subprocess.Popen(cmd,shell=True).wait()
+
+		if params['nocheck'] is True: 
+
+			o1=open('%s/pdb_list.txt' %(params['outdir']),'w')
+
+			outputfiles=sorted(glob.glob('%s/*_2*pdb' %(params['outdir'])))
+			for outputfile in outputfiles: 
+				o1.write('%s\t\t1\n' %(outputfile))
+
+			o1.close()
+		#Make PDB LIST file '%s/pdb_list.txt' %(params['outdir'])
+		print '...finished with file preparation, shutting down instance\n'
+		if params['nocheck'] is False: 
+			print 'Please dock each of these PDB files into your density (e.g. using UCSF Chimera) and then save into a text file to be provided as --pdb_list for Rosetta-CM or Rosetta-relax:'
+			for pdbfile in sorted(glob.glob('%s/*_2*pdb' %(params['outdir']))): 
+				print pdbfile
+			print '\n'
+			sys.exit()
+
+	print '\n\nStarting Rosetta model refinement in the cloud ...\n'
+	
+	if params['pdb_list'].split('.')[-1] == 'txt': 
+		pdb_list=params['pdb_list']
+	if len(params['pdb_list']) == 0: 
+		if not os.path.exists('%s/pdb_list.txt' %(params['outdir'])): 
+			print 'Error: PDB files were not correctly generated by Rosetta preparation script.Exiting\n'
+			sys.exit()
+		pdb_list='%s/pdb_list.txt' %(params['outdir'])
+	
 	if params['relax'] == True:
-		cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s -r --outdir=%s/'  %(rosettadir,params['pdb_list'],params['em_map'],params['outdir'])
+		cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s -r --outdir=%s/'  %(rosettadir,pdb_list,params['em_map'],params['outdir'])
 		subprocess.Popen(cmd,shell=True).wait()
 
 	if params['relax'] == False:
-                cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s --fasta=%s --outdir=%s/'  %(rosettadir,params['pdb_list'],params['em_map'], params['fasta'],params['outdir'])
+                cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s --fasta=%s --outdir=%s/'  %(rosettadir,pdb_list,params['em_map'], params['fasta'],params['outdir'])
 		subprocess.Popen(cmd,shell=True).wait()
 
 	#Error check
@@ -181,20 +312,7 @@ if __name__ == "__main__":
                         print 'Error: Rosetta file preparation failed, was unable to create %s/relax_final.xml. Exiting' %(params['outdir'])
                         sys.exit()
 
-	'''
-	#Create EBS volume
-	counter=0
-	volIDlist=[]
-	while counter < numInstances: 
-        	cmd='%s/create_volume.py %i %sa "rln-aws-tmp-%s-%0.f"'%(awsdir,sizeneeded,awsregion,teamname,time.time())+'> %s/awsebs_%i.log'%(params['outdir'],counter)
-	        subprocess.Popen(cmd,shell=True).wait()
-        	###Get volID from logfile
-	        volID=linecache.getline('%s/awsebs_%i.log'%(params['outdir'],counter),5).split('ID: ')[-1].split()[0]
-		volIDlist.append(volID)
-		time.sleep(10)
-		counter=counter+1
-	'''
-	print 'Launching %i virtual machine(s) %s on AWS in region %sa (initialization will take a few minutes)\n' %(numInstances,instance,awsregion)
+	print 'Starting Rosetta job on %i x %s virtual machines on AWS in region %sa (initialization will take a few minutes)\n' %(numInstances,instance,awsregion)
 
 	counter=0	
 	while counter < numInstances:
@@ -232,7 +350,7 @@ if __name__ == "__main__":
 	cmd='chmod +x %s/run_final.sh' %(params['outdir'])
 	subprocess.Popen(cmd,shell=True).wait()
 
-	print 'Uploading files to AWS ...\n'
+	print '...uploading files to AWS ...'
 
 	counter=0
 	while counter < numInstances: 
@@ -252,7 +370,7 @@ if __name__ == "__main__":
 	                subprocess.Popen(cmd,shell=True).wait()
 
 		#Transfer PDB files
-		pdb_read = open(params['pdb_list'], 'r')
+		pdb_read = open(pdb_list, 'r')
 		for pdbline in pdb_read:
 			splitPdb = pdbline.split()
 	                if not splitPdb[0] == '':
@@ -266,7 +384,7 @@ if __name__ == "__main__":
 		counter=counter+1
 
 	#Start waiting script: Should be in teh background so users can log out
-	print 'Rosetta job submitted on AWS! Monitor output file: %s/rosetta.out to check status of job\n\n' %(params['outdir'])
+	print '\nRosetta job submitted on AWS! Monitor output file: %s/rosetta.out to check status of job\n\n' %(params['outdir'])
 
 	cmd='touch %s/rosetta.out' %(params['outdir'])
 	subprocess.Popen(cmd,shell=True).wait()
@@ -281,9 +399,8 @@ if __name__ == "__main__":
 	if params['relax'] is True:
                 rosettaflag='relax'
 
-	pdbfilename=linecache.getline(params['pdb_list'],1).split()[0].strip()
+	pdbfilename=linecache.getline(pdb_list,1).split()[0].strip()
 
 	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s --pdbfilename=%s --type=%s&' %(rosettadir,params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'],pdbfilename,rosettaflag)
-	print cmd
-	#subprocess.Popen(cmd,shell=True)
+	subprocess.Popen(cmd,shell=True)
 

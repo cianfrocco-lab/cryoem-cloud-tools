@@ -56,6 +56,29 @@ if __name__ == "__main__":
         starthr=now.hour
         startmin=now.minute
 
+        l='%s/rosetta.out' %(params['outdir'])
+
+        cmd='echo '' >> %s' %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo 'Rosetta model refinement started at %sUTC' >> %s" %(startTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo '' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo 'Checking job completion status (updates every 5 minutes)' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo '' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo 'Rosetta refinements typically take 1 - 6 hours' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
+        cmd="echo '' >> %s" %(l)
+        subprocess.Popen(cmd,shell=True).wait()
+
         keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	time.sleep(60)
 	loadMin=5
@@ -64,26 +87,6 @@ if __name__ == "__main__":
 		instanceIPlist = pickle.load(fp)
 	with open (params['instanceID'], 'rb') as fp:
                 instanceIDlist = pickle.load(fp)
-
-	l='%s/rosetta.out' %(params['outdir'])
-
-	cmd="echo 'Rosetta model refinement started at %sUTC' >> %s" %(startTime.strftime('%Y-%m-%dT%H:%M:00'),l)
-	subprocess.Popen(cmd,shell=True).wait()
-
-	cmd="echo '' >> %s" %(l)
-        subprocess.Popen(cmd,shell=True).wait()
-
-	cmd="echo 'Checking job completion status (updates every 5 minutes)' >> %s" %(l)
-        subprocess.Popen(cmd,shell=True).wait()
-
-	cmd="echo '' >> %s" %(l)
-        subprocess.Popen(cmd,shell=True).wait()
-
-	cmd="echo 'Rosetta refinements typically take 1 - 6 hours' >> %s" %(l)
-	subprocess.Popen(cmd,shell=True).wait()
-
-        cmd="echo '' >> %s" %(l)
-        subprocess.Popen(cmd,shell=True).wait()
 
 	os.makedirs('%s/output' %(params['outdir']))
 
@@ -125,14 +128,11 @@ if __name__ == "__main__":
 							while currCounter <= params['numPerInstance']:
 								if params['type'] == 'cm':
 									cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
-									print cmd 
-									subprocess.Popen(cmd,shell=True).wait()			
 								if params['type'] == 'relax':
                                                                         cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/%s_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],params['pdbfilename'][:-4],currCounter,params['outdir'],instanceCounter)
                                                                         subprocess.Popen(cmd,shell=True).wait()
 
 								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/score_%i.sc %s/output/S_%i_0001_score.sc' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
-                                                                print cmd 
 								subprocess.Popen(cmd,shell=True).wait()
 								instanceCounter=instanceCounter+1
 								currCounter=currCounter+1	
