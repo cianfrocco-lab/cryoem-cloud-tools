@@ -32,8 +32,8 @@ def setupParserOptions():
                     help="run rosetta relax instead of CM")
 	parser.add_option("--pdb_list",dest="pdb_list",type="string",metavar="FILE",default='',
                     help="PDB reference file OR .txt file with the input pdbs and their weights. List is required Only required if no .hhr file provided")
-	parser.add_option("--num",dest="num_models",type="integer",metavar="INT",default=216,
-                    help="Number of structures to calculate (Default=216)")
+	parser.add_option("--num",dest="num_models",type="int",metavar="INT",default=216,
+                    help="Number of structures to calculate. (Default = 216)")
 	parser.add_option("--outdir",dest="outdir",type="string",metavar="DIR",default='',
 		    help="Optional: Name of output directory. Otherwise, output directory will be automatically generated")
 	parser.add_option("--nocheck", action="store_true",dest="nocheck",default=False,
@@ -142,14 +142,14 @@ if __name__ == "__main__":
         
 	params=setupParserOptions()
 
-	if params['num'] % 36 == 0: 
-		numInstances=float(params['num']/36)
-		instance='c4.8xlarge'	
-		numthreads=36
+	if params['num_models'] % 36 == 0: 
+		numInstances=float(params['num_models']/36)
+		instance='c4.xlarge'	
+		numthreads=4
 		numToRequest=numthreads
 
-	if params['num'] % 36 != 0: 
-		numInstances=float(params['num'])/36+1
+	if params['num_models'] % 36 != 0: 
+		numInstances=float(params['num_models'])/36+1
 		instance='c4.8xlarge'
                 numthreads=36	
 		numToRequest=numthreads
@@ -277,7 +277,7 @@ if __name__ == "__main__":
 		if params['nocheck'] is False: 
 			print 'Please dock each of these PDB files into your density (e.g. using UCSF Chimera) and then save into a text file to be provided as --pdb_list for Rosetta-CM or Rosetta-relax:'
 			for pdbfile in sorted(glob.glob('%s/*_2*pdb' %(params['outdir']))): 
-				print pdbfile
+				print '%s\t\t\t1\n' %(pdbfile)
 			print '\n'
 			sys.exit()
 
