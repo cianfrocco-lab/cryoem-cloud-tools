@@ -67,9 +67,10 @@ def checkConflicts(params,outdir):
 		if len(params['hhr']) == 0: 
                 	print "\nError: Either .hhr or .pdb files must be specified. Exiting.\n" 
                 	sys.exit()
-	if not os.path.exists(params['em_map']):
-                print "\nError: input EM map %s doesn't exist, exiting.\n" %(params['em_map'])
-                sys.exit()
+	if params['em_map']: 
+		if not os.path.exists(params['em_map']):
+                	print "\nError: input EM map %s doesn't exist, exiting.\n" %(params['em_map'])
+                	sys.exit()
 	if params['relax'] is False:
 		if not params['fasta']: 
 			print "\nError: FASTA file is required for input, exiting.\n" 
@@ -80,11 +81,13 @@ def checkConflicts(params,outdir):
 	if not params['AMI']: 
 		print '\nError: No AMI specified. Exiting\n'
 		sys.exit()
-	volsize=os.path.getsize(params['em_map'])/1000000
+	if params['em_map']:
+		volsize=os.path.getsize(params['em_map'])/1000000
 
-	if volsize >250: 
-		print 'Error: Volume size is too large - did you try cutting out extra density to make a smaller volume?'
-		sys.exit()
+	if params['em_map']:
+		if volsize >250: 
+			print 'Error: Volume size is too large - did you try cutting out extra density to make a smaller volume?'
+			sys.exit()
 
 	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
         if len(awsregion) == 0:
@@ -131,6 +134,8 @@ def checkConflicts(params,outdir):
 		print 'Error: Could not find the environmental variable $KEYPAIR_PATH. Exiting'
                 sys.exit()
 
+	if not params['em_map']: 
+		volsize=''
 	return volsize,awsregion,AWS_ID,key_ID,secret_ID,teamname,keypair,awsdir,rosettadir
 
 #================================================
@@ -240,7 +245,7 @@ if __name__ == "__main__":
 		subprocess.Popen(cmd,shell=True).wait()
 
 		print '...running Rosetta file preparation on t2.micro instance...\n'
-
+		
 		time.sleep(30)
 		#Wait to finish
 		isdone=0
@@ -275,9 +280,9 @@ if __name__ == "__main__":
 		#Make PDB LIST file '%s/pdb_list.txt' %(params['outdir'])
 		print '...finished with file preparation, shutting down instance\n'
 		if params['nocheck'] is False: 
-			print 'Please dock each of these PDB files into your density (e.g. using UCSF Chimera) and then save into a text file to be provided as --pdb_list for Rosetta-CM or Rosetta-relax:'
+			print 'Please dock each of these PDB files into your density (e.g. using UCSF Chimera) and then save into a text file to be provided as --pdb_list for Rosetta-CM or Rosetta-relax:\n'
 			for pdbfile in sorted(glob.glob('%s/*_2*pdb' %(params['outdir']))): 
-				print '%s\t\t\t1\n' %(pdbfile)
+				print '%s' %(pdbfile)
 			print '\n'
 			sys.exit()
 
