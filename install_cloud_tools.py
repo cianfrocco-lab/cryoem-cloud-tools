@@ -245,10 +245,10 @@ if cloudtoolsonly is False:
 #Write environmental variables into text file
 o1=open('%s/external_software.init' %(install_location),'w')
 if uname == 'Darwin':
-	o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws-mac/bin/:$PATH\n' %(install_location))
-	o1.write('export PYTHONPATH=%s/cryoem-cloud-tools/external_software/aws-mac/lib/python2.7/site-packages/\n' %(install_location))
-	o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/bin/:$PATH\n' %(install_location))
-	o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-mac/lib:$LD_LIBRARY_PATH\n' %(install_location))
+	#o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws-mac/bin/:$PATH\n' %(install_location))
+	#o1.write('export PYTHONPATH=%s/cryoem-cloud-tools/external_software/aws-mac/lib/python2.7/site-packages/\n' %(install_location))
+	o1.write('export PATH=/usr/local/relion/build/bin:$PATH\n' )
+	o1.write('export LD_LIBRARY_PATH=/usr/local/relion/build/lib:$LD_LIBRARY_PATH\n')
 if uname == 'Linux':
         o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/bin/:$PATH\n' %(install_location))
         o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/lib:$LD_LIBRARY_PATH\n' %(install_location))
@@ -287,8 +287,8 @@ if uname == 'Linux':
 print '\n2.) Download AWS keypair and put it in a secure location (e.g. %s/)' %(install_location)
 print '\n3.) Open and edit the file %s/aws_init.sh\n' %(install_location)
 print 'Place your information for AWS into the lines indicated: #INPUT REQUIRED'
+print '\n4.) Install AWSCLI: $ pip install awscli OR $ easy_install awscli'
 if uname == 'Linux':
-	print '\n4.) Install AWSCLI: $ pip install awscli'
 	print '\n5.) Install Relion-2.0:'
 	print '\nFor Ubuntu:'
 	print '$ sudo apt-get update'
@@ -301,4 +301,6 @@ if uname == 'Linux':
 	print '$ make -j4'
 	print '$ make install'
 	print '\nNOTE: If you do not put Relion software into directory listed above, update the software environment paths in the file %s/external_software.sh'
-
+if uname == 'Darwin': 
+	print '\n5. Copy and paste this command into your terminal. Requires root access:'
+	print 'mv %s/cryoem-cloud-tools/external_software/relion /usr/local/' %(install_location)
