@@ -1,0 +1,1 @@
+/usr/local/bin/mpicxx  -O3 -DNDEBUG  -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/run_ctffind_mpi.dir/run_ctffind_mpi.cpp.o  -o ../../bin/relion_run_ctffind_mpi -Wl,-rpath,/usr/local/relion/build/lib ../../lib/librelion_lib.dylib ../../../external/fftw/lib/libfftw3.dylib /usr/local/lib/libmpi.dylib ../../../external/fltk/lib/libfltk.dylib 

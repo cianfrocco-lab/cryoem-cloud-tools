@@ -1,0 +1,13 @@
+# Target labels
+ OWN_FFTW
+# Source files and their labels
+/usr/local/relion/build/CMakeFiles/OWN_FFTW
+/usr/local/relion/build/CMakeFiles/OWN_FFTW.rule
+/usr/local/relion/build/CMakeFiles/OWN_FFTW-complete.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-install.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-mkdir.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-download.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-update.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-patch.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-configure.rule
+/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-build.rule

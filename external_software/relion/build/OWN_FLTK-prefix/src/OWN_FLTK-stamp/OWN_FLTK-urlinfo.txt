@@ -1,0 +1,3 @@
+repository='external project URL'
+module='https://drive.google.com/uc?export=download&id=0B942d76zVnSeazZWcExRaXIyVDg'
+tag='MD5=9ccdb0d19dc104b87179bd9fd10822e3'

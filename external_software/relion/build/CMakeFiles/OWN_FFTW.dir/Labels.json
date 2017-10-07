@@ -1,0 +1,51 @@
+
+{
+	"sources" : 
+	[
+		
+		{
+			"file" : "/usr/local/relion/build/CMakeFiles/OWN_FFTW"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/CMakeFiles/OWN_FFTW.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/CMakeFiles/OWN_FFTW-complete.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-install.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-mkdir.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-download.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-update.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-patch.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-configure.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FFTW-prefix/src/OWN_FFTW-stamp/OWN_FFTW-build.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : [ "OWN_FFTW" ],
+		"name" : "OWN_FFTW"
+	}
+}

@@ -1,0 +1,33 @@
+Determining if the sincos exist failed with the following output:
+Change Dir: /usr/local/relion/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_93fb8/fast"
+/Library/Developer/CommandLineTools/usr/bin/make -f CMakeFiles/cmTC_93fb8.dir/build.make CMakeFiles/cmTC_93fb8.dir/build
+Building CXX object CMakeFiles/cmTC_93fb8.dir/CheckSymbolExists.cxx.o
+/Library/Developer/CommandLineTools/usr/bin/c++     -o CMakeFiles/cmTC_93fb8.dir/CheckSymbolExists.cxx.o -c /usr/local/relion/build/CMakeFiles/CMakeTmp/CheckSymbolExists.cxx
+/usr/local/relion/build/CMakeFiles/CMakeTmp/CheckSymbolExists.cxx:8:19: error: use of undeclared identifier 'sincos'; did you mean '__sincos'?
+  return ((int*)(&sincos))[argc];
+                  ^~~~~~
+                  __sincos
+/usr/include/math.h:666:29: note: '__sincos' declared here
+__header_always_inline void __sincos(double __x, double *__sinp, double *__cosp) {
+                            ^
+1 error generated.
+make[1]: *** [CMakeFiles/cmTC_93fb8.dir/CheckSymbolExists.cxx.o] Error 1
+make: *** [cmTC_93fb8/fast] Error 2
+
+File /usr/local/relion/build/CMakeFiles/CMakeTmp/CheckSymbolExists.cxx:
+/* */
+#include <math.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef sincos
+  return ((int*)(&sincos))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+

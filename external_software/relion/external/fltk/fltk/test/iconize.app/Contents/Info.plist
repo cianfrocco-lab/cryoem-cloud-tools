@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="0.9">
+    <dict>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleExecutable</key>
+	<string>iconize</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.fltk.iconize</string>
+	<key>CFBundleName</key>
+	<string>iconize</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+    </dict>
+</plist>

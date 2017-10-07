@@ -1,0 +1,1 @@
+cmd='<SOURCE_DIR>/configure;--enable-shared;--prefix=/usr/local/relion/external/fltk'

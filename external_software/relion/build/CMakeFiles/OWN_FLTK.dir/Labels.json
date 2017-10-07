@@ -1,0 +1,51 @@
+
+{
+	"sources" : 
+	[
+		
+		{
+			"file" : "/usr/local/relion/build/CMakeFiles/OWN_FLTK"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/CMakeFiles/OWN_FLTK.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/CMakeFiles/OWN_FLTK-complete.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-install.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-mkdir.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-download.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-update.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-patch.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-configure.rule"
+		},
+		
+		{
+			"file" : "/usr/local/relion/build/OWN_FLTK-prefix/src/OWN_FLTK-stamp/OWN_FLTK-build.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : [ "OWN_FLTK" ],
+		"name" : "OWN_FLTK"
+	}
+}
