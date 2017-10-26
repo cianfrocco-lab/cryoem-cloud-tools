@@ -59,7 +59,7 @@ def checkConflicts(params,availInstances):
 
     allowedzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1f','us-east-1a','us-west-2a','us-west-2b','us-west-2c','us-west-1a', 'us-west-1b','us-west-1c','eu-west-1a','eu-west-1b','eu-west-1c','ap-southeast-1a','ap-southeast-1b','ap-northeast-1a','ap-northeast-1b','ap-northeast-1c','ap-southeast-2a','ap-southeast-2b','sa-east-1a','sa-east-1b','us-east-2a','us-east-2b','us-east-2c','ca-central-1a','ca-central-1b','eu-west-2a','eu-west-2b','eu-central-1a','eu-central-1b','ap-northeast-2a','ap-northeast-2c','ap-south-1a','ap-south-1b','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
 
-    gpuzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
+    gpuzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1f','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
 
     if params['zone'] not in allowedzones: 
 	print 'Error: Input zone %s is not in allowed zones:' %(params['zone'])
@@ -103,7 +103,7 @@ def checkConflicts(params,availInstances):
     	sys.exit()
     if params['instance'].split('.')[0] == 'p2' or params['instance'].split('.')[0] == 'g3' or params['instance'].split('.')[0] == 'p3': 
 	if params['zone'] not in gpuzones: 
-		print 'Error: Specified availability zone %s does not have GPU instances (p2 nor g3). Please use one of the availability zones (regions) below:' %(params['zone'])
+		print 'Error: Specified availability zone %s does not have GPU instances (p2, g3, nor p3). Please use one of the availability zones (regions) below:' %(params['zone'])
 		print gpuzones
 		sys.exit()
 
