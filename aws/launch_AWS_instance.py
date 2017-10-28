@@ -6,6 +6,7 @@ import linecache
 import time
 from optparse import OptionParser
 import optparse
+import json
 
 #=========================
 def setupParserOptions():
@@ -56,9 +57,9 @@ def checkConflicts(params,availInstances):
 	print 'Error: No availability zone specified. Exiting'
 	sys.exit()
 
-    allowedzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','us-west-1a', 'us-west-1b','us-west-1c','eu-west-1a','eu-west-1b','eu-west-1c','ap-southeast-1a','ap-southeast-1b','ap-northeast-1a','ap-northeast-1b','ap-northeast-1c','ap-southeast-2a','ap-southeast-2b','sa-east-1a','sa-east-1b','us-east-2a','us-east-2b','us-east-2c','ca-central-1a','ca-central-1b','eu-west-2a','eu-west-2b','eu-central-1a','eu-central-1b','ap-northeast-2a','ap-northeast-2c','ap-south-1a','ap-south-1b','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
+    allowedzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1f','us-east-1a','us-west-2a','us-west-2b','us-west-2c','us-west-1a', 'us-west-1b','us-west-1c','eu-west-1a','eu-west-1b','eu-west-1c','ap-southeast-1a','ap-southeast-1b','ap-northeast-1a','ap-northeast-1b','ap-northeast-1c','ap-southeast-2a','ap-southeast-2b','sa-east-1a','sa-east-1b','us-east-2a','us-east-2b','us-east-2c','ca-central-1a','ca-central-1b','eu-west-2a','eu-west-2b','eu-central-1a','eu-central-1b','ap-northeast-2a','ap-northeast-2c','ap-south-1a','ap-south-1b','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
 
-    gpuzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1a','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
+    gpuzones=['us-east-1a','us-east-1c','us-east-1b','us-east-1d','us-east-1e','us-east-1f','us-west-2a','us-west-2b','us-west-2c','eu-west-1a','eu-west-1b','eu-west-1c','us-east-2a','us-east-2b','us-east-2c','ap-northeast-2a','ap-northeast-2c']
 
     if params['zone'] not in allowedzones: 
 	print 'Error: Input zone %s is not in allowed zones:' %(params['zone'])
@@ -100,14 +101,15 @@ def checkConflicts(params,availInstances):
     if len(AWS_DEFAULT_REGION) == 0:
     	print '\nError: AWS_DEFAULT_REGION not specified as environment variable. Exiting\n'
     	sys.exit()
-    if params['instance'].split('.')[0] == 'p2' or params['instance'].split('.')[0] == 'g3': 
+    if params['instance'].split('.')[0] == 'p2' or params['instance'].split('.')[0] == 'g3' or params['instance'].split('.')[0] == 'p3': 
 	if params['zone'] not in gpuzones: 
-		print 'Error: Specified availability zone %s does not have GPU instances (p2 nor g3). Please use one of the availability zones (regions) below:' %(params['zone'])
+		print 'Error: Specified availability zone %s does not have GPU instances (p2, g3, nor p3). Please use one of the availability zones (regions) below:' %(params['zone'])
 		print gpuzones
 		sys.exit()
 
     if AWS_DEFAULT_REGION == 'us-east-1':
-        AMI='ami-fc4d4c87'
+	    # AMI='ami-fc4d4c87'
+	AMI='ami-b0469aca'
     if AWS_DEFAULT_REGION == 'us-west-2':
 	AMI='ami-5a2bc222'
     if AWS_DEFAULT_REGION == 'us-east-2':
@@ -178,6 +180,11 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 				if len(SGGroupName) > 0: 
 					securityGroupName=SGGroupName.split(':')[-1].split('"')[1]	
 					SGexist=True
+                                SGid = subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupId' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+                                if len(SGid) > 0:
+                                        securityGroupId = SGid.split(':')[-1].split('"')[1]
+                                        if params['debug'] is True: 
+						print("security group id is ",securityGroupId)
     	r1.close()
     	os.remove(cidrout)
     	SGcounter=SGcounter+1
@@ -289,32 +296,101 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     	    print '\nInstance is ready! To log in:\n'
     	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
 	    print '\nID: %s\n' %(InstanceID)
+    	    return InstanceID,PublicIP
 
-	    return InstanceID,PublicIP
 
     if params['spot'] >0: 
 	    if os.path.exists('inputjson.json'):
 		os.remove('inputjson.json')
  	    #Write json
-	    json='{\n'
-  	    json+='\t"ImageId": "%s",\n' %(AMI)
-	    json+='\t"KeyName": "%s",\n' %(keyName)
-  	    json+='\t"SecurityGroupIds": [ "%s" ],\n' %(securityGroupName)
-	    json+='\t"InstanceType": "%s",\n'%(params['instance'])
-	    json+='\t"Placement": {\n'
-	    json+='\t\t"AvailabilityZone": "%s"\n' %(params['zone'])
-	    json+='\t}\n'
-	    json+='}\n'
+	    json_data='{\n'
+  	    json_data+='\t"ImageId": "%s",\n' %(AMI)
+	    json_data+='\t"KeyName": "%s",\n' %(keyName)
+  	    json_data+='\t"SecurityGroupIds": [ "%s" ],\n' %(securityGroupId)
+	    json_data+='\t"InstanceType": "%s",\n'%(params['instance'])
+	    json_data+='\t"Placement": {\n'
+	    json_data+='\t\t"AvailabilityZone": "%s"\n' %(params['zone'])
+	    json_data+='\t}\n'
+	    json_data+='}\n'
 	    jsonF = open('inputjson.json','w')
- 	    jsonF.write(json)
+ 	    jsonF.write(json_data)
 	    jsonF.close()
 
-	    SpotInstanceID=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json | grep SpotInstanceRequestId' %(params['spot']), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	    proc=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(params['spot']), shell=True,stdout=subprocess.PIPE)
+	    SpotRequestOutput,SpotRequestError = proc.communicate()
+	    SpotRequestOutputJson = json.loads(SpotRequestOutput)
+	    SpotInstanceRequestId = str(SpotRequestOutputJson['SpotInstanceRequests'][0]['SpotInstanceRequestId'])
+	    
+	    if params['debug'] is True: 
+		print("Spot Instance Request Id is",SpotInstanceRequestId)
 
+	    
+	    proc=subprocess.Popen('aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s '%(str(SpotInstanceRequestId)),shell=True,stdout=subprocess.PIPE)
+	    InstanceIdOutput,InstanceIdError = proc.communicate()
+	    if params['debug'] is True: 
+		print("InstanceIdError is",InstanceIdError)
+	    InstanceIdOutputJson = json.loads(InstanceIdOutput)
+	    if params['debug'] is True: 
+	    	print(InstanceIdOutputJson)
+	    while str(InstanceIdOutputJson['SpotInstanceRequests'][0]['Status']['Code']) != "fulfilled":
+		proc=subprocess.Popen('aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s '%(str(SpotInstanceRequestId)),shell=True,stdout=subprocess.PIPE)
+            	InstanceIdOutput,InstanceIdError = proc.communicate()
+            	InstanceIdOutputJson = json.loads(InstanceIdOutput)
+		time.sleep(2)
+	    if params['debug'] is True: 
+		print(InstanceIdOutput)
+	    	print(str(InstanceIdOutputJson['SpotInstanceRequests'][0]['InstanceId']))
+	    SpotInstanceID = InstanceIdOutputJson['SpotInstanceRequests'][0]['InstanceId']
+	    InstanceID=SpotInstanceID
+	    Status='init'
+            while Status != 'running':
+                Status=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{State:State}" | grep Name' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+
+                if params['debug'] is True:
+                        print Status
+                if Status != 'running':
+                        time.sleep(10)
+
+            if params['debug'] is True:
+                print 'Now waiting for SysStatus and InsStatus..'
+
+            SysStatus='init'
+            InsStatus='init'
+
+            print '\nWaiting for instance to pass system checks ...\n'
+
+            while SysStatus != 'ok' and InsStatus != 'ok':
+                SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                time.sleep(4)
+            #Get public IP address
+            PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+           #Tag instance using keyname (which should be username, region)
+            if params['debug'] is True:
+                print '\nTagging instance %s with your key pair name %s\n' %(InstanceID,keyName)
+            if params['tagname'] == 'None':
+                    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+                    subprocess.Popen(cmd,shell=True).wait()
+
+            if params['tagname'] != 'None':
+                    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+                    subprocess.Popen(cmd,shell=True).wait()
+
+                    cmd='aws ec2 create-tags --resources %s --tags Key=Name,Value=%s' %(InstanceID,params['tagname'])
+                    subprocess.Popen(cmd,shell=True).wait()
+
+            pwd=os.getcwd()
+            cmd='aws ec2 create-tags --resources %s --tags Key=Directory,Value=%s' %(InstanceID,pwd)
+            subprocess.Popen(cmd,shell=True).wait()
+	
 	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(SpotInstanceID,keyName)
             subprocess.Popen(cmd,shell=True).wait() 
 
-	    print 'Spot instance request submitted.\n'
+	    PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(SpotInstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+    	    print '\nInstance is ready! To log in:\n'
+    	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
+	    print '\nID: %s\n' %(SpotInstanceID)
+	    return SpotInstanceID,PublicIP
 
 #======================
 def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
@@ -331,7 +407,7 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
 
    #List instances given a users tag
    keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-
+   print("KEYPATH IS",keyPath)
    if params['tagname'] == 'None':
 	tag=keyPath.split('/')[-1].split('.')[0]
    if params['tagname'] != 'None': 
@@ -341,11 +417,29 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
 
    SysStatus='init'
    InsStatus='init'
-
    while SysStatus != 'ok' and InsStatus != 'ok':
-        SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-        InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-        time.sleep(4)
+	print("Waiting for instance  %s to initialize..."%(instanceID))
+	cmd = "aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.Status'  " %(instanceID)
+        proc=subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE)
+	out,err = proc.communicate()
+	outjson = json.loads(out.strip())
+
+	if len(outjson) > 0:
+		SysStatus = str(outjson[0].strip())
+		proc=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query InstanceStatuses[*].InstanceStatus.Status" %(instanceID),shell=True, stdout=subprocess.PIPE)
+		InsOut,InsErr = proc.communicate()
+		InsOutjson = json.loads(InsOut)
+		InsStatus = str(InsOutjson[0].strip())
+		
+
+	else:
+		SysStatus = str(outjson)
+
+		proc=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query InstanceStatuses[*].InstanceStatus.Status" %(instanceID),shell=True, stdout=subprocess.PIPE)
+		InsOut,InsErr = proc.communicate()
+		InsOutjson = json.loads(InsOut)
+		InsStatus = str(InsOutjson)
+        time.sleep(5)
 
    volID=subprocess.Popen('aws ec2 attach-volume --volume-id %s --instance-id %s --device xvdf > tmp3re3333.log' %(volID,instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
@@ -409,7 +503,7 @@ def query_yes_no(question, default="no"):
 #==============================
 if __name__ == "__main__":
 
-    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','i2.2xlarge','i2.xlarge','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r4.16xlarge','r4.4xlarge','r4.8xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','x1.32xlarge','d2.xlarge','d2.2xlarge','d2.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g3.4xlarge','g3.8xlarge','g3.16xlarge','g2.2xlarge','g2.8xlarge']
+    availInstances=['t2.micro','t2.nano','t2.small','t2.medium','t2.large','i2.2xlarge','i2.xlarge','m4.large','m4.xlarge','m4.2xlarge','m4.4xlarge','m4.10xlarge','m4.16xlarge','m3.medium','m3.large','m3.xlarge','m3.2xlarge','c4.large','c4.xlarge','c4.2xlarge','c4.4xlarge','c4.8xlarge','c3.large','c3.xlarge','c3.2xlarge','c3.4xlarge','c3.xlarge','r4.16xlarge','r4.4xlarge','r4.8xlarge','r3.large','r3.xlarge','r3.2xlarge','r3.4xlarge','r3.8xlarge','x1.32xlarge','d2.xlarge','d2.2xlarge','d2.8xlarge','p2.xlarge','p2.8xlarge','p2.16xlarge','g3.4xlarge','g3.8xlarge','g3.16xlarge','g2.2xlarge','g2.8xlarge','p3.2xlarge','p3.8xlarge','p3.16xlarge']
 
     params=setupParserOptions()
     if params['listInstance'] is True:
@@ -428,6 +522,3 @@ if __name__ == "__main__":
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
 	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath,params)
-
-
-
