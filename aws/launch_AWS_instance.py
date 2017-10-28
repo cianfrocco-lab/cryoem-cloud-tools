@@ -320,28 +320,71 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 	    SpotRequestOutputJson = json.loads(SpotRequestOutput)
 	    SpotInstanceRequestId = str(SpotRequestOutputJson['SpotInstanceRequests'][0]['SpotInstanceRequestId'])
 	    
-	    print("Spot Instance Request Id is",SpotInstanceRequestId)
+	    if params['debug'] is True: 
+		print("Spot Instance Request Id is",SpotInstanceRequestId)
 
 	    
 	    proc=subprocess.Popen('aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s '%(str(SpotInstanceRequestId)),shell=True,stdout=subprocess.PIPE)
 	    InstanceIdOutput,InstanceIdError = proc.communicate()
-	    print("InstanceIdError is",InstanceIdError)
+	    if params['debug'] is True: 
+		print("InstanceIdError is",InstanceIdError)
 	    InstanceIdOutputJson = json.loads(InstanceIdOutput)
-
-	    print(InstanceIdOutputJson)
+	    if params['debug'] is True: 
+	    	print(InstanceIdOutputJson)
 	    while str(InstanceIdOutputJson['SpotInstanceRequests'][0]['Status']['Code']) != "fulfilled":
 		proc=subprocess.Popen('aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s '%(str(SpotInstanceRequestId)),shell=True,stdout=subprocess.PIPE)
             	InstanceIdOutput,InstanceIdError = proc.communicate()
             	InstanceIdOutputJson = json.loads(InstanceIdOutput)
 		time.sleep(2)
-	    print(InstanceIdOutput)
-	    print(str(InstanceIdOutputJson['SpotInstanceRequests'][0]['InstanceId']))
+	    if params['debug'] is True: 
+		print(InstanceIdOutput)
+	    	print(str(InstanceIdOutputJson['SpotInstanceRequests'][0]['InstanceId']))
 	    SpotInstanceID = InstanceIdOutputJson['SpotInstanceRequests'][0]['InstanceId']
+	    InstanceID=SpotInstanceID
+	    Status='init'
+            while Status != 'running':
+                Status=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{State:State}" | grep Name' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 
+                if params['debug'] is True:
+                        print Status
+                if Status != 'running':
+                        time.sleep(10)
+
+            if params['debug'] is True:
+                print 'Now waiting for SysStatus and InsStatus..'
+
+            SysStatus='init'
+            InsStatus='init'
+
+            print '\nWaiting for instance to pass system checks ...\n'
+
+            while SysStatus != 'ok' and InsStatus != 'ok':
+                SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                time.sleep(4)
+            #Get public IP address
+            PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(InstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+           #Tag instance using keyname (which should be username, region)
+            if params['debug'] is True:
+                print '\nTagging instance %s with your key pair name %s\n' %(InstanceID,keyName)
+            if params['tagname'] == 'None':
+                    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+                    subprocess.Popen(cmd,shell=True).wait()
+
+            if params['tagname'] != 'None':
+                    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(InstanceID,keyName)
+                    subprocess.Popen(cmd,shell=True).wait()
+
+                    cmd='aws ec2 create-tags --resources %s --tags Key=Name,Value=%s' %(InstanceID,params['tagname'])
+                    subprocess.Popen(cmd,shell=True).wait()
+
+            pwd=os.getcwd()
+            cmd='aws ec2 create-tags --resources %s --tags Key=Directory,Value=%s' %(InstanceID,pwd)
+            subprocess.Popen(cmd,shell=True).wait()
+	
 	    cmd='aws ec2 create-tags --resources %s --tags Key=Owner,Value=%s' %(SpotInstanceID,keyName)
             subprocess.Popen(cmd,shell=True).wait() 
 
-	    print 'Spot instance request submitted.\n'
 	    PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(SpotInstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
     	    print '\nInstance is ready! To log in:\n'
     	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
@@ -478,6 +521,3 @@ if __name__ == "__main__":
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
 	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath,params)
-
-
-
