@@ -105,6 +105,8 @@ if __name__ == "__main__":
 
 	params=setupParserOptions()
 
+	AMI='ami-292d024c'
+
 	instance='t2.micro'
         numthreads=1
 	numToRequest=numthreads
@@ -118,14 +120,8 @@ if __name__ == "__main__":
 	#Make output directory
 	os.makedirs(params['outdir'])
 	
-	project=''
-        #Get project name if exists
-        if os.path.exists('.aws_relion_project_info'):
-                project=linecache.getline('.aws_relion_project_info',1).split('=')[-1]
-
         #Launch instance
-	cmd='%s/launch_AWS_instance.py --noEBS --instance=t2.micro --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,awsregion,params['AMI'],params['outdir'],counter)
-        print '\n...booting up instance to format input files...\n' 
+	cmd='%s/launch_AWS_instance.py --noEBS --instance=%s --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AMI,params['outdir'],counter)
 	subprocess.Popen(cmd,shell=True)
 	time.sleep(20)
 	counter=counter+1
@@ -148,18 +144,10 @@ if __name__ == "__main__":
 	keypair=subprocess.Popen('cat %s/awslog_%i.log | grep ssh'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
         instanceIPlist.append(subprocess.Popen('cat %s/awslog_%i.log | grep ssh'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip())
 
-	#Move up files for preparing
-	sys.exit()
-	filesToUpload=['rosetta_prepare_initial_alignment.py','thread.sh','prepare_hybridize_from_hhsearch.pl']
+	cmd='ssh  -nNT -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -L 5901:localhost:5901 -i %s ubuntu@%s &'  %(keypair,instanceIPlist[0])
+	subprocess.Popen(cmd,shell=True).wait()
 
-	for uploadFile in filesToUpload: 
+	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "/usr/bin/vncserver &"' %(keypair,instanceIPlist[0])
+	subprocess.Popen(cmd,shell=True).wait()
 
-		cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/%s ubuntu@%s:~/'%(keypair,rosettadir,uploadFile,instanceIPlist[0])
-        	subprocess.Popen(cmd,shell=True).wait()
-
-	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/'%(keypair,params['hhr'],instanceIPlist[0])
-        subprocess.Popen(cmd,shell=True).wait()
-
-	cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/'%(keypair,params['fasta'],instanceIPlist[0])
-        subprocess.Popen(cmd,shell=True).wait()
-
+	print 'ready for connection!'
