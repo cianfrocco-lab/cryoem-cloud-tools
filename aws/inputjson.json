@@ -1,0 +1,9 @@
+{
+	"ImageId": "ami-6b16350e",
+	"KeyName": "aws-dev",
+	"SecurityGroupIds": [ "sg-759a321d" ],
+	"InstanceType": "g3.4xlarge",
+	"Placement": {
+		"AvailabilityZone": "us-east-2a"
+	}
+}
