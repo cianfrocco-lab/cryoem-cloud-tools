@@ -1267,114 +1267,147 @@ def relion_refine_mpi(project,AZ_letter):
 	spotaddition=''
 	if spot>0: 
 		spotaddition='--spotPrice=%f' %(spot)
-	#Launch instance
-	if os.path.exists('%s/awslog.log' %(outdir)):
-		os.remove('%s/awslog.log' %(outdir))
-	if 'g3' not in instance: 
-		cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s %s > %s/awslog.log' %(awsdir,data_dir,instance,awsregion,AZ_letter,volID,spotaddition,outdir)
-		subprocess.Popen(cmd,shell=True).wait()
-	if 'g3' in instance:	
-		if awsregion == 'us-east-2': 
-			AMI='ami-96654af3'
-		if awsregion == 'us-east-1': 
-			AMI='ami-4052f23a'
- 		if awsregion == 'us-west-2': 
-			AMI='ami-3a599742'
-		if awsregion == 'eu-west-1': 
-			AMI='ami-2a7bdf53'
-                cmd='%s/launch_AWS_instance.py --dirname=%s --AMI=%s --instance=%s --availZone=%s%s --volume=%s %s > %s/awslog.log' %(awsdir,data_dir,AMI,instance,awsregion,AZ_letter,volID,spotaddition,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-	#Get instance ID, keypair, and username:IP
-	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
-	keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
-	userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
-
-	env.host_string='ubuntu@%s' %(userIP)
-        env.key_filename = '%s' %(keypair)
-	if ebs_exist is False:
-		writeToLog('Started transferring %sGB at %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
-		dirlocation='/data'
-		if stack is False: 
-			for entry in particledir.split('/'):
-				if len(entry.split('.star')) == 1:
-					exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
-					dirlocation=dirlocation+'/'+entry
-		if len(otherPartDir) == 0: 
-			if stack is False: 
-				s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(particledir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
-			if stack is True: 
-				s3_to_ebs(userIP,keypair,bucketname,'/data/%s' %(particledir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
-		if len(otherPartDir) > 0: 
-			s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(otherPartDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
-		writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
-
-	#Make output directories
-	dirlocation='/data'
-	outdirlist=outdir.split('/')
-	del outdirlist[-1]
-        for entry in outdirlist:
-        	exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
-                dirlocation=dirlocation+'/'+entry
-	cmd='rsync -avzu --rsync-path="rsync" --log-file="%s/rsync.log" -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > %s/rsync.log' %(outdir,keypair,outdir,userIP,dirlocation,outdir)
-    	subprocess.Popen(cmd,shell=True).wait()
-	if len(otherPartDir) > 0: 
-		dirlocation='/data/'
-		partdirlist=particledir.split('/')
-		del partdirlist[-1]
-		for entry in partdirlist:
-			exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
-			dirlocation=dirlocation+'/'+entry
-		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > %s/rsync.log' %(outdir,keypair,particledir,userIP,dirlocation,outdir)
-		subprocess.Popen(cmd,shell=True).wait()
-	if initmodel != 'None':
-		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,initmodel,userIP,outdir)
-        	subprocess.Popen(cmd,shell=True).wait()
-	if len(mask) > 0:
-                cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,mask,userIP,outdir)
-                subprocess.Popen(cmd,shell=True).wait()
-
-	relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
-
-	o2=open('run_aws.job','w')
-	o2.write('#!/bin/bash\n')
-	o2.write('cd /data\n')
-	o2.write('%s\n' %(relion_remote_cmd))
-	o2.close()
-	st = os.stat('run_aws.job')
-	os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
-	cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(outdir,keypair,userIP,outdir)
-	subprocess.Popen(cmd,shell=True).wait()
-	cmd='ssh -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
-	subprocess.Popen(cmd,shell=True)
-
-	writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
-	cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s/run.out ubuntu@%s:/data/%s/ > %s/rsync.log' %(keypair,outdir,userIP,outdir,outdir)
-	subprocess.Popen(cmd,shell=True)
+	
+	#Continue run until finished to final interation number
 	isdone=0
+	#Get EBS volume ID (or ake sure we already have it)
+	while isdone == 0: 
 
-	while isdone == 0:
-		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+		isInstanceRunning=True
+		while isInstanceRunning==True: 
+
+			#Get number of iterations
+			currentIteration=X
+			if currentIteration != int(numiters): 
+				#launch instance
+	
+				#download data onto volume if not continuing, otherwise, just boot up EBS from before
+
+				#format job for first run or if it should be a continue run
+
+				monitor for job to finish
+				Check if instance is alive: 
+
+					if instancedies or if spot flag shows up, set isInstanceRunning = False
+					
+
+	iterationLimit=int(numiters)
+	isInstanceRunning=True
+
+	while isInstanceRunning is True: 
+
+		#Launch instance
+		if os.path.exists('%s/awslog.log' %(outdir)):
+			os.remove('%s/awslog.log' %(outdir))
+		if 'g3' not in instance: 
+			cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s %s > %s/awslog.log' %(awsdir,data_dir,instance,awsregion,AZ_letter,volID,spotaddition,outdir)
+			subprocess.Popen(cmd,shell=True).wait()
+		if 'g3' in instance:	
+			if awsregion == 'us-east-2': 
+				AMI='ami-96654af3'
+			if awsregion == 'us-east-1': 
+				AMI='ami-4052f23a'
+ 			if awsregion == 'us-west-2': 
+				AMI='ami-3a599742'
+			if awsregion == 'eu-west-1': 
+				AMI='ami-2a7bdf53'
+                	cmd='%s/launch_AWS_instance.py --dirname=%s --AMI=%s --instance=%s --availZone=%s%s --volume=%s %s > %s/awslog.log' %(awsdir,data_dir,AMI,instance,awsregion,AZ_letter,volID,spotaddition,outdir)
+	                subprocess.Popen(cmd,shell=True).wait()
+		#Get instance ID, keypair, and username:IP
+		instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
+		keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
+		userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
+
+		env.host_string='ubuntu@%s' %(userIP)
+       		env.key_filename = '%s' %(keypair)
+		if ebs_exist is False:
+			writeToLog('Started transferring %sGB at %s' %(actualsize,time.asctime(time.localtime(time.time()))),'%s/run.out' %(outdir))
+			dirlocation='/data'
+			if stack is False: 
+				for entry in particledir.split('/'):
+					if len(entry.split('.star')) == 1:
+						exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+						dirlocation=dirlocation+'/'+entry
+			if len(otherPartDir) == 0: 
+				if stack is False: 
+					s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(particledir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
+				if stack is True: 
+					s3_to_ebs(userIP,keypair,bucketname,'/data/%s' %(particledir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
+			if len(otherPartDir) > 0: 
+				s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(otherPartDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
+			writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
+	
+		#Make output directories
+		dirlocation='/data'
+		outdirlist=outdir.split('/')
+		del outdirlist[-1]
+        	for entry in outdirlist:
+	        	exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+        	        dirlocation=dirlocation+'/'+entry
+		cmd='rsync -avzu --rsync-path="rsync" --log-file="%s/rsync.log" -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > %s/rsync.log' %(outdir,keypair,outdir,userIP,dirlocation,outdir)
+    		subprocess.Popen(cmd,shell=True).wait()
+		if len(otherPartDir) > 0: 
+			dirlocation='/data/'
+			partdirlist=particledir.split('/')
+			del partdirlist[-1]
+			for entry in partdirlist:
+				exec_remote_cmd('mkdir /%s/%s' %(dirlocation,entry))
+				dirlocation=dirlocation+'/'+entry
+			cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:%s/ > %s/rsync.log' %(outdir,keypair,particledir,userIP,dirlocation,outdir)
+			subprocess.Popen(cmd,shell=True).wait()
+		if initmodel != 'None':
+			cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,initmodel,userIP,outdir)
+	        	subprocess.Popen(cmd,shell=True).wait()
+		if len(mask) > 0:
+	                cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,mask,userIP,outdir)
+        	        subprocess.Popen(cmd,shell=True).wait()
+
+		relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
+
+		o2=open('run_aws.job','w')
+		o2.write('#!/bin/bash\n')
+		o2.write('cd /data\n')
+		o2.write('%s\n' %(relion_remote_cmd))
+		o2.close()
+		st = os.stat('run_aws.job')
+		os.chmod('run_aws.job', st.st_mode | stat.S_IEXEC)
+		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" run_aws.job ubuntu@%s:~/ > %s/rsync.log' %(outdir,keypair,userIP,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
-		time.sleep(2)
-		if autoref == -1:
-			if os.path.exists('%s_it%03i_data.star' %(outbasename,int(numiters))):	
-				isdone=1
-		if autoref != -1: 
-			if os.path.exists('%s_class001.mrc' %(outbasename)): 
-				isdone=1
-		#Check if job was specified to be killed
-		if isdone ==0:
- 			isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
+		cmd='ssh -q -n -f -i %s ubuntu@%s "export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:$LD_LIBRARY_PATH && nohup ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,userIP,outdir,outdir)
+		subprocess.Popen(cmd,shell=True)
 
-		#Check if there are any errors
-		if isdone == 0: 
-			if os.path.exists('%s/run.err' %(outdir)): 
-				if float(subprocess.Popen('cat %s/run.err | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0: 
-					writeToLog('\nError detected in run.err. Shutting down instance.','%s/run.out' %(outdir))
+		writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
+		cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s/run.out ubuntu@%s:/data/%s/ > %s/rsync.log' %(keypair,outdir,userIP,outdir,outdir)
+		subprocess.Popen(cmd,shell=True)
+		isdone=0
+
+		#Add checking command to see if instance is designated to be killed (should be indepdendent check whether or not spot instance)
+		#if isntance dies
+		#isInstanceRunning=False
+
+		while isdone == 0:
+			cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+			subprocess.Popen(cmd,shell=True).wait()
+			time.sleep(2)
+			if autoref == -1:
+				if os.path.exists('%s_it%03i_data.star' %(outbasename,int(numiters))):	
 					isdone=1
+			if autoref != -1: 
+				if os.path.exists('%s_class001.mrc' %(outbasename)): 
+					isdone=1
+			#Check if job was specified to be killed
+			if isdone ==0:
+ 				isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
 
-		time.sleep(10)
-	time.sleep(30)
+			#Check if there are any errors
+			if isdone == 0: 
+				if os.path.exists('%s/run.err' %(outdir)): 
+					if float(subprocess.Popen('cat %s/run.err | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0: 
+						writeToLog('\nError detected in run.err. Shutting down instance.','%s/run.out' %(outdir))
+						isdone=1
+
+			time.sleep(10)
+		time.sleep(30)
 
 	writeToLog('Job finished!','%s/run.out' %(outdir))
 	writeToLog('Shutting everything down ...','%s/run.out' %(outdir))
