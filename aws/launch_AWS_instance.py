@@ -9,6 +9,7 @@ import optparse
 import json
 import datetime
 from datetime import timedelta
+
 #=========================
 def setupParserOptions():
     parser = optparse.OptionParser()
@@ -320,8 +321,6 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 	    jsonF.close()
 
 	    endtime=(datetime.datetime.utcnow()+timedelta(hours=24)).strftime("%Y-%m-%d-T%H:%M:%S")
-            print 'aws ec2 request-spot-instances --type "one-time" --valid-until %s --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(endtime,params['spot'])
-	    sys.exit()
    	    proc=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --valid-until %s --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(endtime,params['spot']), shell=True,stdout=subprocess.PIPE)
 	    SpotRequestOutput,SpotRequestError = proc.communicate()
 	    SpotRequestOutputJson = json.loads(SpotRequestOutput)
@@ -392,7 +391,9 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
             subprocess.Popen(cmd,shell=True).wait() 
 
 	    PublicIP=subprocess.Popen('aws ec2 describe-instances --instance-id %s --query "Reservations[*].Instances[*].{IPaddress:PublicIpAddress}" | grep IPaddress' %(SpotInstanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-    	    print '\nInstance is ready! To log in:\n'
+    	    if os.path.exists('inputjson.json'): 
+		os.remove('inputjson.json')
+	    print '\nInstance is ready! To log in:\n'
     	    print 'ssh -X -i %s ubuntu@%s' %(keyPath,PublicIP)
 	    print '\nID: %s\n' %(SpotInstanceID)
 	    return SpotInstanceID,PublicIP
