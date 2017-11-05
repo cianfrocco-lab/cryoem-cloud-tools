@@ -1,0 +1,9 @@
+{
+	"ImageId": "ami-c1a283a4",
+	"KeyName": "aws-dev",
+	"SecurityGroupIds": [ "sg_1509844290" ],
+	"InstanceType": "m4.large",
+	"Placement": {
+		"AvailabilityZone": "us-east-2a"
+	}
+}

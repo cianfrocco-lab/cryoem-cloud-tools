@@ -1331,7 +1331,8 @@ def relion_refine_mpi(project,AZ_letter):
                 		SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
                 		InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 				if spot>0: 
-					SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s" %(instanceID))
+					spotReqID=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query 'Reservations[*].Instances[*].{SpotID:SpotInstanceRequestId}' | grep SpotID' %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+					SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s --query 'SpotInstanceRequests[*].Status.{SpotStatus:Code}' | grep SpotStatus" %(spotReqID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1] 
 					if SpotStatus == 'marked-for-termination': 
 						cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
 	                                        subprocess.Popen(cmd,shell=True).wait()
@@ -1394,17 +1395,20 @@ def relion_refine_mpi(project,AZ_letter):
 				  	SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
                                   	InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
                                   	if spot>0:
-                                   		SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s" %(instanceID))
+                                        	spotReqID=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query 'Reservations[*].Instances[*].{SpotID:SpotInstanceRequestId}' | grep SpotID' %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                                        	SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s --query 'SpotInstanceRequests[*].Status.{SpotStatus:Code}' | grep SpotStatus" %(spotReqID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
                                         	if SpotStatus == 'marked-for-termination':
-                                            		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
-                                               		subprocess.Popen(cmd,shell=True).wait()
-                                               		cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-                                               		while isterm == 0:
+                                                	cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+                                                	subprocess.Popen(cmd,shell=True).wait()
+
+                                                	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+                                                	while isterm == 0:
                                                        		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                                                 		if status == 'terminated':
-                                                        		isterm=1
+                                                       		if status == 'terminated':
+                                                               		isterm=1
                                                        		time.sleep(10)
-                                                		isInstanceRunning=False
+                                                	isInstanceRunning=False
+				
 					cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
 					subprocess.Popen(cmd,shell=True).wait()
 					time.sleep(2)

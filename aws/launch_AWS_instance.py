@@ -232,6 +232,8 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     	subprocess.Popen(cmd,shell=True).wait()
     if params['spot'] == -1:
 	    print '\nBooting up instance ...\n'
+	    if params['debug'] is True: 
+		print 'aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-group-ids %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName)
 	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-group-ids %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	    if len(InstanceID) == 0:
 		awsclidir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE).stdout.read().strip()

@@ -34,6 +34,13 @@ cmd='mv dist/qsub_aws %s/' %(outdirname)
 subprocess.Popen(cmd,shell=True).wait()
 os.remove('qsub_aws.spec')
 
+cmd='pyinstaller relion/qsub_aws_dev --onefile'
+subprocess.Popen(cmd,shell=True).wait()
+
+cmd='mv dist/qsub_aws_dev %s/' %(outdirname)
+subprocess.Popen(cmd,shell=True).wait()
+os.remove('qsub_aws_dev.spec')
+
 shutil.rmtree('dist')
 shutil.rmtree('build')
 
