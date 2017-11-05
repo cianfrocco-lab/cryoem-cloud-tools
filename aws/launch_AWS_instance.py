@@ -7,7 +7,8 @@ import time
 from optparse import OptionParser
 import optparse
 import json
-
+import datetime
+from datetime import timedelta
 #=========================
 def setupParserOptions():
     parser = optparse.OptionParser()
@@ -318,7 +319,10 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
  	    jsonF.write(json_data)
 	    jsonF.close()
 
-	    proc=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(params['spot']), shell=True,stdout=subprocess.PIPE)
+	    endtime=(datetime.datetime.utcnow()+timedelta(hours=24)).strftime("%Y-%m-%d-T%H:%M:%S")
+            print 'aws ec2 request-spot-instances --type "one-time" --valid-until %s --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(endtime,params['spot'])
+	    sys.exit()
+   	    proc=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --valid-until %s --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(endtime,params['spot']), shell=True,stdout=subprocess.PIPE)
 	    SpotRequestOutput,SpotRequestError = proc.communicate()
 	    SpotRequestOutputJson = json.loads(SpotRequestOutput)
 	    SpotInstanceRequestId = str(SpotRequestOutputJson['SpotInstanceRequests'][0]['SpotInstanceRequestId'])
@@ -326,7 +330,6 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 	    if params['debug'] is True: 
 		print("Spot Instance Request Id is",SpotInstanceRequestId)
 
-	    
 	    proc=subprocess.Popen('aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s '%(str(SpotInstanceRequestId)),shell=True,stdout=subprocess.PIPE)
 	    InstanceIdOutput,InstanceIdError = proc.communicate()
 	    if params['debug'] is True: 
