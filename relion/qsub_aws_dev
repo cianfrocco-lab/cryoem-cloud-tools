@@ -1378,20 +1378,28 @@ def relion_refine_mpi(project,AZ_letter):
 					currentIteration=str(1)
 				if len(optimiser) > 0: 
 					rlncounter=0
-					for rlnparam in relioncmd.split(): 
-						if rlnparam == '--tau2_fudge': 
-							tau=relioncmd.split()[rlncounter+1]
-						if rlnparam == '--particle_diameter':  
-                                                        diam=relioncmd.split()[rlncounter+1]
-						if rlnparam == '--psi_step':
-                                                        psistep=relioncmd.split()[rlncounter+1]
-						if rlnparam == '--offset_range':
-                                                        offrange=relioncmd.split()[rlncounter+1]
-						if rlnparam == '--offset_step':
-                                                        offstep=relioncmd.split()[rlncounter+1]
-						rlncounter=rlncounter+1
-					relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --iter %s --tau2_fudge %s --particle_diameter %s --oversampling 1 --psi_step %s --offset_range %s --offset_step %s %s %s' %(mpi,optimiser,outdir,currentIteration,str(numiters),tau,diam,psistep,offrange,offstep,j,gpu)
-					outbasename='%s/run_ct%s' %(outdir,currentIteration)
+					if autoref == -1:
+						for rlnparam in relioncmd.split(): 
+							if rlnparam == '--tau2_fudge': 
+								tau=relioncmd.split()[rlncounter+1]
+							if rlnparam == '--particle_diameter':  
+                                                        	diam=relioncmd.split()[rlncounter+1]
+							if rlnparam == '--psi_step':
+                                                        	psistep=relioncmd.split()[rlncounter+1]
+							if rlnparam == '--offset_range':
+                                                        	offrange=relioncmd.split()[rlncounter+1]
+							if rlnparam == '--offset_step':
+                                                        	offstep=relioncmd.split()[rlncounter+1]
+							rlncounter=rlncounter+1
+						relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --iter %s --tau2_fudge %s --particle_diameter %s --oversampling 1 --psi_step %s --offset_range %s --offset_step %s %s %s' %(mpi,optimiser,outdir,currentIteration,str(numiters),tau,diam,psistep,offrange,offstep,j,gpu)
+						outbasename='%s/run_ct%s' %(outdir,currentIteration)
+					if autoref != -1:
+						for rlnparam in relioncmd.split():
+                                                        if rlnparam == '--particle_diameter':
+                                                                diam=relioncmd.split()[rlncounter+1]
+                                                        rlncounter=rlncounter+1
+                                                relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --particle_diameter %s %s %s' %(mpi,optimiser,outdir,currentIteration,diam,j,gpu)
+                                                outbasename='%s/run_ct%s' %(outdir,currentIteration)
 				o2=open('run_aws.job','w')
 				o2.write('#!/bin/bash\n')
 				o2.write('cd /data\n')
@@ -1454,6 +1462,10 @@ def relion_refine_mpi(project,AZ_letter):
 	writeToLog('Shutting everything down ...','%s/run.out' %(outdir))
 	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	isdone=0
+	if spot>0: 
+		cmd=subprocess.Popen('aws ec2 cancel-spot-instance-requests --spot-instance-request-ids %s > %s/tmp4434r34.txt' %(spotReqID,outdir),,shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		
+		
 	#while isdone == 0:
 	#	status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
 	#	if status == 'terminated':
@@ -1474,6 +1486,8 @@ def relion_refine_mpi(project,AZ_letter):
 		subprocess.Popen(cmd,shell=True).wait()
 		cmd="echo '-----------------------------------------------------------' >> aws_relion_costs.txt"
                 subprocess.Popen(cmd,shell=True).wait()
+	if spot >0: 
+		cost=spot
 	cmd='echo "%s      %s      %.02f  " >> aws_relion_costs.txt' %(particledir,outdir,float(deltaHr)*float(cost))
         subprocess.Popen(cmd,shell=True).wait()
 
