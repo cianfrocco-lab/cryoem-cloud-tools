@@ -636,6 +636,8 @@ def checkPartLocation(instarfile,indir):
 #==============================
 def parseCMDrefine(relioncmd,AZ_letter):
 	deleteaws=False
+	instanceChoice=''
+	spotprice=-1
 	l=relioncmd.split()
 	newcmd=[]
 	tot=len(l)
@@ -676,13 +678,21 @@ def parseCMDrefine(relioncmd,AZ_letter):
 			counter=counter+1
 			deleteaws=True
                         continue
+		if l[counter] == '--instance': 
+			instanceChoice=l[counter+1]
+			counter=counter+2
+			continue 
+		if l[counter] == '--spot': 
+			spotprice=float(l[counter+1])
+			counter=counter+2
+                        continue
 		if l[counter] == '--az': 
 			AZ_letter=l[counter+1][-1]
 			counter=counter+2
 			continue
 		newcmd.append(l[counter])
  		counter=counter+1
-	return ' '.join(newcmd),selectflag,deleteaws,AZ_letter
+	return ' '.join(newcmd),selectflag,deleteaws,AZ_letter,instanceChoice,spotprice
 
 #==============================
 def parseCMDpolish(relioncmd):
@@ -1077,7 +1087,7 @@ def relion_refine_mpi(project,AZ_letter):
 	os.remove('%s/note_bckup.txt' %(outdir))
 
 	#Parse relion command to only include input options, removing any mention of 'gpu' or j threads in command
-	relioncmd,select,deleteaws,AZ_letter=parseCMDrefine(relioncmd,AZ_letter)
+	relioncmd,select,deleteaws,AZ_letter,instanceSelect,spot=parseCMDrefine(relioncmd,AZ_letter)
 	#Check where input particles are located
 	if stack is False: 
 		otherPartDir,otherPartRclone,error=checkPartLocation(starfilename,particledir)
@@ -1110,6 +1120,48 @@ def relion_refine_mpi(project,AZ_letter):
 				instance='p2.8xlarge'
 		if autoref != -1: #3D refinement
 			instance='p2.8xlarge'
+	if len(instanceSelect) >0: 
+		instance=instanceSelect
+	#Create directories on AWS
+        if instance == 'p2.xlarge':
+                gpu='--gpu '
+                j='--j 2 '
+                mpi=2
+                numfiles=8
+                cost=0.9
+        if instance == 'p2.8xlarge':
+                gpu='--gpu '
+                j='--j 3 '
+                mpi=9
+                numfiles=50
+                cost=7.20
+        if instance == 'p2.16xlarge':
+                gpu='--gpu '
+                j='--j 3 '
+                mpi=17
+                numfiles=90
+                cost=14.40
+        if instance == 'g3.16xlarge':
+                gpu='--gpu'
+                j='--j 12 '
+                mpi=5
+                numfiles=60
+                cost=4.56
+        if instance == 'g3.8xlarge':
+                gpu='--gpu'
+                j='--j 10 '
+                mpi=3
+                numfiles=30
+                cost=2.28
+	if instance == 'g3.4xlarge':
+                gpu='--gpu'
+                j='--j 8 '
+                mpi=2
+                numfiles=15
+                cost=1.14
+        if not cost:
+                writeToLog('Error: Input instance %s is not a p2 or g3 instance type for GPU acceleration. Exiting' %(instance),'%s/run.err' %(outdir))
+                sys.exit()
 	#Get AWS region from aws_init.sh environment variable
 	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
 	if len(awsregion) == 0:
@@ -1211,35 +1263,32 @@ def relion_refine_mpi(project,AZ_letter):
 	starthr=now.hour
 	startmin=now.minute
 
+	#Spot price
+	spotaddition=''
+	if spot>0: 
+		spotaddition='--spotPrice=%f' %(spot)
 	#Launch instance
 	if os.path.exists('%s/awslog.log' %(outdir)):
 		os.remove('%s/awslog.log' %(outdir))
-	cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s > %s/awslog.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,volID,outdir)
-	subprocess.Popen(cmd,shell=True).wait()
+	if 'g3' not in instance: 
+		cmd='%s/launch_AWS_instance.py --dirname=%s --instance=%s --availZone=%s%s --volume=%s %s > %s/awslog.log' %(awsdir,data_dir,instance,awsregion,AZ_letter,volID,spotaddition,outdir)
+		subprocess.Popen(cmd,shell=True).wait()
+	if 'g3' in instance:	
+		if awsregion == 'us-east-2': 
+			AMI='ami-96654af3'
+		if awsregion == 'us-east-1': 
+			AMI='ami-4052f23a'
+ 		if awsregion == 'us-west-2': 
+			AMI='ami-3a599742'
+		if awsregion == 'eu-west-1': 
+			AMI='ami-2a7bdf53'
+                cmd='%s/launch_AWS_instance.py --dirname=%s --AMI=%s --instance=%s --availZone=%s%s --volume=%s %s > %s/awslog.log' %(awsdir,data_dir,AMI,instance,awsregion,AZ_letter,volID,spotaddition,outdir)
+                subprocess.Popen(cmd,shell=True).wait()
 	#Get instance ID, keypair, and username:IP
 	instanceID=subprocess.Popen('cat %s/awslog.log | grep ID' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('ID:')[-1]
 	keypair=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
 	userIP=subprocess.Popen('cat %s/awslog.log | grep ssh' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip()
 
-	#Create directories on AWS
-	if instance == 'p2.xlarge':
-                gpu='--gpu '
-                j='--j 2 '
-                mpi=2
-                numfiles=8
-		cost=0.9
-        if instance == 'p2.8xlarge':
-                gpu='--gpu '
-                j='--j 3 '
-                mpi=9
-                numfiles=50
-		cost=7.20
-        if instance == 'p2.16xlarge':
-                gpu='--gpu '
-                j='--j 3 '
-                mpi=17
-                numfiles=90
-		cost=14.40
 	env.host_string='ubuntu@%s' %(userIP)
         env.key_filename = '%s' %(keypair)
 	if ebs_exist is False:
@@ -1302,7 +1351,7 @@ def relion_refine_mpi(project,AZ_letter):
 	cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s/run.out ubuntu@%s:/data/%s/ > %s/rsync.log' %(keypair,outdir,userIP,outdir,outdir)
 	subprocess.Popen(cmd,shell=True)
 	isdone=0
-	
+
 	while isdone == 0:
 		cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
 		subprocess.Popen(cmd,shell=True).wait()
@@ -3125,7 +3174,7 @@ def checkStatusInstances(instanceID,keypair,IPaddress,outdir):
 def relion_run_motioncorr(project):
 	maxm4=5
 	maxp28=8
-	
+	maxx1=2
 	relioncmd,micstar,outdir,gainref,movieAlignType,ifMotionCor2,savemovies,angpix=getCMDmovie(infile)
 	#Parse relion command to only include input options, removing any mention of 'gpu' or tick marks
         relioncmd,downloadBinnedOnly=parseCMDmovie(relioncmd)
@@ -3134,10 +3183,6 @@ def relion_run_motioncorr(project):
         if len(awsregion) == 0:
                 writeToLog('Error: Could not find default region specified as $AWS_DEFAULT_REGION. Please set this environmental variable and try again.','%s/run.err' %(outdir))
                 sys.exit()
-
-	if movieAlignType == 'unblur': 
-		writeToLog('Unblur movie alignments are currently not supported. Please select motioncorr or motioncor2 and resbumit.','%s/run.err' %(outdir))
-		sys.exit()
 
 	#Check that all dose weighting parametser are specified
 	errormessage,doseWeight=checkDoseInputs(infile)
@@ -3161,7 +3206,7 @@ def relion_run_motioncorr(project):
 	if len(reliondir) == 0: 
 		print 'Error: Could not find AWS relion directory specified as $AWS_RELION. Please set this environmental variable and try again.'	
 		sys.exit()
-	writeToLog('Starting relion job in the cloud...','%s/run.out' %(outdir))
+	writeToLog('Starting movie alignment in the cloud...','%s/run.out' %(outdir))
 
 	#.aws_relion will Have: [particledir] [s3 bucket name] [ebs volume]
         ebs_exist=False
@@ -3210,10 +3255,15 @@ def relion_run_motioncorr(project):
 		if micstarinput[-1] == '/': 
 			micstarinput=micstarinput[:-1]
 		if len(project) == 0:
-                        bucketname='rln-aws-tmp-%s-%s/%0.f' %(teamname,keyname,time.time())
+                        bucketname='rln-aws-tmp-%s-%s' %(teamname,micstarinput)
+			if bucketname[-1] != '/': 
+				bucketname=bucketname+'/'
+			outputbucketname='%s%s' %(bucketname,outdirname)
 		if len(project) > 0:
 			bucketname='rln-aws-%s-%s/%s' %(teamname,keyname,micstarinput)
                         outputbucketname='rln-aws-%s-%s/%s/%s' %(teamname,keyname,project,outdirname)	
+			if 's3-' in micstar: 
+                        	bucketname=micstar.split('s3-')[-1]
 		micdir='Micrographs'
 		if os.path.exists('%s/s3out.log'%(outdir)):
 			os.remove('%s/s3out.log'%(outdir))
@@ -3232,7 +3282,7 @@ def relion_run_motioncorr(project):
 		if len(open('%s/s3out.log' %(outdir),'r').readlines()) > 0: 
 			writeToLog("Error: Output aligned movies already exist %s/Micrographs/. Remove using aws_projects_remove_directory and re-submit." %(outputbucketname.split('s3://')[-1]),'%s/run.err' %(outdir))
 			sys.exit()
-		cmd='aws s3 ls %s/ > %s/s3out.log' %(bucketname.split('s3://')[-1],outdir)
+		cmd='aws s3 ls %s > %s/s3out.log' %(bucketname.split('s3://')[-1],outdir)
 		subprocess.Popen(cmd,shell=True).wait()
 		if os.path.exists('movies.star'): 
 			os.remove('movies.star')
@@ -3264,14 +3314,27 @@ def relion_run_motioncorr(project):
         #Choose instance type
         if movieAlignType == 'unblur':
                 numInstancesRequired=math.ceil(movieCounter/32)
-                if numInstancesRequired <=1:
-			numInstancesRequired=1
-		instance='r4.8xlarge'
-                mpi=32
-                cost=2.128
-                gpu=0
-		if numInstancesRequired > maxm4:
-                        numInstancesRequired=5
+                if numInstancesRequired > maxx1:
+			numInstancesRequired=maxx1
+		if awsregion == 'us-west-2':
+        	        AMI='ami-28ca2350'
+	        if awsregion == 'us-east-2':
+        	        AMI='ami-6a17340f'
+	        if awsregion == 'us-east-1':
+        	        AMI='ami-7f828404'
+	        if awsregion == 'eu-west-1':
+                	AMI='ami-0aa95073'
+	        if awsregion == 'ap-southeast-2':
+        	        AMI='ami-5c6c763f'
+		gpu=0 
+		Refdrives='/dev/xvdb /dev/xvdc'
+                RefnumRaid=2
+		instance='x1.32xlarge'
+                mpi=128
+                numfiles=40
+                cost=13.338
+                Refdrives='/dev/xvdb /dev/xvdc'
+                RefnumRaid=2
 
         if movieAlignType == 'motioncorr':
                 numInstancesRequired=int(math.ceil(movieCounter/16))
@@ -3299,7 +3362,9 @@ def relion_run_motioncorr(project):
 	if gpu > 0:
 		ntasks=gpu
 	if gpu == 0:
-		ntasks=mpi-24
+		ntasks=mpi/2
+		if ntasks < 0: 
+			ntasks=1
 	sizeneeded=ntasks*50
 	numMoviesPerInstance=math.ceil((movieCounter+1)/numInstancesRequired)
 	count=0
@@ -3326,31 +3391,36 @@ def relion_run_motioncorr(project):
 	instanceNum=0
 	ebsVolList=[]
 	instanceList=[]
-	writeToLog('Creating data storage drive(s) ...','%s/run.out' %(outdir))
-	while instanceNum < numInstancesRequired:
-                #Create EBS volume
-                if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
-                        os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-		iosize=50*sizeneeded
-		if iosize > 5000:
-			iosize=5000
+	if movieAlignType != 'unblur':
+		writeToLog('Creating data storage drive(s) ...','%s/run.out' %(outdir))
+		while instanceNum < numInstancesRequired:
+                	#Create EBS volume
+	                if os.path.exists('%s/awsebs_%i.log' %(outdir,instanceNum)) :
+        	                os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
+			iosize=50*sizeneeded
+			if iosize > 5000:
+				iosize=5000
 			
-                cmd='%s/create_volume_IOPS.py %i %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,AZ_letter,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
-		subprocess.Popen(cmd,shell=True).wait()
-                #Get volID from logfile
-                volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
-		time.sleep(10)
-		os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
-		ebsVolList.append(volID)
-		instanceNum=instanceNum+1
+                	cmd='%s/create_volume_IOPS.py %i %i %s%s "rln-aws-tmp-%s-%s"'%(awsdir,int(sizeneeded),iosize,awsregion,AZ_letter,teamname,micstar)+'> %s/awsebs_%i.log' %(outdir,instanceNum)
+			subprocess.Popen(cmd,shell=True).wait()
+        	        #Get volID from logfile
+                	volID=linecache.getline('%s/awsebs_%i.log' %(outdir,instanceNum),5).split('ID: ')[-1].split()[0]
+			time.sleep(10)
+			os.remove('%s/awsebs_%i.log' %(outdir,instanceNum))
+			ebsVolList.append(volID)
+			instanceNum=instanceNum+1
 	instanceNum=0
 	writeToLog('Launching virtual machine(s) ...','%s/run.out' %(outdir))
 	while instanceNum < numInstancesRequired:
        	 	#Launch instance
         	if os.path.exists('%s/awslog_%i.log' %(outdir,instanceNum)):
                 	os.remove('%s/awslog_%i.log' %(outdir,instanceNum))
-		cmd='%s/launch_AWS_instance.py --dirname=%s --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(data_dir,awsdir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
-		subprocess.Popen(cmd,shell=True)
+		if movieAlignType == 'unblur': 
+			cmd='%s/launch_AWS_instance.py --AMI=%s --noEBS --dirname=%s --instance=%s --availZone=%s%s  > %s/awslog_%i.log' %(awsdir,AMI,data_dir,instance,awsregion,AZ_letter,outdir,instanceNum)
+                        subprocess.Popen(cmd,shell=True)		
+		if movieAlignType != 'unblur': 
+			cmd='%s/launch_AWS_instance.py --dirname=%s --relion2 --instance=%s --availZone=%s%s --volume=%s > %s/awslog_%i.log' %(awsdir,data_dir,instance,awsregion,AZ_letter,ebsVolList[instanceNum],outdir,instanceNum)
+			subprocess.Popen(cmd,shell=True)
 		instanceNum=instanceNum+1
        		time.sleep(10)
 	instanceNum=0
@@ -3386,11 +3456,18 @@ def relion_run_motioncorr(project):
 
 	writeToLog('Submitting movie alignment to the cloud...','%s/run.out' %(outdir))
 
-	writeToLog('Waiting for movie alignment to finish. For %i movies on %i GPUs, this job will be finished in approximately %i minutes.' %(movieCounter,numInstancesRequired*gpu,int((5*movieCounter)/(numInstancesRequired*gpu))+4), '%s/run.out' %(outdir))
-
+	if movieAlignType != 'unblur': 
+ 		writeToLog('Waiting for movie alignment to finish. For %i movies, this job will be finished in approximately %i minutes.' %(movieCounter,int((5*movieCounter)/(numInstancesRequired))+4), '%s/run.out' %(outdir))
+	if movieAlignType == 'unblur': 
+		writeToLog('Waiting for movie alignment to finish. For %i movies, this job will be finished in approximately %i minutes.' %(movieCounter,int((5*movieCounter)/(numInstancesRequired))+4), '%s/run.out' %(outdir))
 	while instanceNum < numInstancesRequired:
 		#Create directories on AWS
         	env.host_string='ubuntu@%s' %(IPlist[instanceNum])
+		if movieAlignType == 'unblur': 
+			exec_remote_cmd('sudo mdadm --create --verbose /dev/md0 --level=stripe --raid-devices=%i %s' %(RefnumRaid,Refdrives))
+		        exec_remote_cmd('sudo mkfs.ext4 -L MY_RAID /dev/md0')
+        		exec_remote_cmd('sudo mount LABEL=MY_RAID /data')
+        		exec_remote_cmd('sudo chmod 777 /data/')
         	dirlocation='/data'
 		counter=0
 		while counter < len(micstar.split('/'))-1:
@@ -3432,6 +3509,7 @@ def relion_run_motioncorr(project):
 		subprocess.Popen(cmd,shell=True).wait()
 
 		launchcmd='ssh  -o StrictHostKeyChecking=no -q -n -f -i %s ubuntu@%s "export PATH=/usr/local/bin:/home/EM_Packages/relion2.0/build/bin:/bin/:$PATH && export LD_LIBRARY_PATH=/home/EM_Packages/relion2.0/build/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH && ./run_aws.job > /data/%s/run.out 2> /data/%s/run.err < /dev/null &"' %(keypair,IPlist[instanceNum],outdir,outdir)
+		print launchcmd
 		subprocess.Popen(launchcmd,shell=True)
 		instanceNum=instanceNum+1
 
@@ -3463,7 +3541,8 @@ def relion_run_motioncorr(project):
 	lastonedone=0
 	while micdone == 0:
 		cmd='%s sync rclonename:%s/Micrographs/ %s/Micrographs/ --quiet --transfers %i --max-size 400M > rclone.log' %(rclonepath,outputbucketname.split('s3://')[-1],outdir,math.ceil(numCPUs*2.4))
-                subprocess.Popen(cmd,shell=True).wait()
+                writeToLog('waiting ... %s' %(cmd),'%s/run.out' %(outdir))
+		subprocess.Popen(cmd,shell=True).wait()
                 os.remove('rclone.log')
 		testmiclist='%s/Micrographs/*.mrc' %(outdir)
 		numdone=0
@@ -4262,7 +4341,6 @@ def relion_polish(project):
                 AMI='ami-0aa95073'
         if awsregion == 'ap-southeast-2':
                 AMI='ami-5c6c763f'
-
         #Launch instance
         if os.path.exists('%s/awslog.log' %(outdir)):
                 os.remove('%s/awslog.log' %(outdir))

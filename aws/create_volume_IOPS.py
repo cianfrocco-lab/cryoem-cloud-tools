@@ -12,7 +12,7 @@ if len(sys.argv) == 5:
 	volSize=sys.argv[1]
 	IOPS=sys.argv[2]
 	AZ=sys.argv[3]
-	allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c']
+	allowedZones=['us-east-1b','us-east-1c','us-east-1d','us-east-1e','us-west-2a','us-west-2b','us-west-2c','us-east-2a','us-east-2b','us-east-2c']
 	description=sys.argv[4]
 	snapid=''
 

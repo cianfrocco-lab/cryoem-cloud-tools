@@ -183,8 +183,7 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
                                 SGid = subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupId' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
                                 if len(SGid) > 0:
                                         securityGroupId = SGid.split(':')[-1].split('"')[1]
-                                        if params['debug'] is True: 
-						print("security group id is ",securityGroupId)
+                                        print("security group id is ",securityGroupId)
     	r1.close()
     	os.remove(cidrout)
     	SGcounter=SGcounter+1
@@ -522,3 +521,6 @@ if __name__ == "__main__":
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
 	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath,params)
+
+
+
