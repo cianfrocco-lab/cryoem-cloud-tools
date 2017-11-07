@@ -27,6 +27,8 @@ def setupParserOptions():
                     help="number of structures per CPU (Default = 1)")
 	parser.add_option("-r", action="store_true",dest="relax",default=False,
                     help="run rosetta relax instead of CM")
+	parser.add_option("--symm",dest="symm",type="string",metavar="FILE",
+                    help="symmetry definition file")
 	parser.add_option("--outdir", type='string',metavar='DIR',dest="outdir",default='',
                     help="Optional: Specify output directory for output files")
 	options,args = parser.parse_args()
@@ -51,6 +53,11 @@ def checkConflicts(params):
 	if not os.path.exists(params['em_map']):
                 print "\nError: input EM map list %s doesn't exists, exiting.\n" %(params['em_map'])
                 sys.exit()       
+	if not params['symm'] == None:
+		if not os.path.exists(params['symm']):
+			print "\nError: input symmetry definition file %s doesn't exists, exiting.\n" %(params['symm'])
+                	sys.exit() 
+
 #=============================
 def makerunfile(params,outdir):
 
@@ -167,7 +174,10 @@ def makeCMfile(params,outdir):
         	outputhybrid_write = open(outputhybrid,'w')
         
         	#Open the template run.sh file
-        	inputhybrid = '%s/hybridize.xml' %(rosettadir)
+        	if params['symm'] == None:
+        		inputhybrid = '%s/hybridize.xml' %(rosettadir)
+		if not params['symm'] == None:
+			inputhybrid = '%s/hybridize_symm.xml' %(rosettadir)
 
         	#--> Raise error if the templete run.sh file doesnot exist
         	if not os.path.exists(inputhybrid):
@@ -191,11 +201,13 @@ def makeCMfile(params,outdir):
 						if not splitPdb[0] == '':
 							replace_name = 'pdb="%s"' %(splitPdb[0].split('/')[-1])
 							replace_weight = 'weight="%s"' %(splitPdb[1])
-							#print replace_name
-							#print replace_weight
+							weight = float(splitPdb[1])
 							newline_a = string.replace(line, str(splitLine[1]), str(replace_name))
 							newline_b = string.replace(newline_a, str(splitLine[2]), str(replace_weight))
-							#newline = '<Template pdb="%s" weight=%s cst_file="AUTO"/>' %(splitPdb[0],splitPdb[1])
+							if not params['symm'] == None:
+                                                                if weight == 1:
+                                                                        replace_symm = 'cst_file="AUTO" symmdef="%s"/>' %(params['symm'])
+                                                                        newline_b = string.replace(newline_b, str(splitLine[-1]), str(replace_symm))
 							#Write out the line in the output run file
                                 			outputhybrid_write.write('%s' %(newline_b)) 
 					pdb_read.close()
@@ -214,7 +226,10 @@ def makeCMfile(params,outdir):
                 outputrelax_write = open(outputrelax,'w')
         
                 #Open the template run.sh file
-                inputrelax = '%s/relax.xml' %(rosettadir)
+		if params['symm'] == None:
+                	inputrelax = 'relax.xml'
+		if not params['symm'] == None:
+			inputrelax = 'relax_symm.xml'
 
                 #--> Raise error if the templete run.sh file doesnot exist
                 if not os.path.exists(inputrelax):
@@ -234,6 +249,10 @@ def makeCMfile(params,outdir):
                                 if splitLine[0] == '<LoadDensityMap':
 					replace_name = 'mapfile="%s"/>' %(params['em_map'])
 					newline_a = string.replace(line, str(splitLine[2]), str(replace_name))
+                                        outputrelax_write.write('%s' %(newline_a))
+				if splitLine[0] == '<SetupForSymmetry':
+                                        replace_symm = 'definition="%s"/>' %(params['symm'])
+                                        newline_a = string.replace(line, str(splitLine[2]), str(replace_symm))
                                         outputrelax_write.write('%s' %(newline_a))
                 inputrelax_read.close()
                 outputrelax_write.close()	
