@@ -19,7 +19,7 @@
     </FILTERS>
     <MOVERS>
         <Hybridize name="hybridize" stage1_scorefxn="stage1" stage2_scorefxn="stage2" fa_scorefxn="fullatom" batch="1" stage1_increase_cycles="1" stage2_increase_cycles="1" linmin_only="0" skip_long_min="1" add_hetatm="1">
-            <Template pdb="Beta_gal_starting_r_fitted_INPUT.pdb" weight="1.0" cst_file="AUTO" symmdef="betagal.symm"/>
+            <Template pdb="Beta_gal_starting_r_fitted_INPUT.pdb" weight="1.0" cst_file="AUTO"/>
         </Hybridize>
     </MOVERS>
     <APPLY_TO_POSE>
