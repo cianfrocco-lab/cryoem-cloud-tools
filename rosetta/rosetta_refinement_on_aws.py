@@ -150,8 +150,8 @@ if __name__ == "__main__":
 
 	if params['num_models'] % 36 == 0: 
 		numInstances=float(params['num_models']/36)
-		instance='c4.xlarge'	
-		numthreads=4
+		instance='c4.8xlarge'	
+		numthreads=36
 		numToRequest=numthreads
 
 	if params['num_models'] % 36 != 0: 
@@ -160,9 +160,6 @@ if __name__ == "__main__":
                 numthreads=36	
 		numToRequest=numthreads
 
-	#if numToRequest % numthreads != 0:
-        #        numToRequest=numthreads*((numToRequest % numthreads)+1)
-	#numInstances=(numToRequest/numthreads)
 	if len(params['outdir']) == 0:
 	        startTime=datetime.datetime.utcnow()
  		params['outdir']=startTime.strftime('%Y-%m-%d-%H%M%S')

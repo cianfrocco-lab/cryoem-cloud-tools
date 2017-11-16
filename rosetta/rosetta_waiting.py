@@ -128,6 +128,7 @@ if __name__ == "__main__":
 							while currCounter <= params['numPerInstance']:
 								if params['type'] == 'cm':
 									cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
+									subprocess.Popen(cmd,shell=True).wait()
 								if params['type'] == 'relax':
                                                                         cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/%s_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],params['pdbfilename'][:-4],currCounter,params['outdir'],instanceCounter)
                                                                         subprocess.Popen(cmd,shell=True).wait()
@@ -181,7 +182,7 @@ if __name__ == "__main__":
 		#Generate the score file name, file number etc.
 		splitSc = sc.split('/')
 		file_name_with_ext = '%s' %(splitSc[-1])
-                file_name = '%s' %(file_name_with_ext[:-10])
+                file_name = '%s' %(file_name_with_ext[:-9])
 
 		#Open score file for reading
         	inputsc = open(sc,'r')
