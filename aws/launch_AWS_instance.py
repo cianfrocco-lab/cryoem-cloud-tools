@@ -316,14 +316,18 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
  	    jsonF.write(json_data)
 	    jsonF.close()
 
-	    proc=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(params['spot']), shell=True,stdout=subprocess.PIPE)
-	    SpotRequestOutput,SpotRequestError = proc.communicate()
-	    SpotRequestOutputJson = json.loads(SpotRequestOutput)
-	    SpotInstanceRequestId = str(SpotRequestOutputJson['SpotInstanceRequests'][0]['SpotInstanceRequestId'])
-	    
+	    attempt='failed'
+	    while attempt == 'failed': 
+		proc=subprocess.Popen('aws ec2 request-spot-instances --type "one-time" --spot-price "%f" --instance-count 1 --launch-specification file://inputjson.json ' %(params['spot']), shell=True,stdout=subprocess.PIPE)
+	    	SpotRequestOutput,SpotRequestError = proc.communicate()
+	        if len(SpotRequestOutput) > 0: 
+			SpotRequestOutputJson = json.loads(SpotRequestOutput)
+		   	SpotInstanceRequestId = str(SpotRequestOutputJson['SpotInstanceRequests'][0]['SpotInstanceRequestId'])
+	    		attempt='success'
+		time.sleep(30)
+
 	    if params['debug'] is True: 
 		print("Spot Instance Request Id is",SpotInstanceRequestId)
-
 	    
 	    proc=subprocess.Popen('aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s '%(str(SpotInstanceRequestId)),shell=True,stdout=subprocess.PIPE)
 	    InstanceIdOutput,InstanceIdError = proc.communicate()
