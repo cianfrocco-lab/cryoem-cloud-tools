@@ -936,7 +936,8 @@ def relion_refine_mpi(project,AZ_letter):
 
 	#Get relion command and input options
 	relioncmd,particledir,initmodel,outdir,autoref,numiters,partstarname,mask,stack,continueRun,outbasename,diameter=getCMDrefine(infile)
-
+	if autoref>0: 
+		numiters=25
 	if os.path.exists('%s/run.err' %(outdir)):
 		os.remove('%s/run.err' %(outdir))
 		cmd='touch %s/run.err' %(outdir)
@@ -1270,13 +1271,12 @@ def relion_refine_mpi(project,AZ_letter):
 
 	#Continue run until finished to final interation number
 	isdone=0
+	currentIteration=0
 	while isdone == 0:
 		isInstanceRunning=True
 		while isInstanceRunning==True:
 			#Get number of iterations completed
-			if os.path.exists('%s/completed_runs.txt' %(outdir)): 
-				os.remove('%s/completed_runs.txt' %(outdir))
-			cmd='ls -rtlh %s/*optimiser.star > %s/completed_runs.txt' %(outdir,outdir)
+			cmd='ls -rtlh %s/*optimiser.star 2>/dev/null > %s/completed_runs.txt' %(outdir,outdir)
 			subprocess.Popen(cmd,shell=True).wait()
 
 			optimiser=''
@@ -1284,9 +1284,12 @@ def relion_refine_mpi(project,AZ_letter):
 				optimiser=subprocess.Popen('tail -1 %s/completed_runs.txt' %(outdir), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1]
 				currentIteration=subprocess.Popen('cat %s | grep rlnCurrentIteration' %(optimiser), shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1]	
 			if int(currentIteration) == int(numiters): 
-				isdone=0	
+				isdone=1	
+			if autoref > -1: 
+				if os.path.exists('%s_class001.mrc' %(outbasename)):
+                                        isdone=1	
 			#Start up instance
-			if currentIteration != int(numiters):
+			if int(currentIteration) != int(numiters):
 				if os.path.exists('%s/awslog.log' %(outdir)):
 					os.remove('%s/awslog.log' %(outdir))
 				if 'g3' not in instance:
@@ -1327,9 +1330,8 @@ def relion_refine_mpi(project,AZ_letter):
 						s3_to_ebs(userIP,keypair,bucketname,'/data/%s/' %(otherPartDir),'%s/rclone' %(awsdir),key_ID,secret_ID,awsregion,numfiles,1)
 					writeToLog('Finished transfer at %s' %(time.asctime( time.localtime(time.time()) )),'%s/run.out' %(outdir))
 
-				#Add checking command to see if instance is designated to be killed (should be indepdendent check whether or not spot instance)
-				SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-				InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+				check=subprocess.Popen("aws ec2 describe-instances --instance-id %s --query Reservations[*].Instances[*].State.{Info:Name} | grep Info" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+
 				if spot>0:
 					spotReqID=subprocess.Popen("aws ec2 describe-instances --instance-ids %s --query 'Reservations[*].Instances[*].{SpotID:SpotInstanceRequestId}' | grep SpotID" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1].strip()
 					SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s --query 'SpotInstanceRequests[*].Status.{SpotStatus:Code}' | grep SpotStatus" %(spotReqID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1].strip() 
@@ -1344,7 +1346,8 @@ def relion_refine_mpi(project,AZ_letter):
 					                       isterm=1
 					               time.sleep(10)
 						isInstanceRunning=False 
-				if SysStatus or InsStatus != 'ok': 
+				check=subprocess.Popen("aws ec2 describe-instances --instance-id %s --query Reservations[*].Instances[*].State.{Info:Name} | grep Info" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+				if check != 'running': 
 					isInstanceRunning=False	
 				
 				#Make output directories
@@ -1372,11 +1375,11 @@ def relion_refine_mpi(project,AZ_letter):
 			                cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -R -e "ssh -q -o StrictHostKeyChecking=no -i %s" %s ubuntu@%s:/data/ > %s/rsync.log' %(outdir,keypair,mask,userIP,outdir)
 		        	        subprocess.Popen(cmd,shell=True).wait()
 
-				if len(optimiser) == 0: 
+				if len(optimiser) <= 1: 
 					relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi %s %s %s' %(mpi,relioncmd,j,gpu)
 					outbasename='%s/run' %(outdir)
 					currentIteration=str(1)
-				if len(optimiser) > 0: 
+				if len(optimiser) > 1: 
 					rlncounter=0
 					if autoref == -1:
 						for rlnparam in relioncmd.split(): 
@@ -1384,22 +1387,20 @@ def relion_refine_mpi(project,AZ_letter):
 								tau=relioncmd.split()[rlncounter+1]
 							if rlnparam == '--particle_diameter':  
                                                         	diam=relioncmd.split()[rlncounter+1]
-							if rlnparam == '--psi_step':
-                                                        	psistep=relioncmd.split()[rlncounter+1]
 							if rlnparam == '--offset_range':
                                                         	offrange=relioncmd.split()[rlncounter+1]
 							if rlnparam == '--offset_step':
                                                         	offstep=relioncmd.split()[rlncounter+1]
 							rlncounter=rlncounter+1
-						relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --iter %s --tau2_fudge %s --particle_diameter %s --oversampling 1 --psi_step %s --offset_range %s --offset_step %s %s %s' %(mpi,optimiser,outdir,currentIteration,str(numiters),tau,diam,psistep,offrange,offstep,j,gpu)
-						outbasename='%s/run_ct%s' %(outdir,currentIteration)
+						relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --iter %s --tau2_fudge %s --particle_diameter %s --oversampling 1 --offset_range %s --offset_step %s %s %s' %(mpi,optimiser,outdir,str(int(currentIteration)-1),str(numiters),tau,diam,offrange,offstep,j,gpu)
+						outbasename='%s/run_ct%s' %(outdir,str(int(currentIteration)-1))
 					if autoref != -1:
 						for rlnparam in relioncmd.split():
                                                         if rlnparam == '--particle_diameter':
                                                                 diam=relioncmd.split()[rlncounter+1]
                                                         rlncounter=rlncounter+1
-                                                relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --particle_diameter %s %s %s' %(mpi,optimiser,outdir,currentIteration,diam,j,gpu)
-                                                outbasename='%s/run_ct%s' %(outdir,currentIteration)
+                                                relion_remote_cmd='mpirun -np %i /home/EM_Packages/relion2.0/build/bin/relion_refine_mpi --continue %s --o %s/run_ct%s --particle_diameter %s %s %s' %(mpi,optimiser,outdir,str(int(currentIteration)-1),diam,j,gpu)
+                                                outbasename='%s/run_ct%s' %(outdir,str(int(currentIteration)-1))
 				o2=open('run_aws.job','w')
 				o2.write('#!/bin/bash\n')
 				o2.write('cd /data\n')
@@ -1415,55 +1416,89 @@ def relion_refine_mpi(project,AZ_letter):
 				writeToLog('Job submitted to the cloud...','%s/run.out' %(outdir))
 				cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s/run.out ubuntu@%s:/data/%s/ > %s/rsync.log' %(keypair,outdir,userIP,outdir,outdir)
 				subprocess.Popen(cmd,shell=True)
-				isdone=0
-
+				checkdone=0
 				time.sleep(10)
-				while isdone == 0:
-				  	SysStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].SystemStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                                  	InsStatus=subprocess.Popen("aws ec2 describe-instance-status --instance-id %s --query 'InstanceStatuses[*].InstanceStatus.{SysCheck:Status}'|grep SysCheck" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                                  	if spot>0:
-                                        	spotReqID=subprocess.Popen("aws ec2 describe-instances --instance-ids %s --query 'Reservations[*].Instances[*].{SpotID:SpotInstanceRequestId}' | grep SpotID" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                                        	SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s --query 'SpotInstanceRequests[*].Status.{SpotStatus:Code}' | grep SpotStatus" %(spotReqID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                                        	if SpotStatus == 'marked-for-termination':
-                                                	cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
-                                                	subprocess.Popen(cmd,shell=True).wait()
-
-                                                	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-                                                	while isterm == 0:
-                                                       		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-                                                       		if status == 'terminated':
-                                                               		isterm=1
-                                                       		time.sleep(10)
-                                                	isInstanceRunning=False
-				
-					cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
-					subprocess.Popen(cmd,shell=True).wait()
-					time.sleep(2)
-					if autoref == -1:
-						if os.path.exists('%s_it%03i_data.star' %(outbasename,int(numiters))):
-							isdone=1
+				while checkdone == 0:
+				  	check=subprocess.Popen("aws ec2 describe-instances --instance-id %s --query Reservations[*].Instances[*].State.{Info:Name} | grep Info" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                                	if check != 'running':
+                                        	isInstanceRunning=False
+                                  		if isInstanceRunning is False: 
+							cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+							isterm=0
+							while isterm == 0:
+								status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+								if status == 'terminated':
+                                                                        isterm=1
+								time.sleep(10)
+							checkdone=1
+							isInstanceRunning=False
+					if checkdone == 0: 
+						if spot>0:
+                                        		spotReqID=subprocess.Popen("aws ec2 describe-instances --instance-ids %s --query 'Reservations[*].Instances[*].{SpotID:SpotInstanceRequestId}' | grep SpotID" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+	                                        	SpotStatus=subprocess.Popen("aws ec2 describe-spot-instance-requests --spot-instance-request-ids %s --query 'SpotInstanceRequests[*].Status.{SpotStatus:Code}' | grep SpotStatus" %(spotReqID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+        	                                	if SpotStatus == 'marked-for-termination':
+                	                                	check=subprocess.Popen("aws ec2 describe-instances --instance-id %s --query Reservations[*].Instances[*].State.{Info:Name} | grep Info" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+								if check == 'running': 
+									cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+	                                	                	subprocess.Popen(cmd,shell=True).wait()
+	
+        		                                        	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+                	                                	isterm =0
+								while isterm == 0:
+                                	                       		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+                                        	               		if status == 'terminated':
+                                                	               		isterm=1
+                                                       			time.sleep(10)
+	                                                	isInstanceRunning=False
+								checkdone=1
+					if checkdone==0:
+						cmd='rsync --rsync-path="rsync" --log-file="%s/rsync.log" -avzu -e "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s" ubuntu@%s:/data/%s/ %s/ > %s/rsync.log' %(outdir,keypair,userIP,outdir,outdir,outdir)
+						subprocess.Popen(cmd,shell=True).wait()
+						time.sleep(2)
+						if autoref == -1:
+							if os.path.exists('%s_it%03i_data.star' %(outbasename,int(numiters))):
+								checkdone=1
+								isdone=1
+								isInstanceRunning=False
+								currentIteration=int(numiters)
+						if autoref != -1:
+							if os.path.exists('%s_class001.mrc' %(outbasename)):
+								checkdone=1
+								isdone=1
+								isInstanceRunning=False
+						#Check if job was specified to be killed
 					if autoref != -1:
-						if os.path.exists('%s_class001.mrc' %(outbasename)):
+                                        	if os.path.exists('%s_class001.mrc' %(outbasename)):
+                                                	checkdone=1
+                                                        isdone=1
+                                                        isInstanceRunning=False
+					if checkdone ==0:
+		 				checkdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
+						if checkdone == 1: 
 							isdone=1
-					#Check if job was specified to be killed
-					if isdone ==0:
-		 				isdone=check_and_kill_job('%s/note.txt' %(outdir),userIP,keypair)
-
 					#Check if there are any errors
-					if isdone == 0:
+					if checkdone == 0:
 						if os.path.exists('%s/run.err' %(outdir)):
 							if float(subprocess.Popen('cat %s/run.err | wc -l' %(outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()) > 0:
 								writeToLog('\nError detected in run.err. Shutting down instance.','%s/run.out' %(outdir))
+								checkdone=1
 								isdone=1
 					time.sleep(10)
+					if spot > 0:
+						if checkdone==1:  
+							spotReqID=subprocess.Popen("aws ec2 describe-instances --instance-ids %s --query 'Reservations[*].Instances[*].{SpotID:SpotInstanceRequestId}' | grep SpotID" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+							if len(spotReqID)>0:		
+								spotterm=subprocess.Popen('aws ec2 cancel-spot-instance-requests --spot-instance-request-ids %s' %(spotReqID),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+					
 				time.sleep(30)
+				
 
 	writeToLog('Job finished!','%s/run.out' %(outdir))
 	writeToLog('Shutting everything down ...','%s/run.out' %(outdir))
 	cmd=subprocess.Popen('aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	isdone=0
 	if spot>0: 
-		cmd=subprocess.Popen('aws ec2 cancel-spot-instance-requests --spot-instance-request-ids %s > %s/tmp4434r34.txt' %(spotReqID,outdir),,shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+		cmd=subprocess.Popen('aws ec2 cancel-spot-instance-requests --spot-instance-request-ids %s > %s/tmp4434r34.txt' %(spotReqID,outdir),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 		
 		
 	#while isdone == 0:
