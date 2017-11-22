@@ -33,12 +33,16 @@ def setupParserOptions():
                     help="PDB reference file OR .txt file with the input pdbs and their weights. List is required Only required if no .hhr file provided")
 	parser.add_option("--num",dest="num_models",type="int",metavar="INT",default=216,
                     help="Number of structures to calculate. (Default = 216)")
+	parser.add_option("--num_per_VM",dest="num_models_per_instance",type="int",metavar="INT",default=36,
+                    help="Number of structures to calculate per VM. (Default = 36)")
 	parser.add_option("--sym",dest="sym",type="string",metavar="string",default='C1',
                     help="Symmetry of map (Default = C1) or path to Rosetta symmetry file")
 	parser.add_option("--outdir",dest="outdir",type="string",metavar="DIR",default='',
 		    help="Optional: Name of output directory. Otherwise, output directory will be automatically generated")
 	parser.add_option("--nocheck", action="store_true",dest="nocheck",default=False,
                     help="Include this option to not stop after preparing PDB files, instead continuing straight into Rosetta-CM")
+	parser.add_option("-d", action="store_true",dest="debug",default=False,
+            help="debug")	
 	options,args = parser.parse_args()
 
         if len(args) > 0:
@@ -151,13 +155,13 @@ if __name__ == "__main__":
 	if params['num_models'] % 36 == 0: 
 		numInstances=float(params['num_models']/36)
 		instance='c4.8xlarge'	
-		numthreads=36
+		numthreads=params['num_models_per_instance']
 		numToRequest=numthreads
 
 	if params['num_models'] % 36 != 0: 
 		numInstances=float(params['num_models'])/36+1
 		instance='c4.8xlarge'
-                numthreads=36	
+                numthreads=params['num_models_per_instance']	
 		numToRequest=numthreads
 
 	if len(params['outdir']) == 0:
@@ -412,5 +416,7 @@ if __name__ == "__main__":
 	pdbfilename=linecache.getline(pdb_list,1).split()[0].strip()
 
 	cmd='%s/rosetta_waiting.py --instanceIPlist=%s/instanceIPlist.txt --instanceIDlist=%s/instanceIDlist.txt --numModels=%i --numPerInstance=%i --outdir=%s --pdbfilename=%s --type=%s&' %(rosettadir,params['outdir'],params['outdir'],numToRequest,numthreads,params['outdir'],pdbfilename,rosettaflag)
+	if params['debug'] is True: 
+		print cmd 
 	subprocess.Popen(cmd,shell=True)
 

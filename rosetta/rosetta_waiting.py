@@ -81,76 +81,75 @@ if __name__ == "__main__":
 
         keypair=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	time.sleep(60)
-	loadMin=5
+	loadMin=20
 	#Read in pickle files
 	with open (params['instanceIP'], 'rb') as fp:
 		instanceIPlist = pickle.load(fp)
 	with open (params['instanceID'], 'rb') as fp:
                 instanceIDlist = pickle.load(fp)
 
-	os.makedirs('%s/output' %(params['outdir']))
+	if not os.path.exists('%s/output' %(params['outdir'])): 
+		os.makedirs('%s/output' %(params['outdir']))
 
 	counter=0
 	instanceCounter=1
 	while counter < len(instanceIPlist):
 	        isdone=0
+		os.makedirs('%s/job%03i' %(params['outdir'],counter))
         	while isdone == 0:
-                	#If cloudwatch has load < 5% BUT there aren't finished PDBs yet, job crashed. Terminate.
 	                time.sleep(300)
 			currentTime=datetime.datetime.utcnow()
-        	        if os.path.exists('%s/cloudwatchtmp.log'%(params['outdir'])):
-                	        os.remove('%s/cloudwatchtmp.log'%(params['outdir']))
-	                cmd='aws cloudwatch get-metric-statistics --metric-name CPUUtilization --start-time %s  --period 300 --namespace AWS/EC2 --statistics Average --dimensions Name=InstanceId,Value=%s --end-time %s > %s/cloudwatchtmp.log' %(startTime.strftime('%Y-%m-%dT%H:%M:00'),instanceIDlist[counter],currentTime.strftime('%Y-%m-%dT%H:%M:00'),params['outdir'])
-        	        subprocess.Popen(cmd,shell=True).wait()
-                	o1=open('%s/cloudwatchtmp.log'%(params['outdir']),'r')
-			testflag=0
-	                for line in o1:
-        	                if len(line.split())>0:
-                	                if line.split()[0] == '"Average":':
-                        	                load=float(line.split()[1][:-1])
-						if load >= loadMin: 
-							if testflag==0: 
-								cmd='echo "...running...   (%sUTC)" >> %s' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
-								subprocess.Popen(cmd,shell=True).wait()
-								testflag=1
-								cmd='echo "" >> %s' %(l)
-                                                                subprocess.Popen(cmd,shell=True).wait()
+			numtot=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls * | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+			subprocess.Popen(cmd,shell=True).wait()
 
-						if load < loadMin:
-							#Download all pdb files, take note if you didn't download enough files consdiering number of models requested
-	                                                isdone=1
-							testflag=1
-							cmd='echo "Job finished on #%i at %sUTC" >> %s' %(counter+1,currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+			cmd='echo "...running...%sUTC >> %s\n' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+			subprocess.Popen(cmd,shell=True).wait() 
+			
+
+			if float(numtot) > 25: 
+				numPDB=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls S*pdb | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	                        subprocess.Popen(cmd,shell=True).wait()
+
+				numSC=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls *.sc | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+	                        subprocess.Popen(cmd,shell=True).wait()
+			
+				if float(numPDB) == params['numPerInstance'] and float(numSC) == params['numPerInstance']: 
+
+					cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s ubuntu@%s:~/S*pdb %s/job%03i/ > %s/rsync.log' %(keypair,instanceIPlist[counter],params['outdir'],counter,params['outdir'])
+		                        subprocess.Popen(cmd,shell=True).wait()	
+					
+					cmd='scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s ubuntu@%s:~/*sc %s/job%03i/ > %s/rsync.log' %(keypair,instanceIPlist[counter],params['outdir'],counter,params['outdir'])
+                                	subprocess.Popen(cmd,shell=True).wait()		
+	
+					numPDBS=int(subprocess.Popen('ls %s/job%03i/*0001.pdb | wc -l' %(params['outdir'],counter),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1])
+					if numPDBS == int(params['numPerInstance']): 
+						cmd='echo "Job finished on #%i at %sUTC" >> %s' %(counter+1,currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
+						subprocess.Popen(cmd,shell=True).wait()
+						currCounter=1	
+						while currCounter <= params['numPerInstance']:
+							if params['type'] == 'cm':
+								cmd='cp %s/job%03i/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(params['outdir'],counter,currCounter,params['outdir'],instanceCounter)
+								subprocess.Popen(cmd,shell=True).wait()
+							if params['type'] == 'relax':
+        		                                       	cmd='cp %s/job%03i/%s_%i_0001.pdb %s/output/S_%i_0001.pdb' %(params['outdir'],counter,params['pdbfilename'][:-4],currCounter,params['outdir'],instanceCounter)
+	                		                        subprocess.Popen(cmd,shell=True).wait()
+
+							cmd='cp %s/job%03i/score_%i.sc %s/output/S_%i_0001_score.sc' %(params['outdir'],counter,currCounter,params['outdir'],instanceCounter)
 							subprocess.Popen(cmd,shell=True).wait()
-							cmd='echo "Transferring PDB and score files into output directory" >> %s' %(l)
-                                                        subprocess.Popen(cmd,shell=True).wait()
-        						currCounter=1				
-							while currCounter <= params['numPerInstance']:
-								if params['type'] == 'cm':
-									cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/S_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
-									subprocess.Popen(cmd,shell=True).wait()
-								if params['type'] == 'relax':
-                                                                        cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/%s_%i_0001.pdb %s/output/S_%i_0001.pdb' %(keypair,instanceIPlist[counter],params['pdbfilename'][:-4],currCounter,params['outdir'],instanceCounter)
-                                                                        subprocess.Popen(cmd,shell=True).wait()
-
-								cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s:~/score_%i.sc %s/output/S_%i_0001_score.sc' %(keypair,instanceIPlist[counter],currCounter,params['outdir'],instanceCounter)
-								subprocess.Popen(cmd,shell=True).wait()
-								instanceCounter=instanceCounter+1
-								currCounter=currCounter+1	
-
-							cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceIDlist[counter],params['outdir'])
-        						subprocess.Popen(cmd,shell=True).wait()
-
-		        o1.close()
-                	os.remove('%s/cloudwatchtmp.log'%(params['outdir']))
-		counter=counter+1
+							instanceCounter=instanceCounter+1
+							currCounter=currCounter+1	
+						isdone=1
+					counter=counter+1
 
         cmd='echo "Rosetta refinement finished. Shutting down instances at %sUTC" >> %s' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
 	subprocess.Popen(cmd,shell=True).wait()
 
 	counter=0
 	while counter < len(instanceIPlist):
-        	isdone=0
+        	cmd='aws ec2 terminate-instances --instance-ids %s > %s/tmp4949585940.txt' %(instanceIDlist[counter],params['outdir'])
+		subprocess.Popen(cmd,shell=True).wait()
+
+		isdone=0
         	while isdone == 0:
               		status=subprocess.Popen('aws ec2 describe-instances --instance-ids %s --query "Reservations[*].Instances[*].{State:State}" | grep Name'%(instanceIDlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
               		if status == 'terminated':
@@ -205,7 +204,6 @@ if __name__ == "__main__":
 
 	#Create sorted file
 	sorted_outputsc = '%s_ranked.txt' %(outputsc[:-4])
-
 
 	with open('%s' %(outputsc)) as fin:
 		data =[]
