@@ -51,7 +51,7 @@ We compiled all python code into the directory aws_build_osx so that users do no
 * **Relion-2.0:**
 We also included a compiled Relion-2.0 version compatible for Mac OSX that can be found in cryoem-cloud-tools/external_software/relion-2.0-mac
 
-## Typical Workflow
+## Typical Workflow for Using Command Line Tools
 In using these wrappers, we typically use only a few of the commands for booting up & terminating instances.
 
 ### Create new EBS volume for data upload
