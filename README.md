@@ -9,6 +9,7 @@ See below for advanced installation instructions. To use a downloader script, pl
 * [Getting started](https://github.com/cianfrocco-lab/cryoem-cloud-tools#getting-started)
 	* [Software dependences](https://github.com/cianfrocco-lab/cryoem-cloud-tools#software-dependencies)
 	* [Installation](https://github.com/cianfrocco-lab/cryoem-cloud-tools#installation)
+* [Typical usage](https://github.com/cianfrocco-lab/cryoem-cloud-tools#typical-workflow-for-using-command-line-tools)
 * [Usage](https://github.com/cianfrocco-lab/cryoem-cloud-tools#usage)
 * [Removing temporary data storage on AWS](https://github.com/cianfrocco-lab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
 
