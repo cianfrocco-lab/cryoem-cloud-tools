@@ -101,37 +101,13 @@ if uname == 'Darwin':
 		print 'Could not find xcode tools. Please install and try again.'
 		print 'To learn how to install xcode: https://developer.apple.com/xcode/'
 		sys.exit() 
-'''
-#Check if anaconda is installed
-if uname == 'Darwin': 
-	conda='which conda',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
-	if len(conda) > 0: 
-		print 'anaconda python is installed. Please remove from environment and try again'
-		print 'To do this, comment out any lines for anaconda in your .bash_profile'
-		sys.exit()
-'''
-'''
-pip=subprocess.Popen('which pip',shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
+#Check if AWS CLI is installed
+awscli=subprocess.Popen('which aws',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+if len(awscli) == 0: 
+	print 'Could not find AWS CLI installed. Please install and try again:'
+	print '$ pip install awscli'
+	sys.exit()
 
-if cloudtoolsonly is False: 
-	if len(pip) == 0: 
-		print 'Could not find pip. Please install pip and try again:'
-		print '$ sudo easy_install pip'
-		sys.exit()
-
-#Check fabric installation
-needFabric=False
-try: 
-	import fabric.api
-except ImportError:
-	needFabric = True
-
-#Check aws cli installation
-needAWSCLI=True
-aws_version=subprocess.Popen('which aws',shell=True, stdout=subprocess.PIPE).stdout.read().strip()	
-if len(aws_version) > 0: 
-	needAWSCLI=False
-'''
 #Git clone git@github.com:leschzinerlab/cryoem-cloud-tools.git
 needGIT=True
 git=subprocess.Popen('which git',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -153,106 +129,17 @@ if pingstatus == 'bad':
 	if forceinstall is False: 
 		#print 'Error: Cannot connect to internet. Check your networking and try again'
 		#sys.exit()
-		print("Error: Cannot ping google.com. This may because of firewall settings. Continuing anyway."
-#Check relion
-'''
-installRelion=True
-relion=subprocess.Popen('which relion',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-if len(relion) > 0: 
-	installRelion=False
+		print("Error: Cannot ping google.com. This may because of firewall settings. Continuing anyway.")
 
-if installRelion is True: 
-        gcc=subprocess.Popen('which gcc',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-        if cloudtoolsonly is False: 
-		if len(gcc) == 0: 
-                	print 'Error: gcc is needed to compile Relion. Please download and try again'
-                	sys.exit()
-	if needGIT is True:
-        	print 'Install git: https://git-scm.com/download/mac and try again.'
-	        sys.exit()
-	#Check for mpi
-	installMPI=True
-	mpi=subprocess.Popen('which mpirun',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-	if len(mpi) > 0: 
-		installMPI=False
-	cmakepath=subprocess.Popen('which cmake',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-	if cloudtoolsonly is False: 
-		if len(cmakepath) == 0:
-			if uname == 'Darwin': 
-				if os.path.exists('/Applications/CMake.app/Contents/bin/cmake'): 
-					cmakepath='/Applications/CMake.app/Contents/bin/cmake'
-				if not os.path.exists('/Applications/CMake.app/Contents/bin/cmake'): 
-					print '\nError: could not find the compiler cmake installed. Please install and try again'
-					if uname == 'Darwin': 
-						print 'For MacOSX, you can download Cmake here: https://cmake.org/download/\n'
-					sys.exit()
-
-#Make directorioes
-os.makedirs('%s/awscli/' %(install_location))
-os.makedirs('%s/awscli/bin/' %(install_location))
-if cloudtoolsonly is False:
-	os.makedirs('%s/fabric' %(install_location))
-if needAWSCLI is True: 
-	cmd='curl -s "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"'
-	subprocess.Popen(cmd,shell=True).wait()
-	if not os.path.exists('awscli-bundle.zip'): 
-		print 'Error: Was unable to download awscli software. Exiting'
-		sys.exit()
-	cmd='unzip -qq awscli-bundle.zip'
-	subprocess.Popen(cmd,shell=True).wait()
-	shutil.move('awscli-bundle','%s/awscli' %(install_location))
-	os.remove('awscli-bundle.zip')
-	cmd='%s/awscli/awscli-bundle/install -b %s/awscli/bin/aws' %(install_location,install_location)
-	subprocess.Popen(cmd,shell=True).wait()
-	shutil.rmtree('%s/awscli/awscli-bundle' %(install_location))
-if cloudtoolsonly is False:
-	if needFabric is True: 
-		cmd='pip install --install-option="--prefix=%s/fabric" fabric' %(install_location)
-		subprocess.Popen(cmd,shell=True).wait()
-'''
-cmd='git clone https://github.com/cianfrocco-lab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
-subprocess.Popen(cmd,shell=True).wait()
-'''
-if cloudtoolsonly is False:
-
-	if installRelion is True: 
-			
-		cmd='git clone https://github.com/3dem/relion.git'
-		subprocess.Popen(cmd,shell=True).wait()
-
-		o11=open('installrelion.sh','w')
-		if installMPI is True: 
-			o11.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/openmpi-2.0.2/lib/:$LD_LIBRARY_PATH\n' %(install_location))
-			o11.write('export PATH=%s/cryoem-cloud-tools/external_software/openmpi-2.0.2/bin/:$PATH\n' %(install_location))
-		o11.write('cd relion/\n')
-		o11.write('mkdir build\n ')
-		o11.write('cd build\n ')
-		o11.write('%s ..\n' %(cmakepath))
-		o11.write('make\n')
-		o11.close()
-
-		cmd='chmod +x installrelion.sh'
-		subprocess.Popen(cmd,shell=True).wait()
-	
-		cmd='./installrelion.sh'
-		subprocess.Popen(cmd,shell=True).wait()
-		
-		cmd='mv relion/ %s/relion2.0' %(install_location)
-		subprocess.Popen(cmd,shell=True).wait()
-	
-		os.remove('installrelion.sh')
-'''
 #Write environmental variables into text file
 o1=open('%s/external_software.init' %(install_location),'w')
 if uname == 'Darwin':
-	#o1.write('export PATH=%s/cryoem-cloud-tools/external_software/aws-mac/bin/:$PATH\n' %(install_location))
-	#o1.write('export PYTHONPATH=%s/cryoem-cloud-tools/external_software/aws-mac/lib/python2.7/site-packages/\n' %(install_location))
 	o1.write('export PATH=/usr/local/relion/build/bin:$PATH\n' )
 	o1.write('export LD_LIBRARY_PATH=/usr/local/relion/build/lib:$LD_LIBRARY_PATH\n')
-if uname == 'Linux':
-        o1.write('export PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/bin/:$PATH\n' %(install_location))
-        o1.write('export LD_LIBRARY_PATH=%s/cryoem-cloud-tools/external_software/relion-2.0-linux/lib:$LD_LIBRARY_PATH\n' %(install_location))
 o1.close()
+
+cmd='git clone https://github.com/cianfrocco-lab/cryoem-cloud-tools.git %s/cryoem-cloud-tools/' %(install_location)
+subprocess.Popen(cmd,shell=True).wait()
 
 #Copy aws_init.sh into install_location
 o1=open('%s/cryoem-cloud-tools/aws/aws_init.sh' %(install_location),'r')
