@@ -3,44 +3,54 @@ Software to interface with AWS through convenient command line inputs, ultimatel
 
 To learn more: [cryoem-tools.cloud](http://cryoem-tools.cloud)
 
+See below for advanced installation instructions. To use a downloader script, please see more [here](http://cryoem-tools.cloud/software-installation/)
+
 *Contents:*
-* [Typical Workflow](https://github.com/cianfrocco-lab/cryoem-cloud-tools#typical-workflow)
 * [Getting started](https://github.com/cianfrocco-lab/cryoem-cloud-tools#getting-started)
 	* [Software dependences](https://github.com/cianfrocco-lab/cryoem-cloud-tools#software-dependencies)
 	* [Installation](https://github.com/cianfrocco-lab/cryoem-cloud-tools#installation)
 * [Usage](https://github.com/cianfrocco-lab/cryoem-cloud-tools#usage)
 * [Removing temporary data storage on AWS](https://github.com/cianfrocco-lab/cryoem-cloud-tools#removing-temporary-data-storage-on-aws)
 
-*Overview:*
+## Getting started
 
-Shortcut AWS commands found in this Github repo:
+### Software dependencies 
+You'll need to install *pip*, *aws cli*, *cryptography*, and *fabric*:
+* **pip**:
+        * https://pypi.python.org/pypi/pip
+* **aws cli**:
+        * http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-with-pip
+        * <pre>$ sudo pip install awscli</pre>
+* **fabric**:
+        * http://www.fabfile.org/installing.html
+        * <pre>$ sudo pip install fabric</pre>
 
-**Popular commands**
+### Installation
 
-* **awshelp** - List available AWS commands from this repo
+Clone git repository:
+<pre>https://github.com/cianfrocco-lab/cryoem-cloud-tools</pre>
 
-* **awsls** - List volumes and instances (Include -i to list only instances)
+Edit file cryoem-cloud-tools/aws/aws_init.sh to include AWS credentials. Consider moving out of cryoem-cloud-tools folder so that it does not get over written when you update the git repo.
 
-* **awskill** - Terminate instance OR cluster
+With this file location, add the following line to your .cshrc / .bashrc / .bash_profile:
 
-* **awslaunch** - Boot up single instance
+<pre>source /path/to/aws_init.sh</pre>
 
-**Other commands**
+You will also need to include your AWS keypair path in aws_init.sh. Copy keypair into this new directory, double checking that this path is in the /home/[user]/.aws/aws_init.sh correctly. Also, make sure to modify permissions of file using:
+<pre>$ chmod 600 /path/to/keypair.pem </pre>
 
-* **awslaunch_cluster** - Boot up cluster of instances using STARcluster 
+**For MacOSX users:**
 
-* **aws_spot_price_history** - List spot prices for a given instance and availability zone
+We compiled all python code into the directory aws_build_osx so that users do not need to install fabric (which sometimes can be a hassle).
 
-* **aws_ebs_create** - Create EBS volume
+* If you use this library on your Mac, use file aws_aliases_osx.sh instead of aws_aliases.sh in your aws_inith.sh script
+* This repo also comes with Relion-2.0 pre-compiled for Mac (see below)
 
-* **aws_ebs_delete** - Delete EBS volume
+### External software included in repo:
 
-* **aws_ebs_attach** - Attach EBS volume to running instance
+* **Relion-2.0:**
+We also included a compiled Relion-2.0 version compatible for Mac OSX that can be found in cryoem-cloud-tools/external_software/relion-2.0-mac
 
-* **aws_ebs_detach** - Detach EBS volume from instance
-
-* **delete_temp_s3_ebs** - Delete all S3 bucket and EBS volumes with temporary status (name starts with rln-aws-tmp)
- 
 ## Typical Workflow
 In using these wrappers, we typically use only a few of the commands for booting up & terminating instances.
 
@@ -109,47 +119,6 @@ To kill your instance:
 <pre>$ awskill i-98sdkfksdf9ssd9 </pre>
 
 **Note:** If there are any running processes such as a relion GUI or an open terminal, it cannot terminate the instance. Kill / stop these processes and then try again. 
-
-## Getting started
-
-### Software dependencies 
-You'll need to install *pip*, *aws cli* **starcluster**, **cryptography**, and *fabric*: 
-* **pip**: 
-	* https://pypi.python.org/pypi/pip
-* **aws cli**:
-	* http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-with-pip
-	* <pre>$ sudo pip install awscli</pre>
-* **fabric**: 
-	* http://www.fabfile.org/installing.html
-	* <pre>$ sudo pip install fabric</pre>
-
-### Installation
-
-Clone git repository:
-<pre>https://github.com/cianfrocco-lab/cryoem-cloud-tools</pre>
-
-Edit file cryoem-cloud-tools/aws/aws_init.sh to include AWS credentials. Consider moving out of cryoem-cloud-tools folder so that it does not get over written when you update the git repo.
-
-With this file location, add the following line to your .cshrc / .bashrc / .bash_profile: 
-
-<pre>source /path/to/aws_init.sh</pre>
-
-You will also need to include your AWS keypair path in aws_init.sh. Copy keypair into this new directory, double checking that this path is in the /home/[user]/.aws/aws_init.sh correctly. Also, make sure to modify permissions of file using:
-<pre>$ chmod 600 /path/to/keypair.pem </pre>
-
-**For MacOSX users:**
-
-We compiled all python code into the directory aws_build_osx so that users do not need to install fabric (which sometimes can be a hassle).
-
-* If you use this library on your Mac, use file aws_aliases_osx.sh instead of aws_aliases.sh in your aws_inith.sh script
-* This repo also comes with Relion-2.0 pre-compiled for Mac (see below)
-
-### External software included in repo:
-
-* **AWS CLI:**
-We have included AWS CLI into the git repo that you can use by including cryoem-cloud-tools/external_software/aws in your $PATH and  cryoem-cloud-tools/external_software/aws/lib/python2.7/site-packages/ into your $PYTHONPATH
-* **Relion-2.0:**
-We also included a compiled Relion-2.0 version compatible for Mac OSX that can be found in cryoem-cloud-tools/external_software/relion-2.0-mac
 
 ## Usage
 The underlying code is written in python and aliased to simple commands: awsls, awslaunch, awskill. 
