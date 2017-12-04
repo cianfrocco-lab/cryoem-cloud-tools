@@ -57,7 +57,6 @@ if __name__ == "__main__":
         startmin=now.minute
 
         l='%s/rosetta.out' %(params['outdir'])
-
         cmd='echo '' >> %s' %(l)
         subprocess.Popen(cmd,shell=True).wait()
 
@@ -97,15 +96,10 @@ if __name__ == "__main__":
 	        isdone=0
 		os.makedirs('%s/job%03i' %(params['outdir'],counter))
         	while isdone == 0:
-	                time.sleep(300)
+	                time.sleep(30)
 			currentTime=datetime.datetime.utcnow()
 			numtot=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls * | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 			subprocess.Popen(cmd,shell=True).wait()
-
-			cmd='echo "...running...%sUTC >> %s\n' %(currentTime.strftime('%Y-%m-%dT%H:%M:00'),l)
-			subprocess.Popen(cmd,shell=True).wait() 
-			
-
 			if float(numtot) > 25: 
 				numPDB=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls S*pdb | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	                        subprocess.Popen(cmd,shell=True).wait()
