@@ -150,4 +150,6 @@ if __name__ == "__main__":
 	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "/usr/bin/vncserver &"' %(keypair,instanceIPlist[0])
 	subprocess.Popen(cmd,shell=True).wait()
 
+	print 'testing'
+
 	print 'ready for connection!'
