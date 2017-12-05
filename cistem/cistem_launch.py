@@ -20,29 +20,13 @@ from fabric.context_managers import shell_env
 def setupParserOptions():
         parser = optparse.OptionParser()
         parser.set_usage("This program will submit a rosetta atomic model refinement to AWS for refinement. Specify input pdb file(s), FASTA file and cryo-EM maps below.\n\n%prog --pdb_list=<.txt file with the list of input pdbs and their weights> --fasta=<FASTA file with protein sequence> --em_map=<EM map in .mrc format> --num=<number of atomic structures per CPU process (default:5) -r (flag to run relax instead of CM)")
-        parser.add_option("--em_map",dest="em_map",type="string",metavar="FILE",
-                    help="EM map in .mrc format")
-	parser.add_option("--fasta",dest="fasta",type="string",metavar="FILE",
-                    help="FASTA sequence file (not required for rosetta relax)")
-	parser.add_option("--hhr",dest="hhr",type="string",metavar="FILE",default='',
-                    help=".hhr sequence alignment file")
-	parser.add_option("--AMI",dest="AMI",type="string",metavar="AMI",
-                    help="AMI for Rosetta software environment on AWS. (Read more here: cryoem-tools.cloud/rosetta-aws)")
-	parser.add_option("-r", action="store_true",dest="relax",default=False,
-                    help="run rosetta relax instead of CM")
-	parser.add_option("--pdb_list",dest="pdb_list",type="string",metavar="FILE",default='',
-                    help="PDB reference file OR .txt file with the input pdbs and their weights. List is required Only required if no .hhr file provided")
-	parser.add_option("--num",dest="num_models",type="int",metavar="INT",default=216,
-                    help="Number of structures to calculate. (Default = 216)")
-	parser.add_option("--outdir",dest="outdir",type="string",metavar="DIR",default='',
-		    help="Optional: Name of output directory. Otherwise, output directory will be automatically generated")
-	parser.add_option("--nocheck", action="store_true",dest="nocheck",default=False,
-                    help="Include this option to not stop after preparing PDB files, instead continuing straight into Rosetta-CM")
+        parser.add_option("--outdir",dest="outdir",type="string",metavar="FILE",
+                    help="path")
 	options,args = parser.parse_args()
 
         if len(args) > 0:
                 parser.error("Unknown commandline options: " +str(args))
-        if len(sys.argv) <= 2:
+        if len(sys.argv) <= 1:
                 parser.print_help()
                 sys.exit()
         params={}
@@ -55,11 +39,7 @@ def setupParserOptions():
 def checkConflicts(params,outdir):
 
 	if os.path.exists(outdir): 
-		print "\nError: Output directory already exists. Exiting" %(outdir)
-		sys.exit()
-
-	if not params['AMI']: 
-		print '\nError: No AMI specified. Exiting\n'
+		print "\nError: Output directory already exists. Exiting" 
 		sys.exit()
 
 	awsregion=subprocess.Popen('echo $AWS_DEFAULT_REGION', shell=True, stdout=subprocess.PIPE).stdout.read().split()[0]
@@ -105,9 +85,9 @@ if __name__ == "__main__":
 
 	params=setupParserOptions()
 
-	AMI='ami-4f1e372a'
+	AMI='ami-711e3714'
 
-	instance='t2.micro'
+	instance='m4.large'
         numthreads=1
 	numToRequest=numthreads
 
@@ -121,12 +101,11 @@ if __name__ == "__main__":
 	os.makedirs(params['outdir'])
 	
         #Launch instance
+	counter=0
 	cmd='%s/launch_AWS_instance.py --noEBS --instance=%s --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AMI,params['outdir'],counter)
 	subprocess.Popen(cmd,shell=True)
 	time.sleep(20)
-	counter=counter+1
       
-        counter=0
      	instanceIDlist=[]
         instanceIPlist=[]
         
@@ -152,4 +131,5 @@ if __name__ == "__main__":
 
 	print 'testing'
 
-	print 'ready for connection!'
+	print 'ready for connection! Input localhost:5901 into VNC Viewer and pw cryoem'
+
