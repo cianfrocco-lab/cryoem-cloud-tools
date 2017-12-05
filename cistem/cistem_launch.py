@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
 	params=setupParserOptions()
 
-	AMI='ami-292d024c'
+	AMI='ami-4f1e372a'
 
 	instance='t2.micro'
         numthreads=1
