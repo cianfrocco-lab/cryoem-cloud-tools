@@ -29,11 +29,13 @@ def setupParserOptions():
     parser.add_option("--alwaysOn",action="store_true",dest="cloudskip",default=False,
 	    help="Optional: Force instance to remain on always (when this option is not specified, instance will be terminated after 30 minutes of idle time)")
     parser.add_option("--instanceList", action="store_true",dest="listInstance",default=False,
-            help="Flag to list available instances")
+            help="Optional: Flag to list available instances")
     parser.add_option("--tag",dest="tagname",type="string",metavar="STRING",default='None',
             help="Optional: Provide user-specified tag for instance. By default, instance will be tagged with keypair name")
     parser.add_option("--dirname",dest="dirname",type="string",metavar="STRING",default='data',
             help="Optional: Provide user-specified directory name onto which EBS volume will be mounted. (Default=data, which will be mounted as /data")
+    parser.add_option("--cryosparc",action="store_true",dest="cryosparc",default=False,
+            help="Optional: Include to indicate cryosparc should be booted up from EBS volume")
     parser.add_option("-d", action="store_true",dest="debug",default=False,
             help="debug")
     options,args = parser.parse_args()
@@ -52,6 +54,11 @@ def setupParserOptions():
 
 #====================
 def checkConflicts(params,availInstances):
+ 
+    if params['force'] is True: 
+	if params['cryosparc'] is True: 
+		print 'Error: No EBS volume provided, cannot boot up cryosparc'
+		sys.exit()
 
     if not params['zone']: 
 	print 'Error: No availability zone specified. Exiting'
@@ -397,6 +404,31 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 	    return SpotInstanceID,PublicIP
 
 #======================
+def cryosparc(instanceID,keyPath,params,PublicIP): 
+   fabric_test=module_exists('fabric.api')
+   if fabric_test is False:
+       print 'Error: Could not find fabric installed and it is required. Install from here: http://www.fabfile.org/installing.html'
+       sys.exit()
+   #Import Fabric modules now: 
+   from fabric.operations import run, put
+   from fabric.api import env,run,hide,settings
+   from fabric.context_managers import shell_env
+   from fabric.operations import put
+
+   #List instances given a users tag
+   keyPath=subprocess.Popen('echo $KEYPAIR_PATH',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+   env.host_string='ubuntu@%s' %(PublicIP)
+   env.key_filename = '%s' %(keyPath)
+   exportpath=exec_remote_cmd('export PATH=/data/cryosparc/bin:$PATH; cryosparc start')	
+
+   #Get public DNS name
+   dns=subprocess.Popen("aws ec2 describe-instances  --instance-id=%s --query 'Reservations[*].Instances[*].NetworkInterfaces[*].Association.{PubAddress:PublicDnsName}' | grep PubAddress" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('"')[-2]
+ 
+   print '\nTo access cryoSPARC, type the following into your web browswer:\n'
+   print dns
+ 
+#======================
 def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
 
    fabric_test=module_exists('fabric.api')
@@ -526,3 +558,7 @@ if __name__ == "__main__":
     instanceID,PublicIP=launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID)
     if params['volume'] != 'None': 
 	AttachMountEBSVol(instanceID,params['volume'],PublicIP,keyPath,params)
+
+    if params['cryosparc'] is True: 
+	cryosparc(instanceID,keyPath,params,PublicIP)
+
