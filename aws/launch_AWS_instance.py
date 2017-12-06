@@ -147,6 +147,8 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     uname=subprocess.Popen('uname',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
     securityGroupName='sg_%i' %(int(time.time()))
     securityGroupDescript='Automated security group'
+    if params['cryosparc'] is True: 
+	securityGroupDescript=securityGroupDescript+' cryosparc'
     if uname == 'Linux': 
     	IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
@@ -185,8 +187,23 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
 			if SGout != 'null': 
 				SGGroupName=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupName' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 				if len(SGGroupName) > 0: 
-					securityGroupName=SGGroupName.split(':')[-1].split('"')[1]	
-					SGexist=True
+					securityGroupName=SGGroupName.split(':')[-1].split('"')[1]
+					if params['cryosparc'] is False:	
+						description=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep Description' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+						if 'cryosparc' in description:
+							SGexist=False
+							if params['debug'] is True:
+								print 'IP exists and cryosparc - FALSE'
+						if 'cryosparc' not in description:
+							SGexist=True
+					if params['cryosparc'] is True: 
+						description=subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep Description' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+						if 'cryosparc' in description: 
+							SGexist=True
+							if params['debug'] is True: 
+								print 'IP exists and cryosparc'
+						if 'cryosparc' not in description: 
+							SGexist=False
                                 SGid = subprocess.Popen('aws ec2 describe-security-groups --query "SecurityGroups[%i]" | grep GroupId' %(SGcounter), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
                                 if len(SGid) > 0:
                                         securityGroupId = SGid.split(':')[-1].split('"')[1]
@@ -199,7 +216,9 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     if params['debug'] is True:
 	print securityGroupName
     	print SGexist
+    
     if SGexist is False:
+	securityGroupName='sg_%i' %(int(time.time()))
 	if params['debug'] is True:
         	print '\nConfiguring security group %s to use IP address %s/32 ...' %(securityGroupName,IPaddress)
 	print '\nConfiguring security settings ...\n'
@@ -246,7 +265,7 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
                 if params['debug'] is True:
                         print cmd
                 subprocess.Popen(cmd,shell=True).wait()
-
+		
     if params['spot'] == -1:
 	    print '\nBooting up instance ...\n'
 	    InstanceID=subprocess.Popen('aws ec2 run-instances --placement AvailabilityZone=%s --image-id %s --key-name %s --instance-type %s --count 1 --security-group-ids %s --query "Instances[0].{instanceID:InstanceId}" | grep instanceID' %(params['zone'],AMI,keyName,params['instance'],securityGroupName), shell=True, stdout=subprocess.PIPE).stdout.read().strip()
@@ -435,8 +454,9 @@ def cryosparc(instanceID,keyPath,params,PublicIP):
    #Get public DNS name
    dns=subprocess.Popen("aws ec2 describe-instances  --instance-id=%s --query 'Reservations[*].Instances[*].NetworkInterfaces[*].Association.{PubAddress:PublicDnsName}' | grep PubAddress" %(instanceID),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('"')[-2]
  
-   print '\nTo access cryoSPARC, type the following into your web browswer:\n'
-   print dns
+   print '\n'
+   print '\nTo access cryoSPARC, type the following into the web browser used to launch instance:\n'
+   print dns+':38000'
  
 #======================
 def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
@@ -497,8 +517,8 @@ def AttachMountEBSVol(instanceID,volID,PublicIP,keyPath,params):
    env.key_filename = '%s' %(keyPath)
    dir_exists=exec_remote_cmd('ls /%s' %(params['dirname']))
    if len(dir_exists.split()) >0: 
-	if dir_exists.split()[2] == 'access': 
-		mk=exec_remote_cmd('sudo mkdir /%s/' %(params['dirname']))
+   	if dir_exists.split()[2] == 'access': 
+	   mk=exec_remote_cmd('sudo mkdir /%s/' %(params['dirname']))
    check_NFS=exec_remote_cmd('sudo file -s /dev/xvdf')
    if 'filesystem' not in check_NFS:
 	nfsmount=exec_remote_cmd('sudo mkfs -t ext4 /dev/xvdf')
