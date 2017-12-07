@@ -1159,6 +1159,18 @@ def relion_refine_mpi(project,AZ_letter):
                 mpi=2
                 numfiles=15
                 cost=1.14
+	if instance == 'm4.10xlarge': 
+		gpu=''
+		j='--j 1'
+		mpi=40
+		numfiles=40
+		cost=2
+	if instance == 'm4.16xlarge':
+                gpu=''
+                j='--j 1'
+                mpi=64
+                numfiles=64
+                cost=3.2
         if not cost:
                 writeToLog('Error: Input instance %s is not a p2 or g3 instance type for GPU acceleration. Exiting' %(instance),'%s/run.err' %(outdir))
                 sys.exit()
