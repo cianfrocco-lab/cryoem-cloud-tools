@@ -164,6 +164,12 @@ if __name__ == "__main__":
                 numthreads=params['num_models_per_instance']	
 		numToRequest=numthreads
 
+	if params['relax'] is True: 
+		instance='m4.4xlarge'
+		numInstances=1
+		numthreads=params['num_models_per_instance']
+		numToRequest=numthreads
+
 	if len(params['outdir']) == 0:
 	        startTime=datetime.datetime.utcnow()
  		params['outdir']=startTime.strftime('%Y-%m-%d-%H%M%S')
@@ -298,16 +304,22 @@ if __name__ == "__main__":
 			sys.exit()
 		pdb_list='%s/pdb_list.txt' %(params['outdir'])
 
-	sym=''
-        if params['sym'] != "C1":
-	        sym=' --symm=%s ' %(params['sym'])
-	
 	if params['relax'] == True:
-		cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s -r --outdir=%s/ %s'  %(rosettadir,pdb_list,params['em_map'],params['outdir'],sym)
-		subprocess.Popen(cmd,shell=True).wait()
+		if params['sym'] != "C1": 
+			cmd='%s/rosetta_prepare_input_files_incl_symm.py --pdb_list=%s --em_map=%s --num=1 -r --symm=%s --outdir=%s/' %(rosettadir,pdb_list,params['em_map'],params['sym'],params['outdir'])				     
+			if params['debug'] is True: 
+                       		print cmd 
+                	subprocess.Popen(cmd,shell=True).wait()	
+		if params['sym'] == 'C1': 
+			cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s -r --outdir=%s/ %s'  %(rosettadir,pdb_list,params['em_map'],params['outdir'])
+			if params['debug'] is True: 
+				print cmd 
+			subprocess.Popen(cmd,shell=True).wait()
 
 	if params['relax'] == False:
-                cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s --fasta=%s --outdir=%s/ %s'  %(rosettadir,pdb_list,params['em_map'], params['fasta'],params['outdir'],sym)
+                cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s --fasta=%s --outdir=%s/ %s'  %(rosettadir,pdb_list,params['em_map'], params['fasta'],params['outdir'])
+		if params['debug'] is True: 
+                        print cmd
 		subprocess.Popen(cmd,shell=True).wait()
 
 	#Error check
@@ -380,6 +392,9 @@ if __name__ == "__main__":
 		subprocess.Popen(cmd,shell=True).wait()
 	
 		if params['relax'] == True:
+			if '.' in params['sym']:
+                                cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s ubuntu@%s:~/' %(keypair,params['sym'],instanceIPlist[counter])
+                                subprocess.Popen(cmd,shell=True).wait()
 			cmd='scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s/relax_final.xml ubuntu@%s:~/'%(keypair,params['outdir'],instanceIPlist[counter])
 	                subprocess.Popen(cmd,shell=True).wait()
 
@@ -393,6 +408,7 @@ if __name__ == "__main__":
 
 		#Run job
         	cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/bin/$PATH && export PATH=/home/Rosetta/2017_08/main/source/:$PATH && /usr/local/bin/parallel -j%i ./run_final.sh {} ::: {1..%i}> /home/ubuntu/rosetta.out 2> /home/ubuntu/rosetta.err < /dev/null &"' %(keypair,instanceIPlist[counter],numthreads,numthreads)
+		print cmd 
 		subprocess.Popen(cmd,shell=True)
 	
 		counter=counter+1
