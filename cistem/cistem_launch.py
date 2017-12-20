@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
 	params=setupParserOptions()
 
-	AMI='ami-711e3714'
+	AMI='ami-9ef1d9fb'
 
 	instance='m4.large'
         numthreads=1
@@ -103,6 +103,7 @@ if __name__ == "__main__":
         #Launch instance
 	counter=0
 	cmd='%s/launch_AWS_instance.py --noEBS --instance=%s --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AMI,params['outdir'],counter)
+	print cmd 
 	subprocess.Popen(cmd,shell=True)
 	time.sleep(20)
       
@@ -123,13 +124,12 @@ if __name__ == "__main__":
 	keypair=subprocess.Popen('cat %s/awslog_%i.log | grep ssh'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split()[3].strip()
         instanceIPlist.append(subprocess.Popen('cat %s/awslog_%i.log | grep ssh'%(params['outdir'],counter), shell=True, stdout=subprocess.PIPE).stdout.read().split('@')[-1].strip())
 
-	cmd='ssh  -nNT -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -L 5901:localhost:5901 -i %s ubuntu@%s &'  %(keypair,instanceIPlist[0])
+	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s ubuntu@%s "/usr/bin/vncserver :1"' %(keypair,instanceIPlist[0])
+	print cmd 
 	subprocess.Popen(cmd,shell=True).wait()
 
-	cmd='ssh -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -n -f -i %s ubuntu@%s "/usr/bin/vncserver &"' %(keypair,instanceIPlist[0])
-	subprocess.Popen(cmd,shell=True).wait()
-
-	print 'testing'
-
-	print 'ready for connection! Input localhost:5901 into VNC Viewer and pw cryoem'
-
+	print "please copy and paste into your terminal:"
+	print 'ssh -L 5901:localhost:5901 -o LogLevel=quiet -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -i %s ubuntu@%s' %(keypair,instanceIPlist[0])
+	print '\nWhen finished with cisTEM, log out of terminal by typing:'
+	print '$ exit'
+	print '$ cistem_terminate'
