@@ -44,6 +44,11 @@ def transferDirToS3(directoryToTransfer,bucketname,awspath,numfiles,keyid,secret
 	cmd='%s sync %s rclonename:%s --quiet --transfers %i > rclone.log' %(rclonepath,directoryToTransfer,bucketname,math.ceil(numfiles))
 	subprocess.Popen(cmd,shell=True).wait()
 
+	if os.path.exists('%s/rclone.conf' %(directoryToTransfer)): 
+		os.remove('%s/rclone.conf' %(directoryToTransfer))
+	if os.path.exists('rclone.log'):
+                os.remove('rclone.log')
+
 #===================
 def transferS3toVM(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,region,numfilesAtATime,maxFileSize):
 
@@ -79,4 +84,8 @@ def transferS3toVM(IP,keypair,bucketname,dironebs,rclonepath,keyid,secretid,regi
         rcloneexe='rclone'
         exec_remote_cmd('%s/%s copy rclonename:%s %s --max-size %iG --quiet --transfers %i' %(homedir,rcloneexe,bucketname.split('s3://')[-1],dironebs,maxFileSize,numfilesAtATime))
 
+	if os.path.exists('rclone.conf'): 
+                os.remove('rclone.conf')
 
+	if os.path.exists('rclone.log'):
+                os.remove('rclone.log')
