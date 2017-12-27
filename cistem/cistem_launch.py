@@ -21,8 +21,10 @@ from awsdatatransfer import *
 def setupParserOptions():
         parser = optparse.OptionParser()
         parser.set_usage("This program will start a virtual machine on AWS to run cisTEM, syncing all contents of the current directory to AWS")
-        parser.add_option("--instance",dest="instance",type="string",metavar="Instance",default='t2.micro',
-                    help="Instance type on AWS")
+        parser.add_option("--instance",dest="instance",type="string",metavar="Instance",default='m4.4xlarge',
+                    help="Instance type on AWS (Default=m4.4xlarge)")
+	parser.add_option("--spotPrice",dest="spot",type="float",metavar='Spot',default=-1,
+		    help='Optional: Request spot price for instance. Provide spot price value.')
 	parser.add_option("--run",action="store_true",dest="run",default=False,
             help="Launch cisTEM on AWS")
 	parser.add_option("-d", action="store_true",dest="debug",default=False,
@@ -137,7 +139,12 @@ if __name__ == "__main__":
 	
         #Launch instance
 	counter=0
-	cmd='%s/launch_AWS_instance.py --noEBS --instance=%s --availZone=%sa --AMI=%s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AMI,directoryToTransfer,counter)
+	spotcmd=''
+	if params['spot']: 
+		spotcmd=' --spotPrice=%f ' %(params['spot'])
+	cmd='%s/launch_AWS_instance.py --noEBS --instance=%s --availZone=%sa --AMI=%s %s > %s/awslog_%i.log' %(awsdir,instance,awsregion,AMI,spotcmd,directoryToTransfer,counter)
+	if params['debug'] is True: 
+		print cmd 
 	subprocess.Popen(cmd,shell=True)
 	time.sleep(20)
      
@@ -203,4 +210,14 @@ if __name__ == "__main__":
 	print "3. Open NEW terminal on AWS instance and you should be in the same directory as the directory from where the script was launched"
 	print '\n4. When finished with cisTEM on AWS, log out of terminal by typing:'
 	print '$ exit'
-	print '$ cistem_terminate'
+	print '$ cistem_terminate.py'
+
+	if os.path.exists('%s/.instanceIPlist.txt' %(os.getcwd())): 
+		os.remove('%s/.instanceIPlist.txt' %(os.getcwd()))
+	if os.path.exists('%s/.instanceIDlist.txt' %(os.getcwd())): 
+                os.remove('%s/.instanceIDlist.txt' %(os.getcwd()))
+	with open('%s/.instanceIPlist.txt' %(os.getcwd()),'wb') as fp:
+                pickle.dump(instanceIPlist,fp)
+        with open('%s/.instanceIDlist.txt' %(os.getcwd()),'wb') as fp:
+                pickle.dump(instanceIDlist,fp)
+
