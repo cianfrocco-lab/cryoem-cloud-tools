@@ -149,15 +149,19 @@ def launchInstance(params,keyName,keyPath,AMI,AWS_ACCOUNT_ID):
     securityGroupDescript='Automated security group'
     if params['cryosparc'] is True: 
 	securityGroupDescript=securityGroupDescript+' cryosparc'
-    if uname == 'Linux': 
-    	IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
-    if uname == 'Darwin':
-	IPaddress=subprocess.Popen('curl -s ipecho.net | grep "Your IP is" | sed -e "s/^.* //" -e "s/\<.*$//"',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    IPaddress=''
 
-    #IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-    #if uname == 'Darwin': 
-	#IPaddress=subprocess.Popen('curl ipecho.net/plain ; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    while len(IPaddress) == 0: 
+	    
+	    if uname == 'Linux': 
+    		IPaddress=subprocess.Popen('curl -s ipecho.net/plain; echo',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+    	    if uname == 'Darwin':
+		IPaddress=subprocess.Popen('curl -s ipecho.net | grep "Your IP is" | sed -e "s/^.* //" -e "s/\<.*$//"',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+
+	    time.sleep(2)
+
     if len(IPaddress) == 0:
         print 'Error: Could not get IP address of your computer. Exiting.'
         sys.exit()
