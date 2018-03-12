@@ -408,7 +408,6 @@ if __name__ == "__main__":
 
 		#Run job
         	cmd='ssh  -o "StrictHostKeyChecking no" -q -n -f -i %s ubuntu@%s "export PATH=/usr/bin/$PATH && export PATH=/home/Rosetta/2017_08/main/source/:$PATH && /usr/local/bin/parallel -j%i ./run_final.sh {} ::: {1..%i}> /home/ubuntu/rosetta.out 2> /home/ubuntu/rosetta.err < /dev/null &"' %(keypair,instanceIPlist[counter],numthreads,numthreads)
-		print cmd 
 		subprocess.Popen(cmd,shell=True)
 	
 		counter=counter+1
