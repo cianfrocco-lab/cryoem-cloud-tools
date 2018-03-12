@@ -99,7 +99,6 @@ if __name__ == "__main__":
 	                time.sleep(30)
 			currentTime=datetime.datetime.utcnow()
 			numtot=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls * | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-			print numtot
 			if float(numtot) > 25: 
 				numPDB=subprocess.Popen('ssh -q -n -f -i %s ubuntu@%s "/bin/ls S*pdb | wc -l"'%(keypair,instanceIPlist[counter]),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 	                        subprocess.Popen(cmd,shell=True).wait()
