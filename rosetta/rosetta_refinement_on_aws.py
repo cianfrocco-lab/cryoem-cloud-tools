@@ -317,7 +317,7 @@ if __name__ == "__main__":
 			subprocess.Popen(cmd,shell=True).wait()
 
 	if params['relax'] == False:
-                cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s --fasta=%s --outdir=%s/ %s'  %(rosettadir,pdb_list,params['em_map'], params['fasta'],params['outdir'])
+                cmd='%s/rosetta_prepare_input_files.py --pdb_list=%s --em_map=%s --fasta=%s --outdir=%s/'  %(rosettadir,pdb_list,params['em_map'], params['fasta'],params['outdir'])
 		if params['debug'] is True: 
                         print cmd
 		subprocess.Popen(cmd,shell=True).wait()
