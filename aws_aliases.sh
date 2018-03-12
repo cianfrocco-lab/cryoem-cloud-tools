@@ -38,3 +38,6 @@ alias aws_snapshot_create=$AWS_CLI_DIR/create_snapshot.py
 alias aws_snapshot_delete=$AWS_CLI_DIR/kill_snapshot.py
 #Data directory
 export AWS_DATA_DIRECTORY=data
+export PYTHONPATH=$AWS_CLI_DIR/../awslib:$PYTHONPATH
+export PATH=$AWS_CLI_DIR/../cistem/:$PATH
+
