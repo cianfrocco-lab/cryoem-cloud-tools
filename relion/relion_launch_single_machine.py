@@ -87,9 +87,13 @@ def checkConflicts(params):
 	if awsregion == 'us-east-2': 
 		AMI='ami-edc7f088'
 		numToRequest=10
+	if awsregion == 'us-east-1': 
+		AMI='ami-56af582b'
 	if awsregion != 'us-east-2': 
-		print 'Error: single instance RELION is only setup in US-East-2. Exiting'
-		sys.exit()	
+		if awsregion != 'us-east-1':  
+			print 'Error: single instance RELION is only setup in US-East-1 or US-East-2. Exiting'
+			sys.exit()	
+	numToRequest=10
 	instance=params['instance']
 	if params['debug'] is True: 
 		print instance
