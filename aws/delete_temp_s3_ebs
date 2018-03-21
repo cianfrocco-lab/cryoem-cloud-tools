@@ -12,32 +12,39 @@ awsdir=subprocess.Popen('echo $AWS_CLI_DIR', shell=True, stdout=subprocess.PIPE)
 teamname=subprocess.Popen('echo $RESEARCH_GROUP_NAME',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 
 #List all S3 buckets& EBS volumes  with rln-aws
-numVols=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[*].{VolumeID:VolumeId}" | grep VolumeID | wc -l',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+numVols=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[*].Tags[*].{Key:Key}" | grep Key | grep Owner | wc -l',shell=True, stdout=subprocess.PIPE).stdout.read().strip()
 volsToDelete=[]
-vol=1
-while vol <= float(numVols):
+vol=0
+print numVols
+while vol < float(numVols):
 	description=subprocess.Popen('aws ec2 describe-volumes  --query "Volumes[%i].Tags[*].{Key:Key}" | grep Key' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()
 	count2=1
-        while count2 <= len(description):
-		if description[count2-1] == '"Name"':
-        	        value=subprocess.Popen('aws ec2 describe-volumes  --query "Volumes[%i].Tags[*].{Value:Value}" | grep Value' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-			nameVol=value.split('"')[count2*2-1]	
-		count2=count2+1
-	if len(nameVol.split('rln-aws-tmp-%s' %(teamname))) > 1:
-		volID=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{VolumeID:VolumeId}" | grep VolumeID' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
-		if len(volID.split())>0: 
-			volID=volID.split()[-1].split('"')[1]
-			createdDate=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{CreateTime:CreateTime}"'%(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('"CreateTime":')[-1].split('"')[1]
-			status=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{State:State}" | grep State' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
-			if status == 'available': 
-				day=createdDate.split('T')[0]
-				d0=date(int(day.split('-')[0]),int(day.split('-')[1]),int(day.split('-')[2]))
-				d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
-				delta = d1 - d0
-				timeDiff=delta.days-1
-				if timeDiff > ebs_lifetime:
-					volsToDelete.append(volID)
-		vol=vol+1
+	print description
+	if len(description)>0: 
+		while count2 <= len(description):
+			if description[count2-1] == '"Name"':
+        	        	value=subprocess.Popen('aws ec2 describe-volumes  --query "Volumes[%i].Tags[*].{Value:Value}" | grep Value' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+				nameVol=value.split('"')[count2*2-1]
+				print nameVol
+				print 'rln-aws-tmp-%s' %(teamname)
+				if len(nameVol.split('rln-aws-tmp-%s' %(teamname))) > 1:
+					volID=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{VolumeID:VolumeId}" | grep VolumeID' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+					if len(volID.split())>0: 
+						volID=volID.split()[-1].split('"')[1]
+						createdDate=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{CreateTime:CreateTime}"'%(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split('"CreateTime":')[-1].split('"')[1]
+						status=subprocess.Popen('aws ec2 describe-volumes --query "Volumes[%i].{State:State}" | grep State' %(vol),shell=True, stdout=subprocess.PIPE).stdout.read().strip().split()[-1].split('"')[1]
+						if status == 'available': 
+							day=createdDate.split('T')[0]
+							d0=date(int(day.split('-')[0]),int(day.split('-')[1]),int(day.split('-')[2]))
+							d1=date(datetime.datetime.now().year,datetime.datetime.now().month, datetime.datetime.now().day)
+							delta = d1 - d0
+							timeDiff=delta.days-1
+							print timeDiff 
+							print ebs_lifetime
+							if timeDiff > ebs_lifetime:
+								volsToDelete.append(volID)
+			count2=count2+1
+	vol=vol+1
 
 if len(volsToDelete)> 0: 
 	for vol in volsToDelete: 
@@ -47,7 +54,8 @@ if len(volsToDelete)> 0:
 
 if os.path.exists('awslog.log'): 
 	os.remove('awslog.log')
-
+print 'here'
+sys.exit()
 #S3 cleanup
 if os.path.exists('s3.log'):
         os.remove('s3.log')
