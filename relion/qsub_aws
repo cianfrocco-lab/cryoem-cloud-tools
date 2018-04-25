@@ -4548,6 +4548,9 @@ if __name__ == "__main__":
 	if len(sys.argv) == 2:
 		infile=sys.argv[1]
 
+	#Print RELION version to terminal
+	print '\nRunning job using RELION-2.1\n'
+
 	#Determine type of relion job
 	numlines=subprocess.Popen('cat %s | wc -l' %(infile),shell=True, stdout=subprocess.PIPE).stdout.read().strip() 
 	if float(numlines) == 0: 
