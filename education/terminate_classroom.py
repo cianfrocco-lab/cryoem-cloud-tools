@@ -55,9 +55,9 @@ if __name__ == "__main__":
 	for line in open(params['instancelist'],'r'): 
 		if 'Information' in line: 
 			continue
-		instanceidlist.append(line.split()[2])
-		ebs1list.append(line.split()[3])
-		ebs2list.append(line.split()[4])
+		instanceidlist.append(line.split()[3])
+		ebs1list.append(line.split()[5])
+		ebs2list.append(line.split()[7])
 
 	counter=0
 	while counter<len(instanceidlist): 
@@ -81,7 +81,6 @@ if __name__ == "__main__":
                 time.sleep(5)
 
                 cmd='%s/kill_volume.py %s > awslog.log' %(awsdir,ebs1list[counter])
-                print cmd 
 		subprocess.Popen(cmd,shell=True).wait()
 
 		if '---' not in ebs2list[counter]: 
